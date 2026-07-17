@@ -41,10 +41,7 @@
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const notifyOnResolveInput = document.getElementById("notify-on-resolve");
   const customAccentInput = document.getElementById("custom-accent");
-  const customLogoFile = document.getElementById("custom-logo-file");
-  const customLogoHint = document.getElementById("custom-logo-hint");
   const btnResetAccent = document.getElementById("btn-reset-accent");
-  const btnClearLogo = document.getElementById("btn-clear-logo");
   const profileSelect = document.getElementById("profile-select");
   const btnProfileSave = document.getElementById("btn-profile-save");
   const btnProfileDelete = document.getElementById("btn-profile-delete");
@@ -745,7 +742,7 @@
       const data = await res.json();
       if (res.ok) {
         settings = { ...(settings || {}), ...data };
-        showToast(theme === "alldebrid" ? "Thème AllDebrid activé." : "Thème Linkora activé.");
+        showToast(theme === "alldebrid" ? "Thème Ambre activé." : "Thème Linkora activé.");
       }
     } catch {
       /* ignore */
@@ -808,31 +805,6 @@
       root.style.setProperty("--accent", accent);
     } else {
       root.style.removeProperty("--accent");
-    }
-    const logos = document.querySelectorAll(".brand-logo, .hero-logo");
-    logos.forEach((wrap) => {
-      const existing = wrap.querySelector("img.custom-brand-logo");
-      if (data?.custom_logo) {
-        const url = `/api/branding/logo?t=${Date.now()}`;
-        if (existing) {
-          existing.src = url;
-        } else {
-          const img = document.createElement("img");
-          img.className = "custom-brand-logo";
-          img.alt = "Linkora";
-          img.src = url;
-          wrap.innerHTML = "";
-          wrap.appendChild(img);
-        }
-      } else if (existing) {
-        // Rechargement page pour restaurer le SVG — simple reload partiel non nécessaire :
-        // on laisse l’img si déjà remplacée jusqu’au prochain refresh.
-      }
-    });
-    if (customLogoHint) {
-      customLogoHint.textContent = data?.custom_logo
-        ? "Logo personnalisé actif."
-        : "Aucun logo perso.";
     }
     if (customAccentInput && accent) {
       customAccentInput.value = accent.length === 4
@@ -1809,43 +1781,6 @@
     showToast("Accent réinitialisé (enregistrez pour confirmer).");
   });
 
-  customLogoFile?.addEventListener("change", async () => {
-    const file = customLogoFile.files?.[0];
-    customLogoFile.value = "";
-    if (!file) return;
-    const body = new FormData();
-    body.append("file", file);
-    try {
-      const res = await fetch("/api/branding/logo", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error || "Upload logo impossible.");
-        return;
-      }
-      settings = data.settings || settings;
-      applyCustomBranding(settings);
-      showToast("Logo personnalisé enregistré.");
-    } catch {
-      showToast("Upload logo impossible.");
-    }
-  });
-
-  btnClearLogo?.addEventListener("click", async () => {
-    try {
-      const res = await fetch("/api/branding/logo", { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error || "Suppression impossible.");
-        return;
-      }
-      settings = data.settings || settings;
-      applyCustomBranding(settings);
-      showToast("Logo retiré — rechargez la page pour le logo d’origine.");
-    } catch {
-      showToast("Suppression impossible.");
-    }
-  });
-
   document.querySelectorAll("[data-test-provider]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const provider = btn.dataset.testProvider;
@@ -2064,6 +1999,7 @@
   const renameBody = document.getElementById("rename-body");
   const renameSummary = document.getElementById("rename-results-summary");
   const btnRenameScan = document.getElementById("btn-rename-scan");
+  const renameCheckAll = document.getElementById("rename-check-all");
   let renameItems = [];
 
   function showRenameError(message) {
@@ -2084,6 +2020,33 @@
     if (label) label.textContent = loading ? "Scan…" : "Scanner";
   }
 
+  function syncRenameCheckAll() {
+    if (!renameCheckAll || !renameBody) return;
+    const boxes = [...renameBody.querySelectorAll(".rename-check")];
+    if (!boxes.length) {
+      renameCheckAll.checked = false;
+      renameCheckAll.indeterminate = false;
+      return;
+    }
+    const n = boxes.filter((b) => b.checked).length;
+    renameCheckAll.checked = n === boxes.length;
+    renameCheckAll.indeterminate = n > 0 && n < boxes.length;
+  }
+
+  function selectedRenameItems() {
+    if (!renameBody) return [];
+    const selected = new Set();
+    renameBody.querySelectorAll(".rename-check:checked").forEach((cb) => {
+      const i = Number(cb.dataset.renameIndex);
+      if (!Number.isNaN(i)) selected.add(i);
+    });
+    return renameItems.filter((item, i) => selected.has(i));
+  }
+
+  function renameTargetsFromSelection() {
+    return selectedRenameItems().filter((i) => !i.unchanged && !i.conflict);
+  }
+
   function renderRenameResults(data) {
     renameItems = data.items || [];
     renameResults.hidden = false;
@@ -2091,7 +2054,8 @@
     renameSummary.innerHTML =
       `<strong>${renameItems.length}</strong> fichier(s) · ` +
       `<strong>${toRename}</strong> à renommer · ` +
-      `<code>${escapeHtml(data.folder)}</code>`;
+      `<code>${escapeHtml(data.folder)}</code>` +
+      `<br><span class="field-hint">Décochez les fichiers à ne pas modifier (tout est coché par défaut).</span>`;
 
     renameBody.innerHTML = renameItems.length
       ? renameItems
@@ -2107,6 +2071,9 @@
             }
             return `
         <tr class="${item.unchanged ? "row-muted" : ""}">
+          <td class="col-check">
+            <input type="checkbox" class="rename-check" data-rename-index="${i}" checked aria-label="Inclure ${escapeHtml(item.original)}">
+          </td>
           <td>${i + 1}</td>
           <td class="cell-filename" title="${escapeHtml(item.original)}">${escapeHtml(item.original)}</td>
           <td>→</td>
@@ -2116,9 +2083,25 @@
         </tr>`;
           })
           .join("")
-      : `<tr><td colspan="6">Aucun fichier vidéo/audio dans ce dossier.</td></tr>`;
+      : `<tr><td colspan="7">Aucun fichier vidéo/audio dans ce dossier.</td></tr>`;
+    if (renameCheckAll) {
+      renameCheckAll.checked = renameItems.length > 0;
+      renameCheckAll.indeterminate = false;
+    }
     renameResults.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  renameBody?.addEventListener("change", (event) => {
+    if (event.target?.classList?.contains("rename-check")) syncRenameCheckAll();
+  });
+
+  renameCheckAll?.addEventListener("change", () => {
+    const on = !!renameCheckAll.checked;
+    renameBody?.querySelectorAll(".rename-check").forEach((cb) => {
+      cb.checked = on;
+    });
+    renameCheckAll.indeterminate = false;
+  });
 
   renameForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2149,14 +2132,14 @@
   });
 
   document.getElementById("btn-rename-apply")?.addEventListener("click", async () => {
-    const items = renameItems.filter((i) => !i.unchanged && !i.conflict);
+    const items = renameTargetsFromSelection();
     if (!items.length) {
-      showToast("Aucun fichier à renommer.");
+      showToast("Aucun fichier coché à renommer.");
       return;
     }
     const ok = await askConfirm(
-      `Renommer ${items.length} fichier(s) ?`,
-      "Cette action est locale sur votre PC et modifie les noms de fichiers.",
+      `Renommer ${items.length} fichier(s) coché(s) ?`,
+      "Seuls les fichiers sélectionnés seront modifiés sur votre PC.",
       { confirmText: "Renommer", icon: "question" }
     );
     if (!ok) return;
@@ -2180,9 +2163,9 @@
   });
 
   document.getElementById("btn-rename-dry")?.addEventListener("click", async () => {
-    const items = renameItems.filter((i) => !i.unchanged && !i.conflict);
+    const items = renameTargetsFromSelection();
     if (!items.length) {
-      showToast("Rien à simuler.");
+      showToast("Rien à simuler (cochez des fichiers).");
       return;
     }
     try {
@@ -2199,13 +2182,11 @@
   });
 
   document.getElementById("btn-rename-copy")?.addEventListener("click", async () => {
-    const text = renameItems
-      .filter((i) => !i.unchanged)
-      .map((i) => `${i.original} → ${i.suggested}`)
-      .join("\n");
+    const items = selectedRenameItems().filter((i) => !i.unchanged);
+    const text = items.map((i) => `${i.original} → ${i.suggested}`).join("\n");
     try {
       await navigator.clipboard.writeText(text || "");
-      showToast("Liste copiée.");
+      showToast(items.length ? "Liste (sélection) copiée." : "Rien à copier.");
     } catch {
       showToast("Copie impossible.");
     }

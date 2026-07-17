@@ -200,8 +200,7 @@ def update_settings(payload: dict) -> dict:
         current["custom_accent"] = (
             accent if accent.startswith("#") and len(accent) in (4, 7) else ""
         )
-    if "custom_logo" in payload:
-        current["custom_logo"] = bool(payload["custom_logo"])
+    # Logo : non personnalisable (marque Linkora figée)
     if "profiles" in payload:
         current["profiles"] = _normalize_profiles(payload.get("profiles"))
     if "active_profile_id" in payload:

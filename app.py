@@ -132,43 +132,6 @@ def api_settings_profile_apply():
     return jsonify({"profile": prof, "settings": app_settings.public_settings()})
 
 
-@app.get("/api/branding/logo")
-def api_branding_logo():
-    path = app_settings.custom_logo_path()
-    if not path:
-        return jsonify({"error": "Aucun logo."}), 404
-    mime = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".svg": "image/svg+xml",
-        ".webp": "image/webp",
-    }.get(path.suffix.lower(), "application/octet-stream")
-    return send_file(path, mimetype=mime)
-
-
-@app.post("/api/branding/logo")
-def api_branding_logo_upload():
-    uploaded = request.files.get("file")
-    if not uploaded or not uploaded.filename:
-        return jsonify({"error": "Fichier manquant."}), 400
-    ext = Path(uploaded.filename).suffix.lower()
-    if ext not in (".png", ".jpg", ".jpeg", ".svg", ".webp"):
-        return jsonify({"error": "Formats acceptés : png, jpg, svg, webp."}), 400
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    app_settings.clear_custom_logo()
-    target = DATA_DIR / f"{app_settings.CUSTOM_LOGO_NAME}{ext}"
-    uploaded.save(target)
-    app_settings.update_settings({"custom_logo": True})
-    return jsonify({"ok": True, "settings": app_settings.public_settings()})
-
-
-@app.delete("/api/branding/logo")
-def api_branding_logo_delete():
-    app_settings.clear_custom_logo()
-    return jsonify({"ok": True, "settings": app_settings.public_settings()})
-
-
 @app.get("/api/data/backup")
 def api_data_backup():
     DATA_DIR.mkdir(parents=True, exist_ok=True)

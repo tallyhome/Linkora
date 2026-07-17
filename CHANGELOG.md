@@ -4,6 +4,17 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.1] — 2026-07-17
+
+### Ajouté
+- Renommage : **cases à cocher** + case « tout » en en-tête (défaut : tout coché)
+
+### Modifié
+- Thème « AllDebrid » renommé **Ambre** (évite la confusion avec le débrideur)
+- Logo Linkora **non personnalisable** (option retirée des paramètres)
+
+---
+
 ## [1.3.0] — 2026-07-17
 
 ### Ajouté

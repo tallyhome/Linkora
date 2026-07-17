@@ -47,7 +47,7 @@
       <span id="provider-badge" class="provider-badge" hidden></span>
       <div class="theme-switch" role="group" aria-label="Thème">
         <button type="button" class="theme-btn is-active" data-theme-set="linkora" title="Thème Linkora">Défaut</button>
-        <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème AllDebrid">AllDebrid</button>
+        <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème Ambre">Ambre</button>
       </div>
       <button type="button" class="btn-help-round" id="btn-help" title="Aide & infos" aria-label="Aide et informations">
         <span aria-hidden="true">?</span>
@@ -321,6 +321,9 @@
           <table class="links-table rename-table">
             <thead>
               <tr>
+                <th class="col-check">
+                  <input type="checkbox" id="rename-check-all" title="Tout cocher / décocher" checked aria-label="Tout cocher ou décocher">
+                </th>
                 <th>#</th>
                 <th>Original</th>
                 <th>→</th>
@@ -440,6 +443,7 @@
           <h2>Renommage intelligent</h2>
           <p>Onglet dédié : indiquez un dossier local, Linkora propose des noms propres (Plex / Jellyfin / points).</p>
           <ul>
+            <li>Cochez les fichiers à renommer (tout est coché par défaut) — pratique pour laisser les noms déjà propres.</li>
             <li>Toujours un <strong>aperçu</strong> avant de renommer pour de vrai.</li>
             <li>Le <strong>template</strong> se choisit dans Paramètres.</li>
           </ul>
@@ -449,9 +453,7 @@
           <h2>Paramètres</h2>
           <dl class="help-dl">
             <dt>Thème</dt>
-            <dd>Linkora (défaut) ou AllDebrid. Couleur d’accent perso possible plus bas.</dd>
-            <dt>Logo perso</dt>
-            <dd>Image locale affichée à la place du logo (optionnel).</dd>
+            <dd>Linkora (défaut) ou Ambre. Couleur d’accent optionnelle dans Paramètres. Le logo Linkora n’est pas modifiable.</dd>
             <dt>Notifications</dt>
             <dd>Alerte système quand une résolution / file est terminée.</dd>
             <dt>Auto-update</dt>
@@ -501,7 +503,7 @@
           <span class="field-label">Thème d’interface</span>
           <select id="ui-theme" name="theme">
             <option value="linkora">Linkora (défaut)</option>
-            <option value="alldebrid">AllDebrid (jaune / rouge)</option>
+            <option value="alldebrid">Ambre (jaune / rouge)</option>
           </select>
         </label>
 
@@ -559,22 +561,14 @@
         </div>
 
         <fieldset class="provider-block">
-          <legend>Personnalisation</legend>
+          <legend>Couleur d’accent</legend>
           <label class="field">
-            <span class="field-label">Couleur d’accent (optionnel)</span>
+            <span class="field-label">Accent (optionnel)</span>
             <input type="color" id="custom-accent" value="#2a6df4" title="Accent">
-            <span class="field-hint">Laissez le thème par défaut si vous ne changez rien. Remise : bouton ci-dessous.</span>
-          </label>
-          <div class="modal-actions" style="justify-content:flex-start;margin:0 0 0.75rem">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-reset-accent">Accent par défaut</button>
-          </div>
-          <label class="field">
-            <span class="field-label">Logo personnalisé (PNG/JPG/SVG)</span>
-            <input type="file" id="custom-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp">
-            <span class="field-hint" id="custom-logo-hint">Aucun logo perso.</span>
+            <span class="field-hint">Personnalise la couleur des boutons. Remise : bouton ci-dessous.</span>
           </label>
           <div class="modal-actions" style="justify-content:flex-start;margin:0.35rem 0 0">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-logo">Retirer le logo</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-reset-accent">Accent par défaut</button>
           </div>
         </fieldset>
 
