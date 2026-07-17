@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.2.0] — 2026-07-17
+
+### Ajouté
+- **Profils / presets** (hébergeur, débrideur, parallélisme, template)
+- **Notifications** système en fin de résolution / file d’attente
+- **Backup** export / import du dossier `data/` (zip)
+- **File d’attente** : récupérer + résoudre page par page
+- Numéro de **version** dans le pied de page
+
+### Modifié
+- Roadmap : phases 0–4 marquées faites
+
+---
+
 ## [1.1.0] — 2026-07-17
 
 ### Ajouté

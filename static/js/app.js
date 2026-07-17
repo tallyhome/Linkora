@@ -39,6 +39,17 @@
   const missingBox = document.getElementById("missing-episodes-box");
   const maxRetriesInput = document.getElementById("max-retries");
   const concurrencyInput = document.getElementById("resolve-concurrency");
+  const notifyOnResolveInput = document.getElementById("notify-on-resolve");
+  const profileSelect = document.getElementById("profile-select");
+  const btnProfileSave = document.getElementById("btn-profile-save");
+  const btnProfileDelete = document.getElementById("btn-profile-delete");
+  const queueList = document.getElementById("queue-list");
+  const queueHint = document.getElementById("queue-hint");
+  const btnQueueAdd = document.getElementById("btn-queue-add");
+  const btnQueueRun = document.getElementById("btn-queue-run");
+  const btnQueueClear = document.getElementById("btn-queue-clear");
+  const btnBackupExport = document.getElementById("btn-backup-export");
+  const backupImportFile = document.getElementById("backup-import-file");
   const keyAlldebrid = document.getElementById("key-alldebrid");
   const keyRealdebrid = document.getElementById("key-realdebrid");
   const hintAlldebrid = document.getElementById("hint-alldebrid");
@@ -53,6 +64,8 @@
   const resolveProgressFill = document.getElementById("resolve-progress-fill");
 
   let resolveAbort = false;
+  let workQueue = [];
+  let queueRunning = false;
 
   const PROVIDER_LABELS = {
     alldebrid: "AllDebrid",
@@ -82,6 +95,77 @@
         toast.hidden = true;
       }, 300);
     }, 2600);
+  }
+
+  function notifyDesktop(title, body) {
+    if (!settings?.notify_on_resolve) return;
+    if (!("Notification" in window)) return;
+    const show = () => {
+      try {
+        new Notification(title, {
+          body,
+          icon: "/static/img/logo.png",
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    if (Notification.permission === "granted") show();
+    else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((p) => {
+        if (p === "granted") show();
+      });
+    }
+  }
+
+  function refreshProfileSelect() {
+    if (!profileSelect) return;
+    const profiles = settings?.profiles || [];
+    const active = settings?.active_profile_id || "";
+    profileSelect.innerHTML =
+      `<option value="">— Aucun profil —</option>` +
+      profiles
+        .map(
+          (p) =>
+            `<option value="${escapeHtml(p.id)}"${p.id === active ? " selected" : ""}>${escapeHtml(p.name)}</option>`
+        )
+        .join("");
+  }
+
+  function renderQueue() {
+    if (!queueList) return;
+    queueList.innerHTML = workQueue
+      .map((item, idx) => {
+        const st =
+          item.status === "running"
+            ? "en cours"
+            : item.status === "done"
+              ? "ok"
+              : item.status === "error"
+                ? "erreur"
+                : "en attente";
+        const cls =
+          item.status === "running"
+            ? "is-running"
+            : item.status === "done"
+              ? "is-done"
+              : item.status === "error"
+                ? "is-error"
+                : "";
+        const short =
+          item.url.length > 70 ? `${item.url.slice(0, 67)}…` : item.url;
+        return `<li class="queue-item ${cls}" data-qi="${idx}">
+          <span class="queue-item-status">${st}</span>
+          <span class="queue-item-url" title="${escapeHtml(item.url)}">${escapeHtml(short)}</span>
+          <button type="button" class="btn btn-ghost btn-xs" data-queue-remove="${idx}" ${queueRunning ? "disabled" : ""}>×</button>
+        </li>`;
+      })
+      .join("");
+    if (queueHint) {
+      queueHint.textContent = workQueue.length
+        ? `${workQueue.length} page(s) en file — hébergeur : ${hostInput.value.trim() || "…"}`
+        : "Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.";
+    }
   }
 
   async function askConfirm(title, text, { confirmText = "Confirmer", icon = "warning" } = {}) {
@@ -715,6 +799,9 @@
     if (autoUpdateInput) {
       autoUpdateInput.checked = settings.auto_update !== false;
     }
+    if (notifyOnResolveInput) {
+      notifyOnResolveInput.checked = settings.notify_on_resolve !== false;
+    }
     if (updateManifestInput) {
       updateManifestInput.value = settings.update_manifest_url || "";
     }
@@ -733,6 +820,7 @@
       ? `Configurée : ${settings.providers.realdebrid.api_key_masked}`
       : "Aucune clé enregistrée.";
     updateProviderBadge();
+    refreshProfileSelect();
     refreshUpdateStatus();
   }
 
@@ -1213,8 +1301,13 @@
 
     if (resolveAbort) {
       showToast(`Arrêté : ${result.ok}/${result.total} résolu(s).`);
+      notifyDesktop("Linkora — arrêté", `${result.ok}/${result.total} résolu(s)`);
     } else {
       showToast(`${result.ok}/${result.total} lien(s) résolus via ${providerName}.`);
+      notifyDesktop(
+        "Linkora — résolution terminée",
+        `${result.ok}/${result.total} lien(s) via ${providerName}`
+      );
     }
   });
 
@@ -1587,8 +1680,13 @@
       max_retries: Number(maxRetriesInput?.value || 3),
       resolve_concurrency: Number(concurrencyInput?.value || 6),
       auto_update: autoUpdateInput ? !!autoUpdateInput.checked : true,
+      notify_on_resolve: notifyOnResolveInput
+        ? !!notifyOnResolveInput.checked
+        : true,
       update_manifest_url: updateManifestInput?.value?.trim() || "",
       rename_template: renameTemplateSelect?.value || "simple",
+      profiles: settings?.profiles || [],
+      active_profile_id: settings?.active_profile_id || "",
       providers: {
         alldebrid: {},
         realdebrid: {},
@@ -1615,6 +1713,7 @@
       settings = data;
       applyTheme(data.theme === "alldebrid" ? "alldebrid" : "linkora");
       updateProviderBadge();
+      refreshProfileSelect();
       hintAlldebrid.textContent = data.providers?.alldebrid?.configured
         ? `Configurée : ${data.providers.alldebrid.api_key_masked}`
         : "Aucune clé enregistrée.";
@@ -1627,6 +1726,9 @@
       settingsModal.hidden = false;
       showSettingsMessage("Paramètres enregistrés.", true);
       showToast("Paramètres enregistrés.");
+      if (data.notify_on_resolve && "Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
     } catch {
       showSettingsMessage("Erreur réseau.", false);
     }
@@ -2070,8 +2172,370 @@
     }
   });
 
+  profileSelect?.addEventListener("change", async () => {
+    const id = profileSelect.value;
+    if (!id) {
+      if (settings) settings.active_profile_id = "";
+      try {
+        await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active_profile_id: "" }),
+        });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    try {
+      const res = await fetch("/api/settings/profiles/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Profil impossible.");
+        return;
+      }
+      settings = data.settings;
+      const prof = data.profile;
+      if (prof?.host) hostInput.value = prof.host;
+      if (activeProviderSelect) {
+        activeProviderSelect.value = settings.active_provider || "alldebrid";
+      }
+      if (maxRetriesInput) maxRetriesInput.value = String(settings.max_retries || 3);
+      if (concurrencyInput) {
+        concurrencyInput.value = String(settings.resolve_concurrency || 6);
+      }
+      if (renameTemplateSelect) {
+        renameTemplateSelect.value = settings.rename_template || "simple";
+      }
+      updateProviderBadge();
+      refreshProfileSelect();
+      showToast(`Profil « ${prof.name} » appliqué.`);
+    } catch {
+      showToast("Impossible d’appliquer le profil.");
+    }
+  });
+
+  btnProfileSave?.addEventListener("click", async () => {
+    const name = window.prompt(
+      "Nom du profil (ex. Rapidgator AllDebrid) :",
+      profileSelect?.selectedOptions?.[0]?.text?.startsWith("—")
+        ? ""
+        : profileSelect?.selectedOptions?.[0]?.text || ""
+    );
+    if (name == null) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      showToast("Nom de profil requis.");
+      return;
+    }
+    try {
+      await loadSettings();
+    } catch {
+      /* ignore */
+    }
+    const profiles = [...(settings?.profiles || [])];
+    const existingId = profileSelect?.value || "";
+    const payloadProfile = {
+      id: existingId || undefined,
+      name: trimmed,
+      host: hostInput.value.trim(),
+      active_provider: settings?.active_provider || activeProviderSelect?.value || "alldebrid",
+      max_retries: Number(settings?.max_retries || maxRetriesInput?.value || 3),
+      resolve_concurrency: Number(
+        settings?.resolve_concurrency || concurrencyInput?.value || 6
+      ),
+      rename_template: settings?.rename_template || renameTemplateSelect?.value || "simple",
+    };
+    if (existingId) {
+      const idx = profiles.findIndex((p) => p.id === existingId);
+      if (idx >= 0) profiles[idx] = { ...profiles[idx], ...payloadProfile, id: existingId };
+      else profiles.push(payloadProfile);
+    } else {
+      profiles.push(payloadProfile);
+    }
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profiles,
+          active_profile_id: existingId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Profil non enregistré.");
+        return;
+      }
+      settings = data;
+      // Sélectionner le profil créé / mis à jour
+      const match =
+        data.profiles?.find((p) => p.name === trimmed) ||
+        data.profiles?.[data.profiles.length - 1];
+      if (match) {
+        await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active_profile_id: match.id }),
+        });
+        settings.active_profile_id = match.id;
+      }
+      refreshProfileSelect();
+      showToast(`Profil « ${trimmed} » enregistré.`);
+    } catch {
+      showToast("Enregistrement du profil impossible.");
+    }
+  });
+
+  btnProfileDelete?.addEventListener("click", async () => {
+    const id = profileSelect?.value;
+    if (!id) {
+      showToast("Sélectionnez un profil.");
+      return;
+    }
+    const ok = await askConfirm(
+      "Supprimer ce profil ?",
+      "Les réglages globaux et les clés API ne seront pas effacés."
+    );
+    if (!ok) return;
+    const profiles = (settings?.profiles || []).filter((p) => p.id !== id);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profiles, active_profile_id: "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Suppression impossible.");
+        return;
+      }
+      settings = data;
+      refreshProfileSelect();
+      showToast("Profil supprimé.");
+    } catch {
+      showToast("Suppression impossible.");
+    }
+  });
+
+  queueList?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-queue-remove]");
+    if (!btn || queueRunning) return;
+    const idx = Number(btn.getAttribute("data-queue-remove"));
+    if (Number.isNaN(idx)) return;
+    workQueue.splice(idx, 1);
+    renderQueue();
+  });
+
+  btnQueueAdd?.addEventListener("click", () => {
+    const lines = (urlsInput.value || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (!lines.length) {
+      showToast("Collez d’abord une ou plusieurs URLs.");
+      return;
+    }
+    const host = hostInput.value.trim();
+    if (!host) {
+      showToast("Indiquez un hébergeur.");
+      return;
+    }
+    let added = 0;
+    for (const url of lines) {
+      if (workQueue.some((q) => q.url === url && q.host === host)) continue;
+      workQueue.push({ url, host, status: "pending", error: "" });
+      added += 1;
+    }
+    renderQueue();
+    showToast(added ? `${added} page(s) ajoutée(s) à la file.` : "Déjà dans la file.");
+  });
+
+  btnQueueClear?.addEventListener("click", async () => {
+    if (queueRunning) {
+      showToast("File en cours — Stop d’abord.");
+      return;
+    }
+    if (!workQueue.length) return;
+    const ok = await askConfirm("Vider la file ?", "Les pages en attente seront retirées.");
+    if (!ok) return;
+    workQueue = [];
+    renderQueue();
+  });
+
+  async function resolveCurrentBatches() {
+    const provider = await ensureProviderReady();
+    if (!provider) return null;
+    const providerName = PROVIDER_LABELS[provider] || provider;
+    resolveAbort = false;
+    setResolving(true);
+    current.batches.forEach((batch) => {
+      batch.links = (batch.links || []).map(resetLinkForResolve);
+    });
+    syncFlatLinks();
+    refreshCurrentView({ scroll: false });
+    const jobs = collectJobs((l) => l.resolve_status !== "ok");
+    if (!jobs.length) {
+      setResolving(false);
+      return { ok: 0, total: 0, providerName, skipped: true };
+    }
+    const result = await runResolvePool(jobs, provider, "File — résolution…");
+    syncFlatLinks();
+    current.resolved_provider = provider;
+    updateSummary();
+    await autoSaveHistory(current);
+    setResolving(false);
+    return { ...result, providerName, skipped: false };
+  }
+
+  btnQueueRun?.addEventListener("click", async () => {
+    if (queueRunning) {
+      showToast("File déjà en cours.");
+      return;
+    }
+    if (!workQueue.length) {
+      showToast("File vide — ajoutez des URLs.");
+      return;
+    }
+    const host = hostInput.value.trim();
+    if (!host && workQueue.some((q) => !q.host)) {
+      showToast("Indiquez un hébergeur.");
+      return;
+    }
+    queueRunning = true;
+    btnQueueRun.disabled = true;
+    btnQueueAdd.disabled = true;
+    let pagesOk = 0;
+    let linksOk = 0;
+    let linksTotal = 0;
+    const allBatches = [];
+
+    try {
+      for (let i = 0; i < workQueue.length; i += 1) {
+        if (resolveAbort) break;
+        const item = workQueue[i];
+        item.status = "running";
+        renderQueue();
+        showToast(`File ${i + 1}/${workQueue.length} — extraction…`);
+        try {
+          const res = await fetch("/api/extract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              urls: item.url,
+              host: item.host || host,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            item.status = "error";
+            item.error = data.error || "Extraction échouée";
+            renderQueue();
+            continue;
+          }
+          const batches = data.batches || [];
+          if (!batches.length) {
+            item.status = "error";
+            item.error = "Aucun lien";
+            renderQueue();
+            continue;
+          }
+          // Fusionner pour affichage + résolution page courante
+          allBatches.push(...batches);
+          current = normalizeCurrent({
+            ...data,
+            batches: allBatches,
+            host: item.host || host,
+          });
+          syncFlatLinks();
+          renderResults(current, { scroll: i === 0 });
+          const resolved = await resolveCurrentBatches();
+          if (resolved && !resolved.skipped) {
+            linksOk += resolved.ok || 0;
+            linksTotal += resolved.total || 0;
+          }
+          item.status = resolveAbort ? "error" : "done";
+          if (!resolveAbort) pagesOk += 1;
+          renderQueue();
+        } catch {
+          item.status = "error";
+          item.error = "Réseau";
+          renderQueue();
+        }
+      }
+      const msg = resolveAbort
+        ? `File arrêtée — ${pagesOk} page(s), ${linksOk}/${linksTotal} liens.`
+        : `File terminée — ${pagesOk} page(s), ${linksOk}/${linksTotal} liens résolus.`;
+      showToast(msg);
+      notifyDesktop("Linkora — file d’attente", msg);
+    } finally {
+      queueRunning = false;
+      btnQueueRun.disabled = false;
+      btnQueueAdd.disabled = false;
+      renderQueue();
+    }
+  });
+
+  btnBackupExport?.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/data/backup");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Export impossible.");
+        return;
+      }
+      const blob = await res.blob();
+      const dispo = res.headers.get("Content-Disposition") || "";
+      const match = /filename="?([^"]+)"?/i.exec(dispo);
+      const name = match?.[1] || "linkora-data.zip";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast("Backup téléchargé.");
+    } catch {
+      showToast("Export impossible.");
+    }
+  });
+
+  backupImportFile?.addEventListener("change", async () => {
+    const file = backupImportFile.files?.[0];
+    backupImportFile.value = "";
+    if (!file) return;
+    const ok = await askConfirm(
+      "Restaurer ce backup ?",
+      "Cela remplacera l’historique et les réglages locaux actuels."
+    );
+    if (!ok) return;
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const res = await fetch("/api/data/restore", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Import impossible.");
+        return;
+      }
+      if (data.settings) {
+        settings = data.settings;
+        await loadSettings();
+      }
+      await loadHistory();
+      showToast(data.message || "Backup restauré.");
+      closeSettings();
+    } catch {
+      showToast("Import impossible.");
+    }
+  });
+
   loadSettings().catch(() => {});
   loadHistory();
+  renderQueue();
   refreshUpdateStatus();
   // Re-vérifie l’état MAJ après le check auto au démarrage serveur
   setTimeout(() => refreshUpdateStatus(), 2500);

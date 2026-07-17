@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from paths import DATA_DIR
 
@@ -16,11 +17,16 @@ DEFAULTS = {
     "auto_update": True,
     "update_manifest_url": "",
     "rename_template": "simple",
+    "notify_on_resolve": True,
+    "profiles": [],
+    "active_profile_id": "",
     "providers": {
         "alldebrid": {"api_key": "", "enabled": True},
         "realdebrid": {"api_key": "", "enabled": True},
     },
 }
+
+RENAME_TEMPLATES = ("simple", "plex", "jellyfin", "dotted")
 
 
 def _clamp_int(value, default: int, lo: int, hi: int) -> int:
@@ -29,6 +35,46 @@ def _clamp_int(value, default: int, lo: int, hi: int) -> int:
     except (TypeError, ValueError):
         return default
     return max(lo, min(hi, n))
+
+
+def _normalize_profile(raw: dict | None) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    name = str(raw.get("name") or "").strip()
+    if not name:
+        return None
+    pid = str(raw.get("id") or "").strip() or str(uuid.uuid4())
+    tmpl = str(raw.get("rename_template") or "simple")
+    if tmpl not in RENAME_TEMPLATES:
+        tmpl = "simple"
+    provider = str(raw.get("active_provider") or "alldebrid")
+    if provider not in ("alldebrid", "realdebrid"):
+        provider = "alldebrid"
+    return {
+        "id": pid,
+        "name": name[:80],
+        "host": str(raw.get("host") or "").strip()[:120],
+        "active_provider": provider,
+        "max_retries": _clamp_int(raw.get("max_retries"), 3, 1, 8),
+        "resolve_concurrency": _clamp_int(raw.get("resolve_concurrency"), 6, 1, 12),
+        "rename_template": tmpl,
+    }
+
+
+def _normalize_profiles(raw) -> list[dict]:
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    seen: set[str] = set()
+    for item in raw:
+        prof = _normalize_profile(item)
+        if not prof or prof["id"] in seen:
+            continue
+        seen.add(prof["id"])
+        out.append(prof)
+        if len(out) >= 40:
+            break
+    return out
 
 
 def _ensure() -> dict:
@@ -53,12 +99,15 @@ def _ensure() -> dict:
         merged["update_manifest_url"] = str(data.get("update_manifest_url") or "")
     if "rename_template" in data:
         tmpl = str(data.get("rename_template") or "simple")
-        merged["rename_template"] = tmpl if tmpl in (
-            "simple",
-            "plex",
-            "jellyfin",
-            "dotted",
-        ) else "simple"
+        merged["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
+    if "notify_on_resolve" in data:
+        merged["notify_on_resolve"] = bool(data["notify_on_resolve"])
+    merged["profiles"] = _normalize_profiles(data.get("profiles"))
+    active_pid = str(data.get("active_profile_id") or "")
+    if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
+        merged["active_profile_id"] = active_pid
+    else:
+        merged["active_profile_id"] = ""
     for name, conf in data.get("providers", {}).items():
         if name in merged["providers"]:
             merged["providers"][name].update(conf)
@@ -97,9 +146,17 @@ def update_settings(payload: dict) -> dict:
         current["update_manifest_url"] = str(payload.get("update_manifest_url") or "").strip()
     if "rename_template" in payload:
         tmpl = str(payload.get("rename_template") or "simple")
-        current["rename_template"] = (
-            tmpl if tmpl in ("simple", "plex", "jellyfin", "dotted") else "simple"
-        )
+        current["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
+    if "notify_on_resolve" in payload:
+        current["notify_on_resolve"] = bool(payload["notify_on_resolve"])
+    if "profiles" in payload:
+        current["profiles"] = _normalize_profiles(payload.get("profiles"))
+    if "active_profile_id" in payload:
+        pid = str(payload.get("active_profile_id") or "")
+        if pid and any(p["id"] == pid for p in current["profiles"]):
+            current["active_profile_id"] = pid
+        else:
+            current["active_profile_id"] = ""
     providers = payload.get("providers") or {}
     for name, conf in providers.items():
         if name not in current["providers"]:
@@ -114,6 +171,21 @@ def update_settings(payload: dict) -> dict:
         if "enabled" in conf:
             current["providers"][name]["enabled"] = bool(conf["enabled"])
     return save_settings(current)
+
+
+def apply_profile(profile_id: str) -> dict | None:
+    """Applique un profil aux réglages courants (hors clés API)."""
+    current = load_settings()
+    prof = next((p for p in current["profiles"] if p["id"] == profile_id), None)
+    if not prof:
+        return None
+    current["active_profile_id"] = prof["id"]
+    current["active_provider"] = prof["active_provider"]
+    current["max_retries"] = prof["max_retries"]
+    current["resolve_concurrency"] = prof["resolve_concurrency"]
+    current["rename_template"] = prof["rename_template"]
+    save_settings(current)
+    return prof
 
 
 def public_settings() -> dict:
@@ -131,6 +203,9 @@ def public_settings() -> dict:
         "auto_update": bool(data.get("auto_update", True)),
         "update_manifest_url": data.get("update_manifest_url") or "",
         "rename_template": data.get("rename_template") or "simple",
+        "notify_on_resolve": bool(data.get("notify_on_resolve", True)),
+        "profiles": list(data.get("profiles") or []),
+        "active_profile_id": data.get("active_profile_id") or "",
         "providers": {},
     }
     for name, conf in data["providers"].items():

@@ -1127,6 +1127,112 @@ html[data-theme="alldebrid"] .history-item-detail {
   font-size: 0.88rem;
 }
 
+.footer-version {
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+.profile-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  margin-bottom: 0.85rem;
+}
+
+.field-profile {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.profile-bar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.queue-panel {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.queue-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.queue-title {
+  margin: 0;
+  font-size: 1rem;
+  font-family: Syne, sans-serif;
+  font-weight: 700;
+}
+
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.queue-hint {
+  margin: 0.55rem 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.queue-list:empty::after {
+  content: "File vide.";
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.queue-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  font-size: 0.86rem;
+}
+
+.queue-item-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.queue-item.is-running .queue-item-status { color: var(--accent, #2a6df4); }
+.queue-item.is-done .queue-item-status { color: #1f8a4c; }
+.queue-item.is-error .queue-item-status { color: #c0392b; }
+
+.queue-item-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .toast {
   position: fixed;
   bottom: 1.5rem;

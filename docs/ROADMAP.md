@@ -2,6 +2,8 @@
 
 Vision produit en **phases**. Chaque phase s’appuie sur la précédente.
 
+**État :** 6 phases au total (0 → 5). **Phases 0 à 4 terminées.** Phase 5 = nice to have.
+
 ---
 
 ## Phase 0 — Fondations ✅ (fait)
@@ -19,7 +21,7 @@ Socle actuel stable.
 
 ---
 
-## Phase 1 — Distribution & mises à jour ✅ (implémenté)
+## Phase 1 — Distribution & mises à jour ✅ (fait)
 
 Rendre Linkora utilisable en **double-clic** et maintenable sans Python.
 
@@ -29,10 +31,11 @@ Rendre Linkora utilisable en **double-clic** et maintenable sans Python.
 | 1.2 | **MAJ par zip** | Téléchargement asset release / URL perso, préserve `data/` |
 | 1.3 | **Source MAJ duale** | GitHub **ou** site (`latest.json` + zip) |
 | 1.4 | **Signature du `.exe`** | Scripts + doc (certificat à fournir) |
+| 1.5 | **Installateur** | Inno Setup : raccourcis Bureau / menu Démarrer / désinstall |
 
 ---
 
-## Phase 2 — Qualité des packs & renommage ✅ (implémenté)
+## Phase 2 — Qualité des packs & renommage ✅ (fait)
 
 | # | Fonctionnalité | Description |
 |---|---|---|
@@ -42,7 +45,7 @@ Rendre Linkora utilisable en **double-clic** et maintenable sans Python.
 
 ---
 
-## Phase 3 — Sélection, filtres & téléchargement ✅ (implémenté)
+## Phase 3 — Sélection, filtres & téléchargement ✅ (fait)
 
 | # | Fonctionnalité | Description |
 |---|---|---|
@@ -52,14 +55,14 @@ Rendre Linkora utilisable en **double-clic** et maintenable sans Python.
 
 ---
 
-## Phase 4 — Productivité (priorité moyenne)
+## Phase 4 — Productivité ✅ (fait)
 
 | # | Fonctionnalité | Description |
 |---|---|---|
-| 4.1 | **Profils / presets** | “Rapidgator + AllDebrid + 6 parallèles” |
-| 4.2 | **Notifications Windows** | Fin de résolution (gros lots) |
-| 4.3 | **Backup / export `data/`** | Changer de PC sans perdre clés + historique |
-| 4.4 | **File d’attente téléchargement** | Enchaîner résolution → téléchargement |
+| 4.1 | **Profils / presets** | Hébergeur + débrideur + parallélisme + template |
+| 4.2 | **Notifications Windows** | Fin de résolution / file d’attente |
+| 4.3 | **Backup / export `data/`** | Zip import/export (historique + réglages) |
+| 4.4 | **File d’attente** | Enchaîner récupération → résolution page par page |
 
 ---
 
@@ -73,13 +76,5 @@ Rendre Linkora utilisable en **double-clic** et maintenable sans Python.
 | 5.4 | Site de MAJ dédié | `latest.json` hébergé hors GitHub |
 
 ---
-
-## Ordre d’exécution immédiat
-
-1. `.exe` + MAJ zip  
-2. Signature du `.exe`  
-3. Détection d’épisodes manquants  
-4. Templates de renommage  
-5. Sélection / filtres + envoi JD  
 
 Voir aussi : [CHANGELOG.md](../CHANGELOG.md) · [TODO.md](../TODO.md)

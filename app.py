@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import io
+import zipfile
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import urlparse
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -17,7 +19,7 @@ import settings as app_settings
 import smart_naming
 import storage
 import updater
-from paths import resource_root
+from paths import DATA_DIR, resource_root
 from scraper import scrape
 
 app = Flask(
@@ -27,6 +29,8 @@ app = Flask(
 )
 storage.init_db()
 app_settings.load_settings()
+
+_BACKUP_ALLOW = frozenset({"settings.json", "history.db"})
 
 
 def _page_title(url: str) -> str:
@@ -114,6 +118,75 @@ def api_settings_put():
     except Exception as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(app_settings.public_settings())
+
+
+@app.post("/api/settings/profiles/apply")
+def api_settings_profile_apply():
+    data = request.get_json(silent=True) or {}
+    profile_id = str(data.get("id") or "").strip()
+    if not profile_id:
+        return jsonify({"error": "Profil manquant."}), 400
+    prof = app_settings.apply_profile(profile_id)
+    if not prof:
+        return jsonify({"error": "Profil introuvable."}), 404
+    return jsonify({"profile": prof, "settings": app_settings.public_settings()})
+
+
+@app.get("/api/data/backup")
+def api_data_backup():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in sorted(_BACKUP_ALLOW):
+            path = DATA_DIR / name
+            if path.is_file():
+                zf.write(path, arcname=name)
+    buf.seek(0)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"linkora-data-{stamp}.zip",
+        mimetype="application/zip",
+    )
+
+
+@app.post("/api/data/restore")
+def api_data_restore():
+    uploaded = request.files.get("file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"error": "Fichier zip manquant."}), 400
+    try:
+        raw = uploaded.read()
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            names = [n for n in zf.namelist() if not n.endswith("/")]
+            restored = []
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            for name in names:
+                base = Path(name).name
+                if base not in _BACKUP_ALLOW:
+                    continue
+                target = DATA_DIR / base
+                with zf.open(name) as src, open(target, "wb") as dst:
+                    dst.write(src.read())
+                restored.append(base)
+            if not restored:
+                return jsonify({"error": "Aucune donnée Linkora dans ce zip."}), 400
+        # Recharger réglages / DB après restauration
+        app_settings.load_settings()
+        storage.init_db()
+        return jsonify(
+            {
+                "ok": True,
+                "restored": restored,
+                "message": f"Restauré : {', '.join(restored)}",
+                "settings": app_settings.public_settings(),
+            }
+        )
+    except zipfile.BadZipFile:
+        return jsonify({"error": "Fichier zip invalide."}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.post("/api/settings/test")

@@ -92,6 +92,19 @@
       </p>
 
       <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
+        <div class="profile-bar">
+          <label class="field field-profile">
+            <span class="field-label">Profil</span>
+            <select id="profile-select" aria-label="Profil de récupération">
+              <option value="">— Aucun profil —</option>
+            </select>
+          </label>
+          <div class="profile-bar-actions">
+            <button type="button" class="btn btn-ghost" id="btn-profile-save" title="Enregistrer hébergeur + réglages actuels">Sauver profil</button>
+            <button type="button" class="btn btn-ghost" id="btn-profile-delete" title="Supprimer le profil sélectionné">Suppr.</button>
+          </div>
+        </div>
+
         <label class="field field-urls">
           <span class="field-label">URL(s) de page(s) — une par ligne</span>
           <textarea
@@ -134,6 +147,19 @@
           </button>
         </div>
       </form>
+
+      <div class="queue-panel" id="queue-panel">
+        <div class="queue-head">
+          <h3 class="queue-title">File d’attente</h3>
+          <div class="queue-actions">
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-add">Ajouter URLs</button>
+            <button type="button" class="btn btn-primary btn-xs" id="btn-queue-run">Lancer (récupérer + résoudre)</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-clear">Vider</button>
+          </div>
+        </div>
+        <p class="queue-hint" id="queue-hint">Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.</p>
+        <ul class="queue-list" id="queue-list"></ul>
+      </div>
 
       <p id="form-error" class="form-error" role="alert" hidden></p>
     </section>
@@ -305,7 +331,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Linkora — outil local d’extraction, débridage et renommage intelligent.</p>
+    <p>Linkora <span class="footer-version">v{{ app_version }}</span> — outil local d’extraction, débridage et renommage intelligent.</p>
   </footer>
 
   <div id="settings-modal" class="modal" hidden>
@@ -332,6 +358,10 @@
           <input type="checkbox" id="auto-update" name="auto_update" checked>
           <span>Mise à jour automatique</span>
         </label>
+        <label class="check-field settings-check">
+          <input type="checkbox" id="notify-on-resolve" name="notify_on_resolve" checked>
+          <span>Notification Windows à la fin d’une résolution</span>
+        </label>
         <label class="field">
           <span class="field-label">URL manifeste MAJ (optionnel)</span>
           <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
@@ -351,6 +381,18 @@
           <button type="button" class="btn btn-ghost" id="btn-check-update">Vérifier les mises à jour</button>
           <button type="button" class="btn btn-secondary" id="btn-force-update" hidden>Installer la MAJ</button>
         </div>
+
+        <fieldset class="provider-block">
+          <legend>Sauvegarde des données</legend>
+          <p class="field-hint">Exportez ou restaurez historique + réglages (`data/`) pour changer de PC.</p>
+          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+            <button type="button" class="btn btn-secondary" id="btn-backup-export">Exporter backup</button>
+            <label class="btn btn-ghost" style="cursor:pointer;margin:0">
+              Importer backup
+              <input type="file" id="backup-import-file" accept=".zip,application/zip" hidden>
+            </label>
+          </div>
+        </fieldset>
 
         <div class="settings-grid">
           <label class="field">
