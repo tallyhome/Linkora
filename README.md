@@ -58,11 +58,21 @@ python app.py
 Ouvrez [http://127.0.0.1:5000](http://127.0.0.1:5000).  
 Python **3.10+** requis.
 
+### CLI (headless)
+
+```bash
+python cli.py version
+python cli.py extract --url "https://..." --host rapidgator --resolve
+python cli.py rename --folder "/chemin/dossier" --dry-run
+```
+
 ## Documentation
 
 - [Changelog](CHANGELOG.md)
 - [TODO](TODO.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Site de MAJ dédié](docs/UPDATE_SITE.md)
+- [Signature Authenticode](docs/CODE_SIGNING.md)
 
 ## Auto-update
 

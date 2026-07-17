@@ -412,6 +412,46 @@ def resolve_item(
     )
 
 
+def _is_auth_failure(resolved: dict) -> bool:
+    err = (resolved.get("resolve_error") or "").lower()
+    needles = (
+        "apikey",
+        "api key",
+        "auth",
+        "unauthorized",
+        "forbidden",
+        "banned",
+        "quota",
+        "limit",
+        "premium",
+    )
+    return any(n in err for n in needles)
+
+
+def resolve_item_rotating(
+    provider: str,
+    api_keys: list[str],
+    item: dict,
+    *,
+    max_retries: int = 3,
+) -> dict:
+    """Essaie plusieurs clés si erreur d'auth / quota."""
+    keys = [k.strip() for k in api_keys if str(k or "").strip()]
+    if not keys:
+        raise DebridError("Aucune clé API fournie.")
+    last = None
+    for idx, key in enumerate(keys):
+        last = resolve_item(provider, key, item, max_retries=max_retries)
+        if last.get("resolve_status") == "ok":
+            if idx > 0:
+                last["resolve_key_index"] = idx + 1
+            return last
+        if _is_auth_failure(last) and idx < len(keys) - 1:
+            continue
+        return last
+    return last
+
+
 def resolve_links(
     provider: str,
     api_key: str,

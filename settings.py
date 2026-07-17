@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from pathlib import Path
 
 from paths import DATA_DIR
 
@@ -18,15 +19,45 @@ DEFAULTS = {
     "update_manifest_url": "",
     "rename_template": "simple",
     "notify_on_resolve": True,
+    "custom_accent": "",
+    "custom_logo": False,
     "profiles": [],
     "active_profile_id": "",
     "providers": {
-        "alldebrid": {"api_key": "", "enabled": True},
-        "realdebrid": {"api_key": "", "enabled": True},
+        "alldebrid": {"api_key": "", "api_keys": [], "enabled": True},
+        "realdebrid": {"api_key": "", "api_keys": [], "enabled": True},
     },
 }
 
 RENAME_TEMPLATES = ("simple", "plex", "jellyfin", "dotted")
+CUSTOM_LOGO_NAME = "custom_logo"
+
+
+def _normalize_keys(raw) -> list[str]:
+    keys: list[str] = []
+    if isinstance(raw, str):
+        parts = raw.replace(",", "\n").splitlines()
+    elif isinstance(raw, list):
+        parts = raw
+    else:
+        parts = []
+    for part in parts:
+        key = str(part or "").strip()
+        if not key or key.startswith("••••"):
+            continue
+        if key not in keys:
+            keys.append(key)
+        if len(keys) >= 12:
+            break
+    return keys
+
+
+def _provider_keys(conf: dict) -> list[str]:
+    keys = _normalize_keys(conf.get("api_keys") or [])
+    primary = str(conf.get("api_key") or "").strip()
+    if primary and primary not in keys:
+        keys.insert(0, primary)
+    return keys
 
 
 def _clamp_int(value, default: int, lo: int, hi: int) -> int:
@@ -102,6 +133,17 @@ def _ensure() -> dict:
         merged["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
     if "notify_on_resolve" in data:
         merged["notify_on_resolve"] = bool(data["notify_on_resolve"])
+    if "custom_accent" in data:
+        accent = str(data.get("custom_accent") or "").strip()
+        merged["custom_accent"] = accent if accent.startswith("#") and len(accent) in (4, 7) else ""
+    if "custom_logo" in data:
+        merged["custom_logo"] = bool(data["custom_logo"])
+    else:
+        merged["custom_logo"] = (DATA_DIR / f"{CUSTOM_LOGO_NAME}.png").is_file() or (
+            DATA_DIR / f"{CUSTOM_LOGO_NAME}.jpg"
+        ).is_file() or (DATA_DIR / f"{CUSTOM_LOGO_NAME}.svg").is_file() or (
+            DATA_DIR / f"{CUSTOM_LOGO_NAME}.webp"
+        ).is_file()
     merged["profiles"] = _normalize_profiles(data.get("profiles"))
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
@@ -113,6 +155,10 @@ def _ensure() -> dict:
             merged["providers"][name].update(conf)
         else:
             merged["providers"][name] = conf
+        # Normaliser multi-clés
+        keys = _provider_keys(merged["providers"][name])
+        merged["providers"][name]["api_keys"] = keys
+        merged["providers"][name]["api_key"] = keys[0] if keys else ""
     return merged
 
 
@@ -149,6 +195,13 @@ def update_settings(payload: dict) -> dict:
         current["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
     if "notify_on_resolve" in payload:
         current["notify_on_resolve"] = bool(payload["notify_on_resolve"])
+    if "custom_accent" in payload:
+        accent = str(payload.get("custom_accent") or "").strip()
+        current["custom_accent"] = (
+            accent if accent.startswith("#") and len(accent) in (4, 7) else ""
+        )
+    if "custom_logo" in payload:
+        current["custom_logo"] = bool(payload["custom_logo"])
     if "profiles" in payload:
         current["profiles"] = _normalize_profiles(payload.get("profiles"))
     if "active_profile_id" in payload:
@@ -160,14 +213,26 @@ def update_settings(payload: dict) -> dict:
     providers = payload.get("providers") or {}
     for name, conf in providers.items():
         if name not in current["providers"]:
-            current["providers"][name] = {"api_key": "", "enabled": True}
-        if "api_key" in conf:
+            current["providers"][name] = {"api_key": "", "api_keys": [], "enabled": True}
+        if "api_keys" in conf:
+            keys = _normalize_keys(conf.get("api_keys"))
+            current["providers"][name]["api_keys"] = keys
+            current["providers"][name]["api_key"] = keys[0] if keys else ""
+        elif "api_key" in conf:
             key = conf["api_key"]
             if key is None:
                 continue
             if isinstance(key, str) and key.startswith("••••"):
                 continue
-            current["providers"][name]["api_key"] = key.strip()
+            # Une seule clé collée → remplace / ajoute en tête
+            text = key.strip()
+            if "\n" in text or "," in text:
+                keys = _normalize_keys(text)
+            else:
+                keys = _normalize_keys([text]) if text else []
+            if keys:
+                current["providers"][name]["api_keys"] = keys
+                current["providers"][name]["api_key"] = keys[0]
         if "enabled" in conf:
             current["providers"][name]["enabled"] = bool(conf["enabled"])
     return save_settings(current)
@@ -204,26 +269,53 @@ def public_settings() -> dict:
         "update_manifest_url": data.get("update_manifest_url") or "",
         "rename_template": data.get("rename_template") or "simple",
         "notify_on_resolve": bool(data.get("notify_on_resolve", True)),
+        "custom_accent": data.get("custom_accent") or "",
+        "custom_logo": bool(data.get("custom_logo")),
         "profiles": list(data.get("profiles") or []),
         "active_profile_id": data.get("active_profile_id") or "",
         "providers": {},
     }
     for name, conf in data["providers"].items():
-        key = conf.get("api_key") or ""
+        keys = _provider_keys(conf)
         out["providers"][name] = {
             "enabled": conf.get("enabled", True),
-            "configured": bool(key),
-            "api_key_masked": _mask(key),
+            "configured": bool(keys),
+            "key_count": len(keys),
+            "api_key_masked": _mask(keys[0]) if keys else "",
             "api_key": "",
         }
     return out
 
 
 def get_provider_key(provider: str | None = None) -> tuple[str, str]:
+    name, keys = get_provider_keys(provider)
+    return name, (keys[0] if keys else "")
+
+
+def get_provider_keys(provider: str | None = None) -> tuple[str, list[str]]:
     data = load_settings()
     name = provider or data.get("active_provider") or "alldebrid"
     conf = data.get("providers", {}).get(name) or {}
-    return name, (conf.get("api_key") or "").strip()
+    return name, _provider_keys(conf)
+
+
+def custom_logo_path() -> Path | None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for ext in (".png", ".jpg", ".jpeg", ".svg", ".webp"):
+        candidate = DATA_DIR / f"{CUSTOM_LOGO_NAME}{ext}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def clear_custom_logo() -> None:
+    for ext in (".png", ".jpg", ".jpeg", ".svg", ".webp"):
+        path = DATA_DIR / f"{CUSTOM_LOGO_NAME}{ext}"
+        if path.is_file():
+            path.unlink(missing_ok=True)
+    data = load_settings()
+    data["custom_logo"] = False
+    save_settings(data)
 
 
 def get_max_retries() -> int:

@@ -40,6 +40,11 @@
   const maxRetriesInput = document.getElementById("max-retries");
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const notifyOnResolveInput = document.getElementById("notify-on-resolve");
+  const customAccentInput = document.getElementById("custom-accent");
+  const customLogoFile = document.getElementById("custom-logo-file");
+  const customLogoHint = document.getElementById("custom-logo-hint");
+  const btnResetAccent = document.getElementById("btn-reset-accent");
+  const btnClearLogo = document.getElementById("btn-clear-logo");
   const profileSelect = document.getElementById("profile-select");
   const btnProfileSave = document.getElementById("btn-profile-save");
   const btnProfileDelete = document.getElementById("btn-profile-delete");
@@ -749,6 +754,14 @@
 
   function showUpdateBanner(state) {
     if (!updateBanner || !updateBannerText) return;
+    if (state?.restarting) {
+      updateBanner.hidden = false;
+      updateBannerText.textContent =
+        state.message ||
+        "Mise à jour en cours — Linkora va redémarrer…";
+      if (btnUpdateApply) btnUpdateApply.hidden = true;
+      return;
+    }
     if (state?.needs_restart || state?.applied) {
       updateBanner.hidden = false;
       updateBannerText.textContent =
@@ -788,6 +801,46 @@
     }
   }
 
+  function applyCustomBranding(data) {
+    const root = document.documentElement;
+    const accent = (data?.custom_accent || "").trim();
+    if (accent) {
+      root.style.setProperty("--accent", accent);
+    } else {
+      root.style.removeProperty("--accent");
+    }
+    const logos = document.querySelectorAll(".brand-logo, .hero-logo");
+    logos.forEach((wrap) => {
+      const existing = wrap.querySelector("img.custom-brand-logo");
+      if (data?.custom_logo) {
+        const url = `/api/branding/logo?t=${Date.now()}`;
+        if (existing) {
+          existing.src = url;
+        } else {
+          const img = document.createElement("img");
+          img.className = "custom-brand-logo";
+          img.alt = "Linkora";
+          img.src = url;
+          wrap.innerHTML = "";
+          wrap.appendChild(img);
+        }
+      } else if (existing) {
+        // Rechargement page pour restaurer le SVG — simple reload partiel non nécessaire :
+        // on laisse l’img si déjà remplacée jusqu’au prochain refresh.
+      }
+    });
+    if (customLogoHint) {
+      customLogoHint.textContent = data?.custom_logo
+        ? "Logo personnalisé actif."
+        : "Aucun logo perso.";
+    }
+    if (customAccentInput && accent) {
+      customAccentInput.value = accent.length === 4
+        ? `#${accent[1]}${accent[1]}${accent[2]}${accent[2]}${accent[3]}${accent[3]}`
+        : accent;
+    }
+  }
+
   async function loadSettings() {
     const res = await fetch("/api/settings");
     settings = await res.json();
@@ -813,11 +866,14 @@
       concurrencyInput.value = String(settings.resolve_concurrency || 6);
     }
     applyTheme(settings.theme === "alldebrid" ? "alldebrid" : "linkora");
+    applyCustomBranding(settings);
+    const adCount = settings.providers?.alldebrid?.key_count || 0;
+    const rdCount = settings.providers?.realdebrid?.key_count || 0;
     hintAlldebrid.textContent = settings.providers?.alldebrid?.configured
-      ? `Configurée : ${settings.providers.alldebrid.api_key_masked}`
+      ? `${adCount} clé(s) · ${settings.providers.alldebrid.api_key_masked}`
       : "Aucune clé enregistrée.";
     hintRealdebrid.textContent = settings.providers?.realdebrid?.configured
-      ? `Configurée : ${settings.providers.realdebrid.api_key_masked}`
+      ? `${rdCount} clé(s) · ${settings.providers.realdebrid.api_key_masked}`
       : "Aucune clé enregistrée.";
     updateProviderBadge();
     refreshProfileSelect();
@@ -1683,6 +1739,10 @@
       notify_on_resolve: notifyOnResolveInput
         ? !!notifyOnResolveInput.checked
         : true,
+      custom_accent:
+        customAccentInput && !customAccentInput.dataset.reset
+          ? customAccentInput.value
+          : settings?.custom_accent || "",
       update_manifest_url: updateManifestInput?.value?.trim() || "",
       rename_template: renameTemplateSelect?.value || "simple",
       profiles: settings?.profiles || [],
@@ -1692,6 +1752,10 @@
         realdebrid: {},
       },
     };
+    if (customAccentInput?.dataset.reset === "1") {
+      payload.custom_accent = "";
+      delete customAccentInput.dataset.reset;
+    }
     if (keyAlldebrid.value.trim()) {
       payload.providers.alldebrid.api_key = keyAlldebrid.value.trim();
     }
@@ -1712,17 +1776,19 @@
       }
       settings = data;
       applyTheme(data.theme === "alldebrid" ? "alldebrid" : "linkora");
+      applyCustomBranding(data);
       updateProviderBadge();
       refreshProfileSelect();
+      const adCount = data.providers?.alldebrid?.key_count || 0;
+      const rdCount = data.providers?.realdebrid?.key_count || 0;
       hintAlldebrid.textContent = data.providers?.alldebrid?.configured
-        ? `Configurée : ${data.providers.alldebrid.api_key_masked}`
+        ? `${adCount} clé(s) · ${data.providers.alldebrid.api_key_masked}`
         : "Aucune clé enregistrée.";
       hintRealdebrid.textContent = data.providers?.realdebrid?.configured
-        ? `Configurée : ${data.providers.realdebrid.api_key_masked}`
+        ? `${rdCount} clé(s) · ${data.providers.realdebrid.api_key_masked}`
         : "Aucune clé enregistrée.";
       keyAlldebrid.value = "";
       keyRealdebrid.value = "";
-      // Garder le popup ouvert — juste confirmer
       settingsModal.hidden = false;
       showSettingsMessage("Paramètres enregistrés.", true);
       showToast("Paramètres enregistrés.");
@@ -1733,6 +1799,52 @@
       showSettingsMessage("Erreur réseau.", false);
     }
   }
+
+  btnResetAccent?.addEventListener("click", () => {
+    if (customAccentInput) {
+      customAccentInput.dataset.reset = "1";
+      customAccentInput.value = "#2a6df4";
+    }
+    document.documentElement.style.removeProperty("--accent");
+    showToast("Accent réinitialisé (enregistrez pour confirmer).");
+  });
+
+  customLogoFile?.addEventListener("change", async () => {
+    const file = customLogoFile.files?.[0];
+    customLogoFile.value = "";
+    if (!file) return;
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const res = await fetch("/api/branding/logo", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Upload logo impossible.");
+        return;
+      }
+      settings = data.settings || settings;
+      applyCustomBranding(settings);
+      showToast("Logo personnalisé enregistré.");
+    } catch {
+      showToast("Upload logo impossible.");
+    }
+  });
+
+  btnClearLogo?.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/branding/logo", { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Suppression impossible.");
+        return;
+      }
+      settings = data.settings || settings;
+      applyCustomBranding(settings);
+      showToast("Logo retiré — rechargez la page pour le logo d’origine.");
+    } catch {
+      showToast("Suppression impossible.");
+    }
+  });
 
   document.querySelectorAll("[data-test-provider]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -1906,6 +2018,7 @@
   const tabPanels = {
     extract: document.getElementById("tab-extract"),
     rename: document.getElementById("tab-rename"),
+    help: document.getElementById("tab-help"),
   };
 
   function switchTab(name) {
@@ -1925,6 +2038,21 @@
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  document.getElementById("btn-help")?.addEventListener("click", () => {
+    switchTab("help");
+  });
+
+  document.querySelectorAll('.help-toc a[href^="#"]').forEach((a) => {
+    a.addEventListener("click", (event) => {
+      const id = a.getAttribute("href")?.slice(1);
+      const target = id ? document.getElementById(id) : null;
+      if (!target) return;
+      event.preventDefault();
+      switchTab("help");
+      setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    });
   });
 
   // ─── Renommage local ─────────────────────────────────────────────────────
@@ -2556,9 +2684,13 @@
       showUpdateBanner(data);
       if (data.error) showToast(data.error);
       else showToast(data.message || "Mise à jour appliquée.");
+      if (data.restarting) {
+        showToast("Fermeture pour appliquer la MAJ…");
+      }
       refreshUpdateStatus();
     } catch {
-      showToast("Mise à jour impossible.");
+      // Si le serveur s’est fermé pour redémarrer, c’est attendu
+      showToast("Mise à jour en cours — redémarrage…");
     }
   });
 
@@ -2591,9 +2723,9 @@
       const data = await res.json();
       showUpdateBanner(data);
       showToast(data.error || data.message || "Terminé.");
-      refreshUpdateStatus();
+      if (data.restarting) showToast("Fermeture pour appliquer la MAJ…");
     } catch {
-      showToast("Installation impossible.");
+      showToast("Mise à jour en cours — redémarrage…");
     } finally {
       btnForceUpdate.disabled = false;
     }

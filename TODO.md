@@ -1,28 +1,17 @@
 # TODO — Linkora
 
-Liste de travail active. Cocher au fur et à mesure.  
-Roadmap complète : [docs/ROADMAP.md](docs/ROADMAP.md)
+Roadmap : [docs/ROADMAP.md](docs/ROADMAP.md)
 
-**Phases :** 0 → 5 (6 au total). **Fait : 0–4.** Reste : phase 5 (optionnel).
+**Phases 0 → 5 : terminées.**
 
----
+## Suivi optionnel
 
-## Phase 5 (optionnel)
-
-- [ ] Multi-clés / rotation débrideur
-- [ ] Thème / logo perso
-- [ ] Mode CLI / headless
-- [ ] Source MAJ site dédié (prod)
 - [ ] Certificat Authenticode réel (achat)
-
----
+- [ ] PIN / mot de passe local au lancement (si demandé)
 
 ## Fait récemment
 
-- [x] Phase 4 : profils, notifications, backup `data/`, file d’attente
-- [x] Version dans le footer
-- [x] Installateur Inno Setup + mode bureau
-- [x] Packaging `.exe` + MAJ zip
-- [x] Épisodes manquants / templates / filtres / JD
-- [x] Blocs par page + historique
-- [x] Release GitHub `v1.1.0`
+- [x] Page Aide (`?`) + explications profils / options
+- [x] Phase 5 : multi-clés, branding, CLI, doc site MAJ
+- [x] Phase 4 : profils, notifs, backup, file d’attente
+- [x] Installateur + mode bureau + releases GitHub

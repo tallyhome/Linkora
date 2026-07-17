@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.0] — 2026-07-17
+
+### Ajouté
+- Page **Aide & infos** (bouton `?` circulaire + onglet Aide)
+- **Multi-clés API** avec rotation si auth / quota
+- **Personnalisation** : couleur d’accent + logo perso
+- **CLI** (`python cli.py extract|rename|version`)
+- Doc **site de MAJ** dédié (`docs/UPDATE_SITE.md`)
+
+### Corrigé
+- MAJ `.exe` : plus d’erreur `Permission denied` sur les DLL — téléchargement puis remplacement **après fermeture** + relance auto
+
+---
+
 ## [1.2.0] — 2026-07-17
 
 ### Ajouté

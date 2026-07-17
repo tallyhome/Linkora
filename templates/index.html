@@ -49,6 +49,9 @@
         <button type="button" class="theme-btn is-active" data-theme-set="linkora" title="Thème Linkora">Défaut</button>
         <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème AllDebrid">AllDebrid</button>
       </div>
+      <button type="button" class="btn-help-round" id="btn-help" title="Aide & infos" aria-label="Aide et informations">
+        <span aria-hidden="true">?</span>
+      </button>
       <button type="button" class="btn btn-ghost" id="btn-settings">Paramètres</button>
     </div>
   </header>
@@ -60,6 +63,9 @@
       </button>
       <button type="button" class="app-tab-btn" data-tab="rename" role="tab" aria-selected="false">
         Renommage
+      </button>
+      <button type="button" class="app-tab-btn" data-tab="help" role="tab" aria-selected="false">
+        Aide
       </button>
     </nav>
 
@@ -328,6 +334,151 @@
         </div>
       </section>
     </section>
+
+    <section id="tab-help" class="app-tab-panel help-panel" role="tabpanel" hidden>
+      <article class="help-doc">
+        <header class="help-hero">
+          <h1 class="hero-title">Aide &amp; infos</h1>
+          <p class="hero-lead">
+            Guide rapide de Linkora v{{ app_version }} — à quoi sert chaque option, et comment enchaîner.
+          </p>
+        </header>
+
+        <nav class="help-toc" aria-label="Sommaire">
+          <a href="#help-start">Démarrage</a>
+          <a href="#help-extract">Récupération</a>
+          <a href="#help-profiles">Profils</a>
+          <a href="#help-queue">File d’attente</a>
+          <a href="#help-resolve">Résolution</a>
+          <a href="#help-filters">Filtres &amp; sélection</a>
+          <a href="#help-rename">Renommage</a>
+          <a href="#help-settings">Paramètres</a>
+          <a href="#help-backup">Backup</a>
+          <a href="#help-update">Mises à jour</a>
+        </nav>
+
+        <section id="help-start" class="help-section">
+          <h2>Démarrage</h2>
+          <ol>
+            <li>Ouvrez <strong>Paramètres</strong> et collez votre clé API AllDebrid ou Real-Debrid.</li>
+            <li>Cliquez <strong>Tester</strong> puis <strong>Enregistrer</strong>.</li>
+            <li>Dans <strong>Récupération</strong>, collez l’URL d’une page, indiquez l’hébergeur (ex. <code>rapidgator</code>), puis <strong>Récupérer</strong>.</li>
+            <li>Cliquez <strong>Résoudre</strong> pour obtenir les liens de téléchargement directs.</li>
+          </ol>
+        </section>
+
+        <section id="help-extract" class="help-section">
+          <h2>Récupération</h2>
+          <dl class="help-dl">
+            <dt>URL(s) de page(s)</dt>
+            <dd>Une adresse par ligne. Linkora ouvre chaque page et extrait les liens de l’hébergeur choisi.</dd>
+            <dt>Hébergeur</dt>
+            <dd>Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>1fichier</code>). Seuls les liens contenant ce texte sont gardés.</dd>
+            <dt>Récupérer</dt>
+            <dd>Extrait les liens sans encore passer par le débrideur. Les résultats apparaissent par page (un bloc = une URL).</dd>
+            <dt>Historique</dt>
+            <dd>Chaque page sauvegardée peut être rouverte plus tard. Le panneau est replié par défaut.</dd>
+          </dl>
+        </section>
+
+        <section id="help-profiles" class="help-section">
+          <h2>Profils — à quoi ça sert ?</h2>
+          <p>
+            Un <strong>profil</strong> mémorise un combo de réglages pour ne pas tout retaper :
+            hébergeur + débrideur + nombre de parallèles + retries + template de renommage.
+          </p>
+          <p><strong>Exemple :</strong> « Rapidgator AllDebrid » → sélectionnez-le, le champ Hébergeur et les options se remplissent.</p>
+          <ul>
+            <li><strong>Sauver profil</strong> — enregistre la config actuelle sous un nom.</li>
+            <li><strong>Liste déroulante</strong> — applique un profil existant.</li>
+            <li><strong>Suppr.</strong> — efface le profil sélectionné (pas vos clés API).</li>
+          </ul>
+          <p>Si vous n’avez qu’une seule façon de travailler, vous pouvez ignorer les profils.</p>
+        </section>
+
+        <section id="help-queue" class="help-section">
+          <h2>File d’attente</h2>
+          <p>Pour traiter plusieurs pages automatiquement :</p>
+          <ol>
+            <li>Collez les URLs + hébergeur.</li>
+            <li><strong>Ajouter URLs</strong> → elles apparaissent dans la file.</li>
+            <li><strong>Lancer</strong> → pour chaque page : récupération puis résolution.</li>
+          </ol>
+          <p>Utile pour enchaîner plusieurs saisons sans cliquer à chaque fois.</p>
+        </section>
+
+        <section id="help-resolve" class="help-section">
+          <h2>Résolution (débridage)</h2>
+          <dl class="help-dl">
+            <dt>Résoudre</dt>
+            <dd>Envoie les liens au débrideur actif pour obtenir une URL directe.</dd>
+            <dt>Re-vérifier morts</dt>
+            <dd>Retente uniquement les liens marqués morts / erreur.</dd>
+            <dt>Stop</dt>
+            <dd>Interrompt la résolution en cours (file ou lot).</dd>
+            <dt>Parallélisme</dt>
+            <dd>Dans Paramètres : nombre de liens résolus en même temps (1–12).</dd>
+            <dt>Retries</dt>
+            <dd>Nombre d’essais si le lien est temporairement mort.</dd>
+            <dt>Multi-clés</dt>
+            <dd>Vous pouvez coller plusieurs clés API (une par ligne). En cas d’erreur d’auth / quota, Linkora essaie la suivante.</dd>
+          </dl>
+        </section>
+
+        <section id="help-filters" class="help-section">
+          <h2>Filtres, sélection &amp; exports</h2>
+          <ul>
+            <li><strong>Filtres</strong> — valides / morts / recherche texte.</li>
+            <li><strong>Cases à cocher</strong> — sélectionner certains liens.</li>
+            <li><strong>Copier / JD</strong> — copie presse-papiers ou fichier JDownloader (<code>URL | Nom</code>).</li>
+            <li><strong>CSV / HTML / PDF</strong> — exports du lot affiché.</li>
+            <li><strong>Épisodes manquants</strong> — détecte les trous type S03E07 absents.</li>
+          </ul>
+        </section>
+
+        <section id="help-rename" class="help-section">
+          <h2>Renommage intelligent</h2>
+          <p>Onglet dédié : indiquez un dossier local, Linkora propose des noms propres (Plex / Jellyfin / points).</p>
+          <ul>
+            <li>Toujours un <strong>aperçu</strong> avant de renommer pour de vrai.</li>
+            <li>Le <strong>template</strong> se choisit dans Paramètres.</li>
+          </ul>
+        </section>
+
+        <section id="help-settings" class="help-section">
+          <h2>Paramètres</h2>
+          <dl class="help-dl">
+            <dt>Thème</dt>
+            <dd>Linkora (défaut) ou AllDebrid. Couleur d’accent perso possible plus bas.</dd>
+            <dt>Logo perso</dt>
+            <dd>Image locale affichée à la place du logo (optionnel).</dd>
+            <dt>Notifications</dt>
+            <dd>Alerte système quand une résolution / file est terminée.</dd>
+            <dt>Auto-update</dt>
+            <dd>Vérifie les releases GitHub (ou une URL <code>latest.json</code> perso).</dd>
+          </dl>
+        </section>
+
+        <section id="help-backup" class="help-section">
+          <h2>Backup</h2>
+          <p>
+            <strong>Exporter</strong> crée un zip de <code>data/</code> (historique + réglages / clés).
+            <strong>Importer</strong> le restaure sur un autre PC ou après réinstall.
+          </p>
+        </section>
+
+        <section id="help-update" class="help-section">
+          <h2>Mises à jour</h2>
+          <p>
+            Au démarrage (ou via « Vérifier les mises à jour »), Linkora compare sa version
+            aux tags GitHub. S’il existe une version plus récente avec un zip Windows, elle peut s’appliquer automatiquement.
+          </p>
+          <p>Vos données <code>data/</code> sont conservées. Redémarrez après une MAJ.</p>
+        </section>
+
+        <p class="help-foot">Astuce : le bouton <strong>?</strong> en haut à droite rouvre toujours cette page.</p>
+      </article>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -407,6 +558,26 @@
           </label>
         </div>
 
+        <fieldset class="provider-block">
+          <legend>Personnalisation</legend>
+          <label class="field">
+            <span class="field-label">Couleur d’accent (optionnel)</span>
+            <input type="color" id="custom-accent" value="#2a6df4" title="Accent">
+            <span class="field-hint">Laissez le thème par défaut si vous ne changez rien. Remise : bouton ci-dessous.</span>
+          </label>
+          <div class="modal-actions" style="justify-content:flex-start;margin:0 0 0.75rem">
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-reset-accent">Accent par défaut</button>
+          </div>
+          <label class="field">
+            <span class="field-label">Logo personnalisé (PNG/JPG/SVG)</span>
+            <input type="file" id="custom-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <span class="field-hint" id="custom-logo-hint">Aucun logo perso.</span>
+          </label>
+          <div class="modal-actions" style="justify-content:flex-start;margin:0.35rem 0 0">
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-logo">Retirer le logo</button>
+          </div>
+        </fieldset>
+
         <label class="field">
           <span class="field-label">Fournisseur actif</span>
           <select id="active-provider" name="active_provider">
@@ -418,14 +589,14 @@
         <fieldset class="provider-block">
           <legend>AllDebrid</legend>
           <label class="field">
-            <span class="field-label">Clé API</span>
-            <input
-              type="password"
+            <span class="field-label">Clé(s) API — une par ligne</span>
+            <textarea
               id="key-alldebrid"
               name="alldebrid"
-              placeholder="Coller une nouvelle clé (laisser vide pour conserver)"
+              rows="2"
+              placeholder="Coller une ou plusieurs clés (vide = conserver)"
               spellcheck="false"
-            >
+            ></textarea>
             <span class="field-hint" id="hint-alldebrid"></span>
           </label>
           <button type="button" class="btn btn-ghost" data-test-provider="alldebrid">Tester</button>
@@ -434,14 +605,14 @@
         <fieldset class="provider-block">
           <legend>Real-Debrid</legend>
           <label class="field">
-            <span class="field-label">Clé API / token</span>
-            <input
-              type="password"
+            <span class="field-label">Clé(s) / token — une par ligne</span>
+            <textarea
               id="key-realdebrid"
               name="realdebrid"
-              placeholder="Coller une nouvelle clé (laisser vide pour conserver)"
+              rows="2"
+              placeholder="Coller une ou plusieurs clés (vide = conserver)"
               spellcheck="false"
-            >
+            ></textarea>
             <span class="field-hint" id="hint-realdebrid"></span>
           </label>
           <button type="button" class="btn btn-ghost" data-test-provider="realdebrid">Tester</button>
