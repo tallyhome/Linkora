@@ -2076,15 +2076,15 @@
             }
             return `
         <tr class="${item.unchanged ? "row-muted" : ""}">
-          <td class="col-check">
-            <input type="checkbox" class="rename-check" data-rename-index="${i}" checked aria-label="Inclure ${escapeHtml(item.original)}">
-          </td>
           <td>${i + 1}</td>
           <td class="cell-filename" title="${escapeHtml(item.original)}">${escapeHtml(item.original)}</td>
           <td>→</td>
           <td class="cell-filename" title="${escapeHtml(item.suggested)}">${escapeHtml(item.suggested)}</td>
           <td><span class="size-pill">${escapeHtml(item.type || "—")}</span></td>
           <td><span class="status-pill ${statusCls}">${status}</span></td>
+          <td class="col-check">
+            <input type="checkbox" class="rename-check" data-rename-index="${i}" checked aria-label="Inclure ${escapeHtml(item.original)}">
+          </td>
         </tr>`;
           })
           .join("")

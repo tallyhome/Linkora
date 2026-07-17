@@ -95,19 +95,6 @@ def main() -> None:
             time.sleep(3600)
         return
 
-    def _window_icon() -> str | None:
-        """WinForms exige un vrai .ico — un PNG fait planter System.Drawing.Icon."""
-        try:
-            from paths import resource_root
-
-            for name in ("logo.ico", "icon.ico"):
-                candidate = resource_root() / "static" / "img" / name
-                if candidate.is_file():
-                    return str(candidate)
-        except Exception:
-            pass
-        return None
-
     def _open_browser_and_wait() -> None:
         import webbrowser
 
@@ -115,7 +102,7 @@ def main() -> None:
         while True:
             time.sleep(3600)
 
-    window = webview.create_window(
+    webview.create_window(
         title="Linkora",
         url=f"http://127.0.0.1:{port}",
         width=1280,
@@ -124,15 +111,11 @@ def main() -> None:
         background_color="#0b1220",
         text_select=True,
     )
-    icon = _window_icon()
+    # Ne PAS passer icon= à webview.start() : WinForms charge l’icône sur un
+    # thread CLR — ArgumentException → popup d’erreur Windows qui disparaît.
+    # L’icône de la fenêtre vient déjà de Linkora.exe (PyInstaller).
     try:
-        if icon:
-            try:
-                webview.start(icon=icon)
-            except TypeError:
-                webview.start()
-        else:
-            webview.start()
+        webview.start()
     except Exception:
         # Crash CLR / WebView → fallback navigateur plutôt que silence total
         _open_browser_and_wait()

@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.4] — 2026-07-17
+
+### Corrigé
+- Lancement après install : plus de popup d’erreur Windows (crash `System.Drawing.Icon` via pywebview)
+- Renommage : cases à cocher déplacées à droite, juste après **Statut**
+
+---
+
 ## [1.3.3] — 2026-07-17
 
 ### Corrigé
