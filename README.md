@@ -56,6 +56,23 @@ Ouvrez [http://127.0.0.1:5000](http://127.0.0.1:5000).
 3. **Récupérer** → **Résoudre** (globalement ou par bloc de page)  
 4. Exportez / copiez les liens, ou utilisez l’onglet **Renommage** sur un dossier local  
 
+## Build Windows (.exe)
+
+```powershell
+.\tools\build_windows.ps1
+```
+
+Sortie : `dist/Linkora/` + `dist/Linkora-windows-vX.Y.Z.zip`  
+Publiez le zip comme **asset** de la release GitHub.
+
+Signature (optionnel) : voir [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
+
+## Documentation
+
+- [Changelog](CHANGELOG.md)
+- [TODO](TODO.md)
+- [Roadmap](docs/ROADMAP.md)
+
 ## Auto-update
 
 Au démarrage, Linkora interroge les [releases / tags GitHub](https://github.com/tallyhome/Linkora/releases).
@@ -63,6 +80,7 @@ Au démarrage, Linkora interroge les [releases / tags GitHub](https://github.com
 - Si une version plus récente existe → elle est **appliquée automatiquement** (si l’option est active)
 - Les données locales (`data/`, clés API, historique) sont **conservées**
 - Un bandeau indique qu’un **redémarrage** est recommandé après mise à jour
+- Source alternative : URL `latest.json` dans Paramètres (voir `docs/latest.example.json`)
 
 Vous pouvez aussi vérifier / forcer une MAJ depuis **Paramètres**.
 

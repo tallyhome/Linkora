@@ -12,13 +12,19 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 
 import debrid
+import episode_gaps
 import settings as app_settings
 import smart_naming
 import storage
 import updater
+from paths import resource_root
 from scraper import scrape
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=str(resource_root() / "templates"),
+    static_folder=str(resource_root() / "static"),
+)
 storage.init_db()
 app_settings.load_settings()
 
@@ -51,16 +57,43 @@ def api_update_status():
 
 @app.post("/api/update/check")
 def api_update_check():
-    return jsonify(updater.check_for_update())
+    data = request.get_json(silent=True) or {}
+    manifest = (data.get("manifest_url") or "").strip() or app_settings.get_update_manifest_url()
+    return jsonify(updater.check_for_update(manifest or None))
 
 
 @app.post("/api/update/apply")
 def api_update_apply():
     data = request.get_json(silent=True) or {}
     tag = (data.get("tag") or "").strip() or None
-    result = updater.apply_update(tag)
+    manifest = (data.get("manifest_url") or "").strip() or app_settings.get_update_manifest_url()
+    result = updater.apply_update(tag, manifest_url=manifest or None)
     status = 200 if result.get("applied") or not result.get("error") else 400
     return jsonify(result), status
+
+
+@app.post("/api/episodes/missing")
+def api_episodes_missing():
+    data = request.get_json(silent=True) or {}
+    links = data.get("links") or []
+    season = data.get("season")
+    expected = data.get("expected_count")
+    try:
+        season_i = int(season) if season is not None and str(season) != "" else None
+    except (TypeError, ValueError):
+        season_i = None
+    try:
+        expected_i = int(expected) if expected is not None and str(expected) != "" else None
+    except (TypeError, ValueError):
+        expected_i = None
+    return jsonify(
+        episode_gaps.find_missing(links, season=season_i, expected_count=expected_i)
+    )
+
+
+@app.get("/api/rename/templates")
+def api_rename_templates():
+    return jsonify({"templates": smart_naming.list_templates()})
 
 
 @app.get("/")
@@ -630,9 +663,10 @@ def export_jdownloader():
 def rename_preview():
     data = request.get_json(silent=True) or {}
     filename = (data.get("filename") or "").strip()
+    template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
     if not filename:
         return jsonify({"error": "Nom de fichier requis."}), 400
-    return jsonify(smart_naming.suggest_name(filename))
+    return jsonify(smart_naming.suggest_name(filename, template_id=template_id))
 
 
 @app.post("/api/rename/scan")
@@ -640,10 +674,13 @@ def rename_scan():
     data = request.get_json(silent=True) or {}
     folder = (data.get("folder") or "").strip()
     recursive = bool(data.get("recursive", False))
+    template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
     if not folder:
         return jsonify({"error": "Indiquez un dossier."}), 400
     try:
-        items = smart_naming.scan_folder(folder, recursive=recursive)
+        items = smart_naming.scan_folder(
+            folder, recursive=recursive, template_id=template_id
+        )
     except FileNotFoundError as exc:
         return jsonify({"error": str(exc)}), 404
     except Exception as exc:
@@ -654,6 +691,7 @@ def rename_scan():
             "count": len(items),
             "to_rename": sum(1 for i in items if not i["unchanged"]),
             "items": items,
+            "template": template_id,
         }
     )
 
@@ -772,7 +810,9 @@ if __name__ == "__main__":
     # Avec reloader Flask : uniquement dans le process enfant.
     # Sans reloader : démarrage direct.
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
+        conf = app_settings.load_settings()
         updater.startup_autoupdate(
-            enabled=bool(app_settings.load_settings().get("auto_update", True))
+            enabled=bool(conf.get("auto_update", True)),
+            manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
         )
     app.run(debug=True, port=5000, use_reloader=use_reloader)

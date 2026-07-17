@@ -169,7 +169,102 @@ def _safe_filename(name: str) -> str:
     return cleaned or "Sans titre"
 
 
-def suggest_name(filename: str) -> dict[str, Any]:
+TEMPLATES = {
+    "plex": {
+        "tv": "{title} - S{season:02d}E{episode:02d}{ext}",
+        "movie": "{title} ({year}){ext}",
+        "anime": "{title} - S{season:02d}E{episode:03d}{ext}",
+        "other": "{title}{ext}",
+    },
+    "jellyfin": {
+        "tv": "{title} S{season:02d}E{episode:02d}{ext}",
+        "movie": "{title} ({year}){ext}",
+        "anime": "{title} S{season:02d}E{episode:03d}{ext}",
+        "other": "{title}{ext}",
+    },
+    "simple": {
+        "tv": "{title} S{season:02d}E{episode:02d}{ext}",
+        "movie": "{title} ({year}){ext}",
+        "anime": "{title} S{season:02d}E{episode:03d}{ext}",
+        "other": "{title}{ext}",
+    },
+    "dotted": {
+        "tv": "{title}.S{season:02d}E{episode:02d}{ext}",
+        "movie": "{title}.{year}{ext}",
+        "anime": "{title}.S{season:02d}E{episode:03d}{ext}",
+        "other": "{title}{ext}",
+    },
+}
+
+
+def _format_template(template: str, **kwargs: Any) -> str:
+    class _Fmt(dict):
+        def __missing__(self, key: str) -> str:
+            return ""
+
+    # Support {season:02d} style via manual replace for common keys
+    out = template
+    season = kwargs.get("season")
+    episode = kwargs.get("episode")
+    year = kwargs.get("year")
+    title = kwargs.get("title") or ""
+    ext = kwargs.get("ext") or ""
+
+    replacements = {
+        "{title}": title,
+        "{ext}": ext,
+        "{year}": "" if year is None else str(year),
+        "{season}": "" if season is None else str(season),
+        "{episode}": "" if episode is None else str(episode),
+        "{season:02d}": "" if season is None else f"{int(season):02d}",
+        "{episode:02d}": "" if episode is None else f"{int(episode):02d}",
+        "{episode:03d}": "" if episode is None else f"{int(episode):03d}",
+    }
+    for k, v in replacements.items():
+        out = out.replace(k, v)
+    return re.sub(r"\s+", " ", out).strip(" ._-")
+
+
+def apply_template(info: dict[str, Any], template_id: str = "simple") -> str:
+    """Applique un template de nommage sur un résultat suggest_name."""
+    presets = TEMPLATES.get(template_id) or TEMPLATES["simple"]
+    media = info.get("type") or "other"
+    if media == "tv":
+        key = "tv"
+    elif media == "movie":
+        key = "movie"
+    elif media == "anime":
+        key = "anime"
+    else:
+        key = "other"
+    tmpl = presets.get(key) or presets["other"]
+    original = info.get("original") or info.get("suggested") or ""
+    path = Path(original)
+    ext = path.suffix if path.suffix else ""
+    # Si suggested a déjà une ext
+    if not ext and info.get("suggested"):
+        ext = Path(info["suggested"]).suffix
+
+    season = info.get("season")
+    episode = info.get("episode")
+    # Anime default season 1
+    if media == "anime" and season is None:
+        season = 1
+
+    name = _format_template(
+        tmpl,
+        title=info.get("title") or "Sans titre",
+        season=season,
+        episode=episode,
+        year=info.get("year"),
+        ext=ext,
+    )
+    if not name.lower().endswith(ext.lower()) and ext:
+        name = name + ext
+    return _safe_filename(name)
+
+
+def suggest_name(filename: str, template_id: str = "simple") -> dict[str, Any]:
     """Produit un nom Plex/Kodi/Jellyfin à partir d'un nom de fichier."""
     original = (filename or "").strip()
     path = Path(original)
@@ -195,19 +290,24 @@ def suggest_name(filename: str) -> dict[str, Any]:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Serie"
-        ep_part = f"S{season:02d}E{ep1:02d}"
-        if ep2:
-            ep_part += f"E{int(ep2):02d}"
-        suggested = _safe_filename(f"{title} {ep_part}{ext}")
         result.update(
             {
-                "suggested": suggested,
                 "type": "tv",
                 "title": title,
                 "season": season,
                 "episode": ep1,
             }
         )
+        # double épisode : garder dans le template via suggested custom
+        base = apply_template(result, template_id)
+        if ep2:
+            # Insérer E02 avant l'extension
+            p = Path(base)
+            result["suggested"] = _safe_filename(
+                f"{p.stem}E{int(ep2):02d}{p.suffix}"
+            )
+        else:
+            result["suggested"] = base
         return result
 
     # ── Série : 3x01 ──
@@ -216,19 +316,13 @@ def suggest_name(filename: str) -> dict[str, Any]:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Serie"
-        ep_part = f"S{season:02d}E{ep1:02d}"
+        result.update({"type": "tv", "title": title, "season": season, "episode": ep1})
+        base = apply_template(result, template_id)
         if ep2:
-            ep_part += f"E{int(ep2):02d}"
-        suggested = _safe_filename(f"{title} {ep_part}{ext}")
-        result.update(
-            {
-                "suggested": suggested,
-                "type": "tv",
-                "title": title,
-                "season": season,
-                "episode": ep1,
-            }
-        )
+            p = Path(base)
+            result["suggested"] = _safe_filename(f"{p.stem}E{int(ep2):02d}{p.suffix}")
+        else:
+            result["suggested"] = base
         return result
 
     # ── Saison X Episode Y (FR) ──
@@ -237,16 +331,8 @@ def suggest_name(filename: str) -> dict[str, Any]:
         season, ep1 = int(m.group(1)), int(m.group(2))
         raw_title = stem[: m.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Serie"
-        suggested = _safe_filename(f"{title} S{season:02d}E{ep1:02d}{ext}")
-        result.update(
-            {
-                "suggested": suggested,
-                "type": "tv",
-                "title": title,
-                "season": season,
-                "episode": ep1,
-            }
-        )
+        result.update({"type": "tv", "title": title, "season": season, "episode": ep1})
+        result["suggested"] = apply_template(result, template_id)
         return result
 
     # ── Film : Titre (Année) ──
@@ -255,15 +341,8 @@ def suggest_name(filename: str) -> dict[str, Any]:
         year = int(year_m.group(1))
         raw_title = stem[: year_m.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Film"
-        suggested = _safe_filename(f"{title} ({year}){ext}")
-        result.update(
-            {
-                "suggested": suggested,
-                "type": "movie",
-                "title": title,
-                "year": year,
-            }
-        )
+        result.update({"type": "movie", "title": title, "year": year})
+        result["suggested"] = apply_template(result, template_id)
         return result
 
     # ── Anime / numérotation simple ──
@@ -272,35 +351,33 @@ def suggest_name(filename: str) -> dict[str, Any]:
         ep = int(anime_m.group(1))
         raw_title = stem[: anime_m.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Anime"
-        # Beaucoup d'animes : numéro d'épisode global → S01Exxx
-        suggested = _safe_filename(f"{title} S01E{ep:03d}{ext}")
-        result.update(
-            {
-                "suggested": suggested,
-                "type": "anime",
-                "title": title,
-                "season": 1,
-                "episode": ep,
-            }
-        )
+        result.update({"type": "anime", "title": title, "season": 1, "episode": ep})
+        result["suggested"] = apply_template(result, template_id)
         return result
 
-    # ── Fallback : nettoyage léger ──
+    # ── Fallback ──
     title = _clean_title(stem)
-    suggested = _safe_filename(f"{title}{ext}")
-    result.update({"suggested": suggested, "title": title, "type": "other"})
+    result.update({"title": title, "type": "other"})
+    result["suggested"] = apply_template({**result, "suggested": f"{title}{ext}"}, template_id)
     return result
 
 
-def enrich_link(link: dict) -> dict:
+def enrich_link(link: dict, template_id: str | None = None) -> dict:
     """Ajoute clean_name / media_type à un lien résolu ou source."""
+    if template_id is None:
+        try:
+            import settings as app_settings
+
+            template_id = app_settings.get_rename_template()
+        except Exception:
+            template_id = "simple"
     raw = (
         link.get("resolve_filename")
         or link.get("label")
         or link.get("url", "").split("/")[-1]
         or ""
     )
-    info = suggest_name(raw)
+    info = suggest_name(raw, template_id=template_id or "simple")
     return {
         **link,
         "clean_name": info["suggested"],
@@ -312,7 +389,18 @@ def enrich_link(link: dict) -> dict:
     }
 
 
-def scan_folder(folder: str, *, recursive: bool = False) -> list[dict[str, Any]]:
+def list_templates() -> list[dict[str, str]]:
+    return [
+        {"id": "simple", "label": "Simple — Titre S03E01"},
+        {"id": "plex", "label": "Plex — Titre - S03E01"},
+        {"id": "jellyfin", "label": "Jellyfin — Titre S03E01"},
+        {"id": "dotted", "label": "Points — Titre.S03E01"},
+    ]
+
+
+def scan_folder(
+    folder: str, *, recursive: bool = False, template_id: str = "simple"
+) -> list[dict[str, Any]]:
     """Scanne un dossier local et propose des renommages."""
     root = Path(folder).expanduser()
     if not root.is_dir():
@@ -327,7 +415,7 @@ def scan_folder(folder: str, *, recursive: bool = False) -> list[dict[str, Any]]
             continue
         if p.suffix.lower() not in allowed:
             continue
-        info = suggest_name(p.name)
+        info = suggest_name(p.name, template_id=template_id)
         target = p.with_name(info["suggested"])
         items.append(
             {

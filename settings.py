@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-SETTINGS_PATH = Path(__file__).resolve().parent / "data" / "settings.json"
+from paths import DATA_DIR
+
+SETTINGS_PATH = DATA_DIR / "settings.json"
 
 DEFAULTS = {
     "active_provider": "alldebrid",
@@ -13,6 +14,8 @@ DEFAULTS = {
     "max_retries": 3,
     "resolve_concurrency": 6,
     "auto_update": True,
+    "update_manifest_url": "",
+    "rename_template": "simple",
     "providers": {
         "alldebrid": {"api_key": "", "enabled": True},
         "realdebrid": {"api_key": "", "enabled": True},
@@ -46,6 +49,16 @@ def _ensure() -> dict:
     )
     if "auto_update" in data:
         merged["auto_update"] = bool(data["auto_update"])
+    if "update_manifest_url" in data:
+        merged["update_manifest_url"] = str(data.get("update_manifest_url") or "")
+    if "rename_template" in data:
+        tmpl = str(data.get("rename_template") or "simple")
+        merged["rename_template"] = tmpl if tmpl in (
+            "simple",
+            "plex",
+            "jellyfin",
+            "dotted",
+        ) else "simple"
     for name, conf in data.get("providers", {}).items():
         if name in merged["providers"]:
             merged["providers"][name].update(conf)
@@ -80,6 +93,13 @@ def update_settings(payload: dict) -> dict:
         )
     if "auto_update" in payload:
         current["auto_update"] = bool(payload["auto_update"])
+    if "update_manifest_url" in payload:
+        current["update_manifest_url"] = str(payload.get("update_manifest_url") or "").strip()
+    if "rename_template" in payload:
+        tmpl = str(payload.get("rename_template") or "simple")
+        current["rename_template"] = (
+            tmpl if tmpl in ("simple", "plex", "jellyfin", "dotted") else "simple"
+        )
     providers = payload.get("providers") or {}
     for name, conf in providers.items():
         if name not in current["providers"]:
@@ -109,6 +129,8 @@ def public_settings() -> dict:
         "max_retries": data.get("max_retries", 3),
         "resolve_concurrency": data.get("resolve_concurrency", 6),
         "auto_update": bool(data.get("auto_update", True)),
+        "update_manifest_url": data.get("update_manifest_url") or "",
+        "rename_template": data.get("rename_template") or "simple",
         "providers": {},
     }
     for name, conf in data["providers"].items():
@@ -135,6 +157,14 @@ def get_max_retries() -> int:
 
 def get_resolve_concurrency() -> int:
     return int(load_settings().get("resolve_concurrency") or 6)
+
+
+def get_rename_template() -> str:
+    return str(load_settings().get("rename_template") or "simple")
+
+
+def get_update_manifest_url() -> str:
+    return str(load_settings().get("update_manifest_url") or "").strip()
 
 
 def _mask(key: str) -> str:

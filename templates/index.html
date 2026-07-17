@@ -195,6 +195,28 @@
         </div>
       </div>
 
+      <div class="results-filter-bar" id="results-filter-bar" hidden>
+        <label class="filter-field">
+          <span>Filtre</span>
+          <select id="filter-status">
+            <option value="all">Tous</option>
+            <option value="ok">Valides</option>
+            <option value="dead">Morts / erreurs</option>
+            <option value="pending">En attente</option>
+          </select>
+        </label>
+        <label class="filter-field filter-grow">
+          <span>Recherche</span>
+          <input type="search" id="filter-text" placeholder="S03E01, nom…" spellcheck="false">
+        </label>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-select-visible">Tout sélectionner (vus)</button>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-selection">Tout désélectionner</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-selection">Copier sélection</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="btn-jd-selection">Envoi JD (sélection)</button>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-missing-episodes">Épisodes manquants</button>
+      </div>
+      <p id="missing-episodes-box" class="missing-box" hidden></p>
+
       <div id="page-blocks" class="page-blocks"></div>
     </section>
 
@@ -308,7 +330,21 @@
 
         <label class="check-field settings-check">
           <input type="checkbox" id="auto-update" name="auto_update" checked>
-          <span>Mise à jour automatique depuis GitHub</span>
+          <span>Mise à jour automatique</span>
+        </label>
+        <label class="field">
+          <span class="field-label">URL manifeste MAJ (optionnel)</span>
+          <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
+          <span class="field-hint">Sinon : releases GitHub. Format : {"version":"1.1.0","url":"https://.../Linkora-windows-v1.1.0.zip"}</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Template de renommage</span>
+          <select id="rename-template" name="rename_template">
+            <option value="simple">Simple — Titre S03E01</option>
+            <option value="plex">Plex — Titre - S03E01</option>
+            <option value="jellyfin">Jellyfin — Titre S03E01</option>
+            <option value="dotted">Points — Titre.S03E01</option>
+          </select>
         </label>
         <p class="field-hint" id="update-status-hint">Version locale : —</p>
         <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">

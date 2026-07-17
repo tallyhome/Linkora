@@ -7,7 +7,11 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "data" / "history.db"
+from pathlib import Path
+
+from paths import DATA_DIR
+
+DB_PATH = DATA_DIR / "history.db"
 
 
 def _connect() -> sqlite3.Connection:

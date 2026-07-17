@@ -24,6 +24,8 @@
   const activeProviderSelect = document.getElementById("active-provider");
   const uiThemeSelect = document.getElementById("ui-theme");
   const autoUpdateInput = document.getElementById("auto-update");
+  const updateManifestInput = document.getElementById("update-manifest-url");
+  const renameTemplateSelect = document.getElementById("rename-template");
   const updateStatusHint = document.getElementById("update-status-hint");
   const updateBanner = document.getElementById("update-banner");
   const updateBannerText = document.getElementById("update-banner-text");
@@ -31,6 +33,10 @@
   const btnUpdateDismiss = document.getElementById("btn-update-dismiss");
   const btnCheckUpdate = document.getElementById("btn-check-update");
   const btnForceUpdate = document.getElementById("btn-force-update");
+  const filterBar = document.getElementById("results-filter-bar");
+  const filterStatus = document.getElementById("filter-status");
+  const filterText = document.getElementById("filter-text");
+  const missingBox = document.getElementById("missing-episodes-box");
   const maxRetriesInput = document.getElementById("max-retries");
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const keyAlldebrid = document.getElementById("key-alldebrid");
@@ -210,6 +216,7 @@
 
     return `
       <tr class="${runningClass}${rowStatus}" data-batch="${bi}" data-link="${li}">
+        <td class="col-check"><input type="checkbox" class="link-check" data-batch="${bi}" data-link="${li}"></td>
         <td>${li + 1}</td>
         <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}</td>
         <td><span class="size-pill">${escapeHtml(size)}</span></td>
@@ -337,7 +344,7 @@
       : "";
     const rows = (batch.links || []).length
       ? batch.links.map((link, li) => rowHtml(link, bi, li)).join("")
-      : `<tr><td colspan="7">Aucun lien trouvé sur cette page.</td></tr>`;
+      : `<tr><td colspan="8">Aucun lien trouvé sur cette page.</td></tr>`;
 
     return `
       <article class="page-block" data-batch-index="${bi}">
@@ -357,12 +364,12 @@
         <div class="table-wrap">
           <table class="links-table">
             <colgroup>
-              <col class="col-num"><col class="col-label"><col class="col-size">
+              <col class="col-check"><col class="col-num"><col class="col-label"><col class="col-size">
               <col class="col-status"><col class="col-source"><col class="col-resolved"><col class="col-act">
             </colgroup>
             <thead>
               <tr>
-                <th>#</th><th>Label</th><th>Taille</th><th>Statut</th>
+                <th></th><th>#</th><th>Label</th><th>Taille</th><th>Statut</th>
                 <th>Source</th><th>Résolu</th><th></th>
               </tr>
             </thead>
@@ -402,9 +409,56 @@
       .map((batch, bi) => pageBlockHtml(batch, bi))
       .join("");
 
+    if (filterBar) filterBar.hidden = !current.links?.length;
+    applyResultFilters();
+
     if (scroll) {
       results.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
+
+  function linkMatchesFilter(link) {
+    const status = filterStatus?.value || "all";
+    const q = (filterText?.value || "").trim().toLowerCase();
+    const st = link.resolve_status || "";
+    if (status === "ok" && st !== "ok") return false;
+    if (status === "dead" && st !== "dead" && st !== "error") return false;
+    if (status === "pending" && st && st !== "running") return false;
+    if (q) {
+      const blob = [
+        link.label,
+        link.resolve_filename,
+        link.clean_name,
+        link.url,
+        displayUrl(link),
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!blob.includes(q)) return false;
+    }
+    return true;
+  }
+
+  function applyResultFilters() {
+    if (!pageBlocks) return;
+    pageBlocks.querySelectorAll("tr[data-batch][data-link]").forEach((row) => {
+      const bi = Number(row.dataset.batch);
+      const li = Number(row.dataset.link);
+      const link = current?.batches?.[bi]?.links?.[li];
+      if (!link) return;
+      row.classList.toggle("row-hidden", !linkMatchesFilter(link));
+    });
+  }
+
+  function selectedLinks() {
+    const out = [];
+    pageBlocks?.querySelectorAll(".link-check:checked").forEach((cb) => {
+      const bi = Number(cb.dataset.batch);
+      const li = Number(cb.dataset.link);
+      const link = current?.batches?.[bi]?.links?.[li];
+      if (link) out.push(link);
+    });
+    return out;
   }
 
   function resultsRoot() {
@@ -499,6 +553,11 @@
       results.classList.remove("is-closing");
       pageBlocks.innerHTML = "";
       current = null;
+      if (filterBar) filterBar.hidden = true;
+      if (missingBox) {
+        missingBox.hidden = true;
+        missingBox.textContent = "";
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     }, 220);
   }
@@ -611,6 +670,12 @@
     }
     if (autoUpdateInput) {
       autoUpdateInput.checked = settings.auto_update !== false;
+    }
+    if (updateManifestInput) {
+      updateManifestInput.value = settings.update_manifest_url || "";
+    }
+    if (renameTemplateSelect) {
+      renameTemplateSelect.value = settings.rename_template || "simple";
     }
     if (maxRetriesInput) maxRetriesInput.value = String(settings.max_retries || 3);
     if (concurrencyInput) {
@@ -1478,6 +1543,8 @@
       max_retries: Number(maxRetriesInput?.value || 3),
       resolve_concurrency: Number(concurrencyInput?.value || 6),
       auto_update: autoUpdateInput ? !!autoUpdateInput.checked : true,
+      update_manifest_url: updateManifestInput?.value?.trim() || "",
+      rename_template: renameTemplateSelect?.value || "simple",
       providers: {
         alldebrid: {},
         realdebrid: {},
@@ -1857,6 +1924,95 @@
       showToast("Liste copiée.");
     } catch {
       showToast("Copie impossible.");
+    }
+  });
+
+  filterStatus?.addEventListener("change", applyResultFilters);
+  filterText?.addEventListener("input", applyResultFilters);
+
+  document.getElementById("btn-select-visible")?.addEventListener("click", () => {
+    pageBlocks?.querySelectorAll("tr[data-batch][data-link]:not(.row-hidden) .link-check").forEach((cb) => {
+      cb.checked = true;
+    });
+    showToast("Sélection des lignes visibles.");
+  });
+
+  document.getElementById("btn-clear-selection")?.addEventListener("click", () => {
+    pageBlocks?.querySelectorAll(".link-check").forEach((cb) => {
+      cb.checked = false;
+    });
+  });
+
+  document.getElementById("btn-copy-selection")?.addEventListener("click", async () => {
+    const links = selectedLinks();
+    if (!links.length) {
+      showToast("Aucune sélection.");
+      return;
+    }
+    const text = jdownloaderLines(links) || links.map((l) => displayUrl(l)).filter(Boolean).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${links.length} lien(s) copiés.`);
+    } catch {
+      showToast("Copie impossible.");
+    }
+  });
+
+  document.getElementById("btn-jd-selection")?.addEventListener("click", async () => {
+    const links = selectedLinks();
+    if (!links.length) {
+      showToast("Aucune sélection.");
+      return;
+    }
+    const text = jdownloaderLines(links);
+    try {
+      await navigator.clipboard.writeText(text);
+      // Fichier crawljob-like pour coller / importer
+      const blob = new Blob([text + "\n"], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "linkora-jdownloader.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 30_000);
+      showToast("Sélection JD copiée + fichier téléchargé.");
+    } catch {
+      showToast("Envoi JD impossible.");
+    }
+  });
+
+  document.getElementById("btn-missing-episodes")?.addEventListener("click", async () => {
+    if (!current?.links?.length) {
+      showToast("Aucun lien.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/episodes/missing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: current.links }),
+      });
+      const data = await res.json();
+      if (!missingBox) return;
+      missingBox.hidden = false;
+      if (!data.missing_labels?.length) {
+        missingBox.textContent = data.summary || "Rien à signaler.";
+      } else {
+        missingBox.innerHTML =
+          `<strong>Épisodes manquants</strong> — ${escapeHtml(data.summary)}` +
+          ` <button type="button" class="btn btn-ghost btn-xs" id="btn-copy-missing">Copier</button>`;
+        document.getElementById("btn-copy-missing")?.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(data.missing_labels.join("\n"));
+            showToast("Liste des manquants copiée.");
+          } catch {
+            showToast("Copie impossible.");
+          }
+        });
+      }
+    } catch {
+      showToast("Analyse impossible.");
     }
   });
 

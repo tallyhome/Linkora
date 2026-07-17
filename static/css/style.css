@@ -105,6 +105,58 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   gap: 1rem;
 }
 
+.results-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: flex-end;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.filter-field select,
+.filter-field input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  min-width: 8rem;
+}
+
+.filter-grow {
+  flex: 1 1 12rem;
+}
+
+.missing-box {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(202, 138, 4, 0.35);
+  background: var(--ok-bg);
+  font-size: 0.9rem;
+}
+
+.links-table .col-check {
+  width: 2rem;
+}
+
+.row-hidden {
+  display: none !important;
+}
+
 .update-banner {
   max-width: 1280px;
   margin: 0.75rem auto 0;
