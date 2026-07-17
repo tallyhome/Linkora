@@ -44,9 +44,8 @@ _state: dict[str, Any] = {
 _lock = threading.Lock()
 _apply_lock = threading.Lock()
 
-# Windows : process détaché sans fenêtre
+# Windows : process sans fenêtre
 _CREATE_NO_WINDOW = 0x08000000
-_DETACHED_PROCESS = 0x00000008
 _CREATE_NEW_PROCESS_GROUP = 0x00000200
 
 
