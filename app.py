@@ -1,0 +1,778 @@
+"""Application web — Récupérateur de liens."""
+
+from __future__ import annotations
+
+import csv
+import io
+from datetime import datetime
+from urllib.parse import urlparse
+
+from flask import Flask, jsonify, render_template, request, send_file
+from fpdf import FPDF
+from fpdf.enums import XPos, YPos
+
+import debrid
+import settings as app_settings
+import smart_naming
+import storage
+import updater
+from scraper import scrape
+
+app = Flask(__name__)
+storage.init_db()
+app_settings.load_settings()
+
+
+def _page_title(url: str) -> str:
+    try:
+        path = urlparse(url).query
+        if "id=" in path:
+            raw = path.split("id=", 1)[1].split("&", 1)[0]
+            return raw.replace("-", " ").strip()
+    except Exception:
+        pass
+    return urlparse(url).netloc or "Extraction"
+
+
+@app.get("/api/version")
+def api_version():
+    return jsonify(
+        {
+            "version": updater.read_version(),
+            "update": updater.get_state(),
+        }
+    )
+
+
+@app.get("/api/update/status")
+def api_update_status():
+    return jsonify(updater.get_state())
+
+
+@app.post("/api/update/check")
+def api_update_check():
+    return jsonify(updater.check_for_update())
+
+
+@app.post("/api/update/apply")
+def api_update_apply():
+    data = request.get_json(silent=True) or {}
+    tag = (data.get("tag") or "").strip() or None
+    result = updater.apply_update(tag)
+    status = 200 if result.get("applied") or not result.get("error") else 400
+    return jsonify(result), status
+
+
+@app.get("/")
+def index():
+    return render_template("index.html", app_version=updater.read_version())
+
+
+@app.get("/api/settings")
+def api_settings_get():
+    return jsonify(app_settings.public_settings())
+
+
+@app.put("/api/settings")
+def api_settings_put():
+    data = request.get_json(silent=True) or {}
+    try:
+        app_settings.update_settings(data)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(app_settings.public_settings())
+
+
+@app.post("/api/settings/test")
+def api_settings_test():
+    data = request.get_json(silent=True) or {}
+    provider = (data.get("provider") or "").strip()
+    api_key = (data.get("api_key") or "").strip()
+
+    if not provider:
+        provider, stored = app_settings.get_provider_key()
+        api_key = api_key or stored
+    elif not api_key:
+        _, api_key = app_settings.get_provider_key(provider)
+
+    if not api_key:
+        return jsonify({"error": "Aucune clé API configurée pour ce fournisseur."}), 400
+
+    try:
+        result = debrid.test_provider(provider, api_key)
+        return jsonify(result)
+    except debrid.DebridError as exc:
+        return jsonify({"ok": False, "error": str(exc), "code": exc.code}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
+
+@app.post("/api/extract")
+def api_extract():
+    data = request.get_json(silent=True) or {}
+    host = (data.get("host") or "").strip()
+
+    # Une URL ou une liste / texte multi-lignes
+    urls_raw = data.get("urls")
+    if isinstance(urls_raw, list):
+        urls = [str(u).strip() for u in urls_raw if str(u).strip()]
+    elif isinstance(urls_raw, str) and urls_raw.strip():
+        urls = [
+            u.strip()
+            for u in urls_raw.replace(",", "\n").splitlines()
+            if u.strip()
+        ]
+    else:
+        single = (data.get("url") or "").strip()
+        urls = [single] if single else []
+
+    # Déduplique en gardant l'ordre
+    seen = set()
+    urls = [u for u in urls if not (u in seen or seen.add(u))]
+
+    if not urls:
+        return jsonify({"error": "Veuillez indiquer au moins une URL de page."}), 400
+    if not host:
+        return jsonify({"error": "Veuillez indiquer un hébergeur."}), 400
+    for u in urls:
+        if not u.startswith(("http://", "https://")):
+            return jsonify(
+                {"error": f"URL invalide (http/https requis) : {u[:80]}"}
+            ), 400
+
+    batches: list[dict] = []
+    errors: list[str] = []
+
+    for u in urls:
+        title = _page_title(u)
+        try:
+            links = scrape(u, host)
+            enriched = [
+                smart_naming.enrich_link(
+                    {**link, "page_url": u, "page_title": title}
+                )
+                for link in links
+            ]
+            batches.append(
+                {
+                    "source_url": u,
+                    "title": title,
+                    "host": host,
+                    "count": len(enriched),
+                    "links": enriched,
+                }
+            )
+        except Exception as exc:
+            errors.append(f"{u} → {exc}")
+            batches.append(
+                {
+                    "source_url": u,
+                    "title": title,
+                    "host": host,
+                    "count": 0,
+                    "links": [],
+                    "error": str(exc),
+                }
+            )
+
+    all_links = [link for batch in batches for link in batch["links"]]
+    if not all_links and errors:
+        return jsonify({"error": "Aucune page récupérée : " + " | ".join(errors)}), 502
+
+    return jsonify(
+        {
+            "host": host,
+            "batches": batches,
+            "source_url": batches[0]["source_url"] if batches else "",
+            "source_urls": [b["source_url"] for b in batches],
+            "title": batches[0]["title"]
+            if len(batches) == 1
+            else f"{len(batches)} pages",
+            "count": len(all_links),
+            "links": all_links,
+            "errors": errors,
+        }
+    )
+
+
+@app.post("/api/resolve")
+def api_resolve():
+    data = request.get_json(silent=True) or {}
+    links = data.get("links") or []
+    provider = (data.get("provider") or "").strip() or None
+
+    if not isinstance(links, list) or not links:
+        return jsonify({"error": "Aucun lien à résoudre."}), 400
+
+    name, api_key = app_settings.get_provider_key(provider)
+    if not api_key:
+        return jsonify(
+            {
+                "error": (
+                    f"Aucune clé API pour « {name} ». "
+                    "Configurez-la dans Paramètres."
+                )
+            }
+        ), 400
+
+    try:
+        resolved = debrid.resolve_links(name, api_key, links, max_retries=5)
+    except debrid.DebridError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"Résolution impossible : {exc}"}), 502
+
+    ok = sum(1 for l in resolved if l.get("resolve_status") == "ok")
+    return jsonify(
+        {
+            "provider": name,
+            "count": len(resolved),
+            "ok": ok,
+            "failed": len(resolved) - ok,
+            "links": resolved,
+        }
+    )
+
+
+@app.post("/api/resolve/one")
+def api_resolve_one():
+    """Résout un seul lien — retries inclus pour les faux dead AllDebrid."""
+    data = request.get_json(silent=True) or {}
+    link = data.get("link") or {}
+    provider = (data.get("provider") or "").strip() or None
+    try:
+        max_retries = int(data.get("max_retries") or app_settings.get_max_retries())
+    except (TypeError, ValueError):
+        max_retries = app_settings.get_max_retries()
+    max_retries = max(1, min(max_retries, 8))
+
+    if not isinstance(link, dict) or not (link.get("url") or "").strip():
+        return jsonify({"error": "Lien invalide."}), 400
+
+    name, api_key = app_settings.get_provider_key(provider)
+    if not api_key:
+        return jsonify(
+            {
+                "error": (
+                    f"Aucune clé API pour « {name} ». "
+                    "Configurez-la dans Paramètres."
+                ),
+                "provider": name,
+            }
+        ), 400
+
+    try:
+        resolved = debrid.resolve_item(name, api_key, link, max_retries=max_retries)
+    except debrid.DebridError as exc:
+        return jsonify({"error": str(exc), "provider": name}), 400
+    except Exception as exc:
+        return jsonify({"error": f"Résolution impossible : {exc}", "provider": name}), 502
+
+    return jsonify({"provider": name, "link": resolved})
+
+
+@app.get("/api/history")
+def api_history():
+    return jsonify(storage.list_extractions())
+
+
+@app.get("/api/history/<int:extraction_id>")
+def api_history_item(extraction_id: int):
+    item = storage.get_extraction(extraction_id)
+    if not item:
+        return jsonify({"error": "Extraction introuvable."}), 404
+    item["links"] = [smart_naming.enrich_link(l) for l in item.get("links") or []]
+    return jsonify(item)
+
+
+@app.post("/api/history")
+def api_history_save():
+    data = request.get_json(silent=True) or {}
+    url = (data.get("source_url") or data.get("url") or "").strip()
+    host = (data.get("host") or "").strip()
+    links = data.get("links") or []
+    title = (data.get("title") or "").strip() or _page_title(url)
+    upsert = bool(data.get("upsert", True))
+
+    if not url or not host:
+        return jsonify({"error": "Données incomplètes."}), 400
+    if not isinstance(links, list) or not links:
+        return jsonify({"error": "Aucun lien à sauvegarder."}), 400
+
+    if upsert:
+        saved = storage.upsert_extraction(url, host, links, title)
+    else:
+        saved = storage.save_extraction(url, host, links, title)
+    return jsonify(saved), 201
+
+
+@app.put("/api/history/<int:extraction_id>")
+def api_history_update(extraction_id: int):
+    data = request.get_json(silent=True) or {}
+    links = data.get("links") or []
+    title = data.get("title")
+    if not isinstance(links, list) or not links:
+        return jsonify({"error": "Aucun lien à mettre à jour."}), 400
+    updated = storage.update_extraction(extraction_id, links, title=title)
+    if not updated:
+        return jsonify({"error": "Extraction introuvable."}), 404
+    return jsonify(updated)
+
+
+@app.delete("/api/history/<int:extraction_id>")
+def api_history_delete(extraction_id: int):
+    if not storage.delete_extraction(extraction_id):
+        return jsonify({"error": "Extraction introuvable."}), 404
+    return jsonify({"ok": True})
+
+
+def _payload_from_request() -> dict:
+    data = request.get_json(silent=True) or {}
+    theme = (data.get("theme") or "").strip()
+    if theme not in ("linkora", "lienlab", "alldebrid"):
+        theme = app_settings.load_settings().get("theme") or "linkora"
+    if theme == "lienlab":
+        theme = "linkora"
+    return {
+        "source_url": (data.get("source_url") or data.get("url") or "").strip(),
+        "host": (data.get("host") or "").strip(),
+        "title": (data.get("title") or "Extraction").strip(),
+        "links": data.get("links") or [],
+        "view": bool(data.get("view")),
+        "theme": theme,
+    }
+
+
+def _export_url(link: dict) -> str:
+    return link.get("real_url") or link.get("url_display") or link.get("url") or ""
+
+
+def _send_export(mem: io.BytesIO, mimetype: str, filename: str, view: bool):
+    mem.seek(0)
+    return send_file(
+        mem,
+        mimetype=mimetype,
+        as_attachment=not view,
+        download_name=filename,
+    )
+
+
+def _display_name(link: dict) -> str:
+    return link.get("clean_name") or link.get("resolve_filename") or link.get("label") or ""
+
+
+def _build_csv(payload: dict) -> bytes:
+    links = payload["links"]
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=";")
+    writer.writerow(
+        [
+            "Label",
+            "Nom suggéré",
+            "Type média",
+            "Taille",
+            "URL source",
+            "URL réelle / débrid",
+            "Hébergeur",
+            "Statut",
+            "Source page",
+        ]
+    )
+    for link in links:
+        writer.writerow(
+            [
+                link.get("resolve_filename") or link.get("label", ""),
+                _display_name(link),
+                link.get("media_type") or "",
+                link.get("resolve_size") or link.get("size", ""),
+                link.get("url", ""),
+                _export_url(link),
+                link.get("resolve_host") or payload["host"],
+                link.get("resolve_status") or "",
+                payload["source_url"],
+            ]
+        )
+    return buf.getvalue().encode("utf-8-sig")
+
+
+def _build_jdownloader(payload: dict) -> bytes:
+    """Format URL + nom suggéré (import manuel / scripts)."""
+    lines: list[str] = []
+    for link in payload["links"]:
+        url = _export_url(link)
+        if not url:
+            continue
+        name = _display_name(link)
+        if name:
+            lines.append(f"{url} | {name}")
+        else:
+            lines.append(url)
+    header = "# Linkora — JDownloader / import\n# Format : URL | Nom suggéré\n\n"
+    return (header + "\n".join(lines)).encode("utf-8")
+
+
+def _build_html(payload: dict) -> bytes:
+    links = payload["links"]
+    theme = payload.get("theme") or "linkora"
+    if theme == "lienlab":
+        theme = "linkora"
+
+    def link_class(status: str) -> str:
+        if status == "ok":
+            return "ok"
+        if status in ("dead", "error"):
+            return "dead"
+        return "pending"
+
+    detail_rows = "\n".join(
+        f"<tr class=\"{link_class(l.get('resolve_status') or '')}\">"
+        f"<td>{i}</td>"
+        f"<td>{_esc(l.get('resolve_filename') or l.get('label') or '')}</td>"
+        f"<td>{_esc(_display_name(l))}</td>"
+        f"<td>{_esc(l.get('media_type') or '')}</td>"
+        f"<td>{_esc(l.get('resolve_size') or l.get('size') or '')}</td>"
+        f"<td class=\"col-source\"><a class=\"{link_class(l.get('resolve_status') or '')}\" "
+        f"href=\"{_esc(l.get('url') or '')}\">{_esc(l.get('url') or '')}</a></td>"
+        f"<td class=\"col-resolved\"><a class=\"{link_class(l.get('resolve_status') or '')}\" "
+        f"href=\"{_esc(_export_url(l))}\">{_esc(_export_url(l))}</a></td>"
+        f"<td>{_esc(l.get('resolve_status') or 'pending')}</td></tr>"
+        for i, l in enumerate(links, 1)
+    )
+
+    source_block = "\n".join(_esc(l.get("url") or "") for l in links)
+    resolved_block = "\n".join(_esc(_export_url(l)) for l in links)
+    resolved_ok_block = "\n".join(
+        _esc(_export_url(l)) for l in links if l.get("resolve_status") == "ok"
+    )
+
+    if theme == "alldebrid":
+        css = """
+  :root { --bg:#0b1220; --panel:#121a2b; --text:#e8eef7; --muted:#9aa8bc;
+          --ok:#f5c518; --dead:#ff4d4f; --line:#243049; --accent:#3b82f6; }
+  body { font-family: Segoe UI, Arial, sans-serif; background:var(--bg); color:var(--text);
+         max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  h1,h2 { margin: 0 0 .6rem; }
+  .meta { color: var(--muted); margin-bottom: 1.25rem; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1.25rem 0 2rem; }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1rem; }
+  .col h2 { font-size:1rem; display:flex; justify-content:space-between; align-items:center; }
+  .col pre { margin:0; white-space:pre-wrap; word-break:break-all; font-size:.9rem;
+             user-select:text; line-height:1.55; min-height:8rem; }
+  .col-resolved pre, a.ok { color: var(--ok); }
+  a.dead, .col pre.dead-list { color: var(--dead); }
+  a.pending { color: var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--panel); }
+  th,td { border-bottom:1px solid var(--line); padding:.55rem .4rem; text-align:left; vertical-align:top; font-size:.9rem; }
+  th { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+  a { word-break:break-all; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
+  button.copy { background:#1e293b; color:var(--text); border:1px solid var(--line);
+                border-radius:6px; padding:.25rem .55rem; cursor:pointer; font-size:.8rem; }
+  @media (max-width:800px){ .cols{grid-template-columns:1fr;} }
+"""
+    else:
+        css = """
+  :root { --bg:#f4f7fb; --panel:#fff; --text:#142033; --muted:#6b7a8d;
+          --ok:#ca8a04; --dead:#b42318; --line:#d7dee8; --accent:#0f766e; }
+  body { font-family: Georgia, serif; background:var(--bg); color:var(--text);
+         max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  h1,h2 { margin: 0 0 .6rem; }
+  .meta { color: var(--muted); margin-bottom: 1.25rem; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1.25rem 0 2rem; }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1rem;
+         box-shadow:0 8px 24px rgba(20,32,51,.06); }
+  .col h2 { font-size:1rem; display:flex; justify-content:space-between; align-items:center; }
+  .col pre { margin:0; white-space:pre-wrap; word-break:break-all; font-size:.9rem;
+             user-select:text; line-height:1.55; min-height:8rem; font-family:Consolas,monospace; }
+  .col-resolved pre, a.ok { color: var(--ok); }
+  a.dead { color: var(--dead); }
+  a.pending { color: var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border-radius:12px; overflow:hidden; }
+  th,td { border-bottom:1px solid var(--line); padding:.6rem .45rem; text-align:left; vertical-align:top; }
+  th { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; background:#f7fafc; }
+  a { word-break:break-all; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
+  button.copy { background:#eef6f5; color:var(--accent); border:1px solid var(--line);
+                border-radius:6px; padding:.25rem .55rem; cursor:pointer; font-size:.8rem; }
+  @media (max-width:800px){ .cols{grid-template-columns:1fr;} }
+"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{_esc(payload['title'])} — {_esc(payload['host'])}</title>
+<style>{css}</style>
+</head>
+<body>
+  <h1>{_esc(payload['title'])}</h1>
+  <p class="meta">Hébergeur : <strong>{_esc(payload['host'])}</strong>
+  · {len(links)} lien(s)
+  · Source : <a href="{_esc(payload['source_url'])}">{_esc(payload['source_url'])}</a></p>
+
+  <div class="cols">
+    <section class="col col-source">
+      <h2>Liens source <button class="copy" type="button" onclick="copyCol('src')">Copier</button></h2>
+      <pre id="src" tabindex="0">{source_block}</pre>
+      <p class="hint">Cliquez dans la colonne puis Ctrl+A / Ctrl+C pour tout sélectionner.</p>
+    </section>
+    <section class="col col-resolved">
+      <h2>Liens résolus <button class="copy" type="button" onclick="copyCol('res')">Copier</button></h2>
+      <pre id="res" tabindex="0">{resolved_block}</pre>
+      <p class="hint">Jaune = valide · Rouge = mort/erreur. Copie uniquement cette colonne.</p>
+    </section>
+  </div>
+
+  <section class="col" style="margin-bottom:1.5rem">
+    <h2>Résolus valides seulement <button class="copy" type="button" onclick="copyCol('ok')">Copier</button></h2>
+    <pre id="ok" class="ok" tabindex="0">{resolved_ok_block or "(aucun)"}</pre>
+  </section>
+
+  <h2>Détail</h2>
+  <table>
+    <thead><tr><th>#</th><th>Label</th><th>Nom suggéré</th><th>Type</th><th>Taille</th><th>Source</th><th>Résolu</th><th>Statut</th></tr></thead>
+    <tbody>
+      {detail_rows}
+    </tbody>
+  </table>
+  <script>
+    function copyCol(id) {{
+      const el = document.getElementById(id);
+      const text = el.innerText;
+      navigator.clipboard.writeText(text).then(() => {{
+        const btn = el.parentElement.querySelector('button');
+        if (!btn) return;
+        const old = btn.textContent;
+        btn.textContent = 'Copié !';
+        setTimeout(() => btn.textContent = old, 1200);
+      }});
+    }}
+  </script>
+</body>
+</html>
+"""
+    return html.encode("utf-8")
+
+
+def _build_pdf_bytes(payload: dict) -> bytes:
+    links = payload["links"]
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, _pdf_safe(payload["title"]), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(80, 80, 80)
+    pdf.multi_cell(
+        0,
+        6,
+        _pdf_safe(
+            f"Hebergeur : {payload['host']}  |  {len(links)} lien(s)\n"
+            f"Source : {payload['source_url']}\n"
+            f"Exporte le {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        ),
+    )
+    pdf.ln(4)
+    usable_width = pdf.epw
+
+    # Colonne résolus
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.multi_cell(usable_width, 7, "Liens resolus (un par ligne)")
+    pdf.set_font("Helvetica", "", 8)
+    for link in links:
+        url = _export_url(link)
+        status = link.get("resolve_status") or ""
+        if status == "ok":
+            pdf.set_text_color(180, 140, 0)
+        elif status in ("dead", "error"):
+            pdf.set_text_color(180, 35, 24)
+        else:
+            pdf.set_text_color(80, 80, 80)
+        pdf.set_x(pdf.l_margin)
+        for chunk in _chunk_text(_pdf_safe(url), 95):
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(usable_width, 4.2, chunk)
+
+    pdf.ln(4)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.multi_cell(usable_width, 7, "Liens source (un par ligne)")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(60, 60, 60)
+    for link in links:
+        url = link.get("url") or ""
+        pdf.set_x(pdf.l_margin)
+        for chunk in _chunk_text(_pdf_safe(url), 95):
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(usable_width, 4.2, chunk)
+
+    out = pdf.output()
+    return out if isinstance(out, (bytes, bytearray)) else bytes(out)
+
+
+@app.post("/api/export/jdownloader")
+def export_jdownloader():
+    payload = _payload_from_request()
+    if not payload["links"]:
+        return jsonify({"error": "Aucun lien à exporter."}), 400
+    return _send_export(
+        io.BytesIO(_build_jdownloader(payload)),
+        "text/plain",
+        f"liens_{payload['host'] or 'export'}_jdownloader.txt",
+        payload["view"],
+    )
+
+
+@app.post("/api/rename/preview")
+def rename_preview():
+    data = request.get_json(silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    if not filename:
+        return jsonify({"error": "Nom de fichier requis."}), 400
+    return jsonify(smart_naming.suggest_name(filename))
+
+
+@app.post("/api/rename/scan")
+def rename_scan():
+    data = request.get_json(silent=True) or {}
+    folder = (data.get("folder") or "").strip()
+    recursive = bool(data.get("recursive", False))
+    if not folder:
+        return jsonify({"error": "Indiquez un dossier."}), 400
+    try:
+        items = smart_naming.scan_folder(folder, recursive=recursive)
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"Scan impossible : {exc}"}), 400
+    return jsonify(
+        {
+            "folder": folder,
+            "count": len(items),
+            "to_rename": sum(1 for i in items if not i["unchanged"]),
+            "items": items,
+        }
+    )
+
+
+@app.post("/api/rename/apply")
+def rename_apply():
+    data = request.get_json(silent=True) or {}
+    items = data.get("items") or []
+    dry_run = bool(data.get("dry_run", False))
+    if not isinstance(items, list) or not items:
+        return jsonify({"error": "Aucun fichier à renommer."}), 400
+    result = smart_naming.apply_renames(items, dry_run=dry_run)
+    return jsonify(result)
+
+
+@app.post("/api/export/csv")
+def export_csv():
+    payload = _payload_from_request()
+    if not payload["links"]:
+        return jsonify({"error": "Aucun lien à exporter."}), 400
+    raw = _build_csv(payload)
+    if payload["view"]:
+        text = raw.decode("utf-8-sig")
+        preview = (
+            '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+            f"<title>CSV — {_esc(payload['title'])}</title>"
+            "<style>body{font-family:Consolas,monospace;margin:2rem;"
+            "white-space:pre-wrap;line-height:1.5}</style>"
+            f"</head><body>{_esc(text)}</body></html>"
+        )
+        return _send_export(
+            io.BytesIO(preview.encode("utf-8")),
+            "text/html",
+            f"liens_{payload['host'] or 'export'}.html",
+            True,
+        )
+    return _send_export(
+        io.BytesIO(raw),
+        "text/csv",
+        f"liens_{payload['host'] or 'export'}.csv",
+        False,
+    )
+
+
+@app.post("/api/export/html")
+def export_html():
+    payload = _payload_from_request()
+    if not payload["links"]:
+        return jsonify({"error": "Aucun lien à exporter."}), 400
+    return _send_export(
+        io.BytesIO(_build_html(payload)),
+        "text/html",
+        f"liens_{payload['host'] or 'export'}.html",
+        payload["view"],
+    )
+
+
+@app.post("/api/export/pdf")
+def export_pdf():
+    payload = _payload_from_request()
+    if not payload["links"]:
+        return jsonify({"error": "Aucun lien à exporter."}), 400
+    return _send_export(
+        io.BytesIO(_build_pdf_bytes(payload)),
+        "application/pdf",
+        f"liens_{payload['host'] or 'export'}.pdf",
+        payload["view"],
+    )
+
+
+def _chunk_text(text: str, size: int) -> list[str]:
+    if not text:
+        return [""]
+    return [text[i : i + size] for i in range(0, len(text), size)]
+
+
+def _esc(value: str) -> str:
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _pdf_safe(text: str) -> str:
+    """FPDF core fonts : latin-1 approximé."""
+    return (
+        str(text)
+        .replace("é", "e")
+        .replace("è", "e")
+        .replace("ê", "e")
+        .replace("à", "a")
+        .replace("â", "a")
+        .replace("ù", "u")
+        .replace("û", "u")
+        .replace("ô", "o")
+        .replace("î", "i")
+        .replace("ï", "i")
+        .replace("ç", "c")
+        .replace("É", "E")
+        .replace("È", "E")
+        .replace("À", "A")
+        .replace("œ", "oe")
+        .replace("Œ", "OE")
+        .encode("latin-1", errors="replace")
+        .decode("latin-1")
+    )
+
+
+if __name__ == "__main__":
+    import os
+
+    use_reloader = True
+    # Avec reloader Flask : uniquement dans le process enfant.
+    # Sans reloader : démarrage direct.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
+        updater.startup_autoupdate(
+            enabled=bool(app_settings.load_settings().get("auto_update", True))
+        )
+    app.run(debug=True, port=5000, use_reloader=use_reloader)

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="linkora">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Linkora — Récupérateur de liens</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="bg-atmosphere" aria-hidden="true"></div>
+
+  <div id="update-banner" class="update-banner" hidden>
+    <p id="update-banner-text"></p>
+    <div class="update-banner-actions">
+      <button type="button" class="btn btn-primary btn-xs" id="btn-update-apply" hidden>Mettre à jour</button>
+      <button type="button" class="btn btn-ghost btn-xs" id="btn-update-dismiss">OK</button>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-logo" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="logo-svg">
+          <defs>
+            <linearGradient id="logoGradHeader" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" class="logo-stop-a"/>
+              <stop offset="55%" class="logo-stop-b"/>
+              <stop offset="100%" class="logo-stop-c"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#logoGradHeader)"/>
+          <path d="M22.5 28.5c-3.6 3.6-3.6 9.4 0 13l3.2 3.2c3.6 3.6 9.4 3.6 13 0l1.4-1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+          <path d="M41.5 35.5c3.6-3.6 3.6-9.4 0-13l-3.2-3.2c-3.6-3.6-9.4-3.6-13 0l-1.4 1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+          <circle cx="43.5" cy="43.5" r="5.2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4"/>
+          <path d="M47.2 47.2l5.8 5.8" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="43.5" cy="43.5" r="1.6" fill="#fff"/>
+          <path d="M18 16l1.1 2.6L21.7 20l-2.6 1.1L18 23.7l-1.1-2.6L14.3 20l2.6-1.1z" fill="var(--logo-spark)"/>
+        </svg>
+      </span>
+      <span class="brand-name">Linkora</span>
+    </div>
+    <div class="header-actions">
+      <span id="provider-badge" class="provider-badge" hidden></span>
+      <div class="theme-switch" role="group" aria-label="Thème">
+        <button type="button" class="theme-btn is-active" data-theme-set="linkora" title="Thème Linkora">Défaut</button>
+        <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème AllDebrid">AllDebrid</button>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btn-settings">Paramètres</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="app-tabs" role="tablist" aria-label="Sections Linkora">
+      <button type="button" class="app-tab-btn is-active" data-tab="extract" role="tab" aria-selected="true">
+        Récupération
+      </button>
+      <button type="button" class="app-tab-btn" data-tab="rename" role="tab" aria-selected="false">
+        Renommage
+      </button>
+    </nav>
+
+    <section id="tab-extract" class="app-tab-panel is-active" role="tabpanel">
+    <section class="hero">
+      <div class="hero-brand">
+        <span class="hero-logo" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="logo-svg">
+            <defs>
+              <linearGradient id="logoGradHero" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" class="logo-stop-a"/>
+                <stop offset="55%" class="logo-stop-b"/>
+                <stop offset="100%" class="logo-stop-c"/>
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#logoGradHero)"/>
+            <path d="M22.5 28.5c-3.6 3.6-3.6 9.4 0 13l3.2 3.2c3.6 3.6 9.4 3.6 13 0l1.4-1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M41.5 35.5c3.6-3.6 3.6-9.4 0-13l-3.2-3.2c-3.6-3.6-9.4-3.6-13 0l-1.4 1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+            <circle cx="43.5" cy="43.5" r="5.2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4"/>
+            <path d="M47.2 47.2l5.8 5.8" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="43.5" cy="43.5" r="1.6" fill="#fff"/>
+            <path d="M18 16l1.1 2.6L21.7 20l-2.6 1.1L18 23.7l-1.1-2.6L14.3 20l2.6-1.1z" fill="var(--logo-spark)"/>
+          </svg>
+        </span>
+        <h1 class="hero-title">Linkora</h1>
+      </div>
+      <p class="hero-lead">
+        Collez l’URL d’une page, indiquez l’hébergeur souhaité, récupérez et résolvez les liens via AllDebrid ou Real-Debrid.
+        Noms Plex/Kodi générés automatiquement.
+      </p>
+
+      <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
+        <label class="field field-urls">
+          <span class="field-label">URL(s) de page(s) — une par ligne</span>
+          <textarea
+            id="urls"
+            name="urls"
+            required
+            rows="3"
+            placeholder="https://exemple.com/?p=serie&id=saison-1&#10;https://exemple.com/?p=serie&id=saison-2&#10;https://exemple.com/?p=serie&id=saison-3"
+            spellcheck="false"
+          ></textarea>
+        </label>
+
+        <div class="extract-row">
+          <label class="field field-host">
+            <span class="field-label">Hébergeur</span>
+            <input
+              type="text"
+              id="host"
+              name="host"
+              required
+              list="host-suggestions"
+              placeholder="rapidgator, nitroflare, vidoza…"
+              spellcheck="false"
+            >
+            <datalist id="host-suggestions">
+              <option value="rapidgator">
+              <option value="nitroflare">
+              <option value="vidoza">
+              <option value="mystream">
+              <option value="vidlox">
+              <option value="1fichier">
+              <option value="uptobox">
+              <option value="turbobit">
+            </datalist>
+          </label>
+
+          <button type="submit" class="btn btn-primary" id="btn-extract">
+            <span class="btn-label">Récupérer</span>
+            <span class="btn-spinner" hidden aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
+
+      <p id="form-error" class="form-error" role="alert" hidden></p>
+    </section>
+
+    <section id="results" class="results" hidden>
+      <div class="results-toolbar">
+        <div class="results-meta">
+          <h2 id="results-title">Résultats</h2>
+          <p id="results-summary" class="results-summary"></p>
+        </div>
+        <button type="button" class="btn btn-close" id="btn-close-results" title="Fermer les résultats" aria-label="Fermer les résultats">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+
+      <div class="results-actions-bar">
+        <div class="action-cluster">
+          <button type="button" class="btn btn-primary" id="btn-resolve" title="Résoudre via le débrideur">
+            <span class="btn-resolve-label">Résoudre</span>
+            <span class="btn-spinner" hidden aria-hidden="true"></span>
+          </button>
+          <button type="button" class="btn btn-ghost" id="btn-recheck-dead" title="Re-vérifier uniquement les liens morts/erreurs">
+            Re-vérifier morts
+          </button>
+          <button type="button" class="btn btn-ghost" id="btn-stop-resolve" hidden>Stop</button>
+        </div>
+        <div class="action-cluster">
+          <button type="button" class="btn btn-ghost" id="btn-copy" title="Copier les liens résolus">Copier résolus</button>
+          <button type="button" class="btn btn-ghost" id="btn-copy-source" title="Copier les liens source">Copier source</button>
+          <button type="button" class="btn btn-ghost" id="btn-save" title="Sauvegarder">Sauvegarder</button>
+        </div>
+        <div class="action-cluster export-group">
+          <div class="export-split">
+            <button type="button" class="btn btn-secondary" data-export="csv" title="Télécharger CSV">CSV</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="csv" title="Voir CSV">Voir</button>
+          </div>
+          <div class="export-split">
+            <button type="button" class="btn btn-secondary" data-export="html" title="Télécharger HTML">HTML</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="html" title="Voir HTML">Voir</button>
+          </div>
+          <div class="export-split">
+            <button type="button" class="btn btn-secondary" data-export="pdf" title="Télécharger PDF">PDF</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="pdf" title="Voir PDF">Voir</button>
+          </div>
+          <div class="export-split">
+            <button type="button" class="btn btn-secondary" data-export="jdownloader" title="Export JDownloader (URL + nom suggéré)">JD</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="jdownloader" title="Voir export JDownloader">Voir</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="resolve-progress" class="resolve-progress" hidden>
+        <div class="resolve-progress-top">
+          <span id="resolve-progress-text">Résolution…</span>
+          <span id="resolve-progress-count">0 / 0</span>
+        </div>
+        <div class="resolve-progress-bar">
+          <div id="resolve-progress-fill" class="resolve-progress-fill"></div>
+        </div>
+      </div>
+
+      <div id="page-blocks" class="page-blocks"></div>
+    </section>
+
+    <section class="history history-panel is-collapsed" id="history-panel">
+      <button type="button" class="history-toggle" id="btn-history-toggle" aria-expanded="false" aria-controls="history-body">
+        <span class="history-toggle-main">
+          <span class="history-toggle-title">Historique</span>
+          <span class="history-toggle-meta" id="history-count">0 entrée(s)</span>
+        </span>
+        <span class="history-toggle-hint">Afficher les pages débridées sauvegardées</span>
+        <span class="history-chevron" aria-hidden="true"></span>
+      </button>
+      <div class="history-body" id="history-body" hidden>
+        <p class="history-lead">Une entrée par page — cliquez sur Ouvrir pour revoir les liens.</p>
+        <ul id="history-list" class="history-list">
+          <li class="history-empty">Aucune sauvegarde pour le moment.</li>
+        </ul>
+      </div>
+    </section>
+    </section>
+
+    <section id="tab-rename" class="app-tab-panel" role="tabpanel" hidden>
+      <section class="rename-hero">
+        <h1 class="hero-title">Renommage intelligent</h1>
+        <p class="hero-lead">
+          Nettoyez vos fichiers téléchargés pour Plex, Kodi ou Jellyfin.
+          Séries <code>S03E01</code>, films <code>Titre (2024)</code>, anime, documentaires.
+        </p>
+
+        <form id="rename-scan-form" class="extract-form rename-form" autocomplete="off">
+          <label class="field">
+            <span class="field-label">Dossier à scanner</span>
+            <input
+              type="text"
+              id="rename-folder"
+              name="folder"
+              required
+              placeholder="D:\Downloads\Series\Ma Sorciere Bien-Aimee"
+              spellcheck="false"
+            >
+            <span class="field-hint">Chemin absolu sur ce PC. L’aperçu s’affiche avant tout renommage.</span>
+          </label>
+          <div class="rename-options">
+            <label class="check-field">
+              <input type="checkbox" id="rename-recursive" name="recursive">
+              <span>Inclure les sous-dossiers</span>
+            </label>
+            <button type="submit" class="btn btn-primary" id="btn-rename-scan">
+              <span class="btn-label">Scanner</span>
+              <span class="btn-spinner" hidden aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        <p id="rename-error" class="form-error" role="alert" hidden></p>
+      </section>
+
+      <section id="rename-results" class="rename-results" hidden>
+        <div class="results-toolbar">
+          <div class="results-meta">
+            <h2 id="rename-results-title">Aperçu des renommages</h2>
+            <p id="rename-results-summary" class="results-summary"></p>
+          </div>
+        </div>
+        <div class="rename-actions-bar">
+          <button type="button" class="btn btn-primary" id="btn-rename-apply">Renommer les fichiers</button>
+          <button type="button" class="btn btn-ghost" id="btn-rename-dry">Simulation (aperçu seulement)</button>
+          <button type="button" class="btn btn-ghost" id="btn-rename-copy">Copier la liste</button>
+        </div>
+        <div class="table-wrap">
+          <table class="links-table rename-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Original</th>
+                <th>→</th>
+                <th>Nom suggéré</th>
+                <th>Type</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="rename-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Linkora — outil local d’extraction, débridage et renommage intelligent.</p>
+  </footer>
+
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-settings></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-head">
+        <h2 id="settings-title">Paramètres débrideurs</h2>
+        <button type="button" class="btn btn-close" data-close-settings aria-label="Fermer">×</button>
+      </div>
+      <p class="modal-lead">
+        Ajoutez vos clés API officielles. Elles restent stockées localement sur cet appareil.
+      </p>
+
+      <form id="settings-form" class="settings-form" autocomplete="off" onsubmit="return false;">
+        <label class="field">
+          <span class="field-label">Thème d’interface</span>
+          <select id="ui-theme" name="theme">
+            <option value="linkora">Linkora (défaut)</option>
+            <option value="alldebrid">AllDebrid (jaune / rouge)</option>
+          </select>
+        </label>
+
+        <label class="check-field settings-check">
+          <input type="checkbox" id="auto-update" name="auto_update" checked>
+          <span>Mise à jour automatique depuis GitHub</span>
+        </label>
+        <p class="field-hint" id="update-status-hint">Version locale : —</p>
+        <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">
+          <button type="button" class="btn btn-ghost" id="btn-check-update">Vérifier les mises à jour</button>
+          <button type="button" class="btn btn-secondary" id="btn-force-update" hidden>Installer la MAJ</button>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span class="field-label">Re-vérifications si dead</span>
+            <input type="number" id="max-retries" name="max_retries" min="1" max="8" step="1" value="3">
+            <span class="field-hint">Nombre d’essais AllDebrid avant de marquer mort (1–8).</span>
+          </label>
+          <label class="field">
+            <span class="field-label">Résolutions en parallèle</span>
+            <input type="number" id="resolve-concurrency" name="resolve_concurrency" min="1" max="12" step="1" value="6">
+            <span class="field-hint">Plus élevé = plus rapide (1–12). 6 est un bon équilibre.</span>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field-label">Fournisseur actif</span>
+          <select id="active-provider" name="active_provider">
+            <option value="alldebrid">AllDebrid</option>
+            <option value="realdebrid">Real-Debrid</option>
+          </select>
+        </label>
+
+        <fieldset class="provider-block">
+          <legend>AllDebrid</legend>
+          <label class="field">
+            <span class="field-label">Clé API</span>
+            <input
+              type="password"
+              id="key-alldebrid"
+              name="alldebrid"
+              placeholder="Coller une nouvelle clé (laisser vide pour conserver)"
+              spellcheck="false"
+            >
+            <span class="field-hint" id="hint-alldebrid"></span>
+          </label>
+          <button type="button" class="btn btn-ghost" data-test-provider="alldebrid">Tester</button>
+        </fieldset>
+
+        <fieldset class="provider-block">
+          <legend>Real-Debrid</legend>
+          <label class="field">
+            <span class="field-label">Clé API / token</span>
+            <input
+              type="password"
+              id="key-realdebrid"
+              name="realdebrid"
+              placeholder="Coller une nouvelle clé (laisser vide pour conserver)"
+              spellcheck="false"
+            >
+            <span class="field-hint" id="hint-realdebrid"></span>
+          </label>
+          <button type="button" class="btn btn-ghost" data-test-provider="realdebrid">Tester</button>
+        </fieldset>
+
+        <p id="settings-message" class="settings-message" hidden></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close-settings>Annuler</button>
+          <button type="button" class="btn btn-primary" id="btn-settings-save">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
