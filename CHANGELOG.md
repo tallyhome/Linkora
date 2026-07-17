@@ -15,6 +15,7 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ### Corrigé
 - MAJ `.exe` : plus d’erreur `Permission denied` sur les DLL — téléchargement puis remplacement **après fermeture** + relance auto
+- Installateur : si Linkora est déjà installé → choix **Mettre à jour** / **Réparer** / **Désinstaller**
 
 ---
 
