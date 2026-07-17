@@ -326,61 +326,20 @@ def _extract_zip_bytes(raw: bytes) -> None:
     )
 
 
-def _ps_quote(path: str) -> str:
-    return "'" + path.replace("'", "''") + "'"
-
-
-def _write_silent_updater(staging: Path, target_version: str) -> Path:
-    """
-    Helper PowerShell invisible : attend la fin de Linkora, copie, relance.
-    Lancé via wscript+VBS pour zéro fenêtre console.
-    """
-    pid = os.getpid()
-    exe_name = Path(sys.executable).name if getattr(sys, "frozen", False) else "Linkora.exe"
-    src = str(staging.resolve())
-    dst = str(ROOT.resolve())
-    exe = str((ROOT / exe_name).resolve())
-    tmp = Path(tempfile.gettempdir())
-    ps1 = tmp / f"linkora-apply-{pid}.ps1"
-    vbs = tmp / f"linkora-apply-{pid}.vbs"
-
-    ps_content = f"""$ErrorActionPreference = 'SilentlyContinue'
-$targetPid = {pid}
-$src = {_ps_quote(src)}
-$dst = {_ps_quote(dst)}
-$exe = {_ps_quote(exe)}
-while (Get-Process -Id $targetPid -ErrorAction SilentlyContinue) {{
-  Start-Sleep -Milliseconds 400
-}}
-Start-Sleep -Seconds 1
-$rc = 0
-& robocopy $src $dst /E /XD data /R:3 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-$rc = $LASTEXITCODE
-if ($rc -ge 8) {{ exit $rc }}
-if (Test-Path -LiteralPath $exe) {{
-  Start-Process -FilePath $exe
-}}
-Remove-Item -LiteralPath $src -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
-"""
-    ps1.write_text(ps_content, encoding="utf-8")
-
-    # VBS : Run ..., 0 = fenêtre cachée
-    vbs_content = (
-        'Set sh = CreateObject("WScript.Shell")\r\n'
-        f'sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{ps1}""", 0, False\r\n'
-    )
-    vbs.write_text(vbs_content, encoding="utf-8")
-    return vbs
-
-
 def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
-    vbs = _write_silent_updater(staging, target_version)
+    """
+    Relance le même Linkora.exe en mode helper (console=False → aucune fenêtre DOS).
+    Plus de .bat / PowerShell / VBS.
+    """
     flags = _DETACHED_PROCESS | _CREATE_NEW_PROCESS_GROUP | _CREATE_NO_WINDOW
-    # wscript.exe n'ouvre pas de console
     subprocess.Popen(
-        ["wscript.exe", "//B", "//Nologo", str(vbs)],
-        cwd=str(Path(tempfile.gettempdir())),
+        [
+            sys.executable,
+            "--linkora-updater",
+            str(staging.resolve()),
+            str(os.getpid()),
+        ],
+        cwd=str(ROOT),
         creationflags=flags,
         close_fds=True,
         stdin=subprocess.DEVNULL,
@@ -389,7 +348,7 @@ def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     )
 
     def _exit_soon() -> None:
-        time.sleep(0.8)
+        time.sleep(0.9)
         os._exit(0)
 
     threading.Thread(target=_exit_soon, daemon=True, name="linkora-exit-after-update").start()

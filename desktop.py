@@ -8,6 +8,21 @@ import sys
 import threading
 import time
 from contextlib import closing
+from pathlib import Path
+
+
+def _cleanup_old_update_scripts() -> None:
+    """Supprime d’anciens helpers .bat/.ps1/.vbs qui ouvraient des fenêtres DOS."""
+    try:
+        tmp = Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".")
+        for pattern in ("linkora-apply-*.bat", "linkora-apply-*.ps1", "linkora-apply-*.vbs"):
+            for path in tmp.glob(pattern):
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+    except Exception:
+        pass
 
 
 def _port_free(port: int) -> bool:
@@ -37,6 +52,7 @@ def _wait_ready(port: int, timeout: float = 20.0) -> bool:
 def main() -> None:
     # Mode production (pas de reloader / debug)
     os.environ.setdefault("LINKORA_DESKTOP", "1")
+    _cleanup_old_update_scripts()
 
     import app as linkora_app
     import settings as app_settings
@@ -127,4 +143,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Mode helper MAJ : aucune UI, aucune console (exe windowed)
+    if len(sys.argv) >= 4 and sys.argv[1] == "--linkora-updater":
+        from update_helper import run_helper
+
+        try:
+            pid = int(sys.argv[3])
+        except ValueError:
+            raise SystemExit(1)
+        raise SystemExit(run_helper(sys.argv[2], pid))
+
     main()

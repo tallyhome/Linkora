@@ -22,6 +22,7 @@ hiddenimports = [
     "episode_gaps",
     "smart_naming",
     "updater",
+    "update_helper",
     "paths",
     "settings",
     "storage",

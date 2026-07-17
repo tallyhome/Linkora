@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.3] — 2026-07-17
+
+### Corrigé
+- MAJ : **plus aucune fenêtre DOS** — helper intégré à `Linkora.exe` (pas de .bat / PowerShell / VBS)
+- Nettoyage des anciens scripts `linkora-apply-*` au démarrage
+
+---
+
 ## [1.3.2] — 2026-07-17
 
 ### Corrigé
