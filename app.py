@@ -805,14 +805,19 @@ def _pdf_safe(text: str) -> str:
 
 if __name__ == "__main__":
     import os
+    import sys
 
-    use_reloader = True
-    # Avec reloader Flask : uniquement dans le process enfant.
-    # Sans reloader : démarrage direct.
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
-        conf = app_settings.load_settings()
-        updater.startup_autoupdate(
-            enabled=bool(conf.get("auto_update", True)),
-            manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
-        )
-    app.run(debug=True, port=5000, use_reloader=use_reloader)
+    # python app.py --desktop  → fenêtre native
+    if "--desktop" in sys.argv or os.environ.get("LINKORA_DESKTOP") == "1":
+        from desktop import main as desktop_main
+
+        desktop_main()
+    else:
+        use_reloader = True
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
+            conf = app_settings.load_settings()
+            updater.startup_autoupdate(
+                enabled=bool(conf.get("auto_update", True)),
+                manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
+            )
+        app.run(debug=True, port=5000, use_reloader=use_reloader)

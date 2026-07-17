@@ -84,6 +84,50 @@
     }, 2600);
   }
 
+  async function askConfirm(title, text, { confirmText = "Confirmer", icon = "warning" } = {}) {
+    const modal = document.getElementById("confirm-modal");
+    const titleEl = document.getElementById("confirm-title");
+    const textEl = document.getElementById("confirm-text");
+    const okBtn = document.getElementById("confirm-ok");
+    const iconEl = document.getElementById("confirm-icon");
+    if (!modal || !titleEl || !textEl || !okBtn) {
+      return window.confirm(`${title}\n\n${text || ""}`);
+    }
+
+    titleEl.textContent = title;
+    textEl.textContent = text || "";
+    okBtn.textContent = confirmText;
+    if (iconEl) {
+      iconEl.textContent = icon === "question" ? "?" : "!";
+      iconEl.className = `confirm-icon ${icon === "question" ? "is-question" : "is-warning"}`;
+    }
+    modal.hidden = false;
+
+    return new Promise((resolve) => {
+      const finish = (value) => {
+        modal.hidden = true;
+        modal.removeEventListener("click", onClick);
+        document.removeEventListener("keydown", onKey);
+        resolve(value);
+      };
+      const onClick = (event) => {
+        if (event.target.closest("[data-confirm-cancel]")) finish(false);
+        else if (event.target.closest("#confirm-ok")) finish(true);
+      };
+      const onKey = (event) => {
+        if (event.key === "Escape") finish(false);
+        if (event.key === "Enter") finish(true);
+      };
+      modal.addEventListener("click", onClick);
+      document.addEventListener("keydown", onKey);
+      okBtn.focus();
+    });
+  }
+
+  async function showAlert(title, text) {
+    await askConfirm(title, text, { confirmText: "OK", icon: "question" });
+  }
+
   function setLoading(loading) {
     btnExtract.disabled = loading;
     btnSpinner.hidden = !loading;
@@ -1723,7 +1767,12 @@
     }
 
     if (action === "delete") {
-      if (!confirm("Supprimer cette extraction ?")) return;
+      const ok = await askConfirm(
+        "Supprimer cette extraction ?",
+        "Cette action est définitive.",
+        { confirmText: "Supprimer", icon: "warning" }
+      );
+      if (!ok) return;
       const res = await fetch(`/api/history/${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Supprimé.");
@@ -1875,7 +1924,12 @@
       showToast("Aucun fichier à renommer.");
       return;
     }
-    if (!confirm(`Renommer ${items.length} fichier(s) ? Cette action est locale sur votre PC.`)) return;
+    const ok = await askConfirm(
+      `Renommer ${items.length} fichier(s) ?`,
+      "Cette action est locale sur votre PC et modifie les noms de fichiers.",
+      { confirmText: "Renommer", icon: "question" }
+    );
+    if (!ok) return;
     try {
       const res = await fetch("/api/rename/apply", {
         method: "POST",

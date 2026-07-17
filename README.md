@@ -25,47 +25,38 @@
 - **Renommage intelligent** — séries `S03E01`, films `Titre (2024)`, anime… pour Plex / Kodi / Jellyfin
 - **Auto-update** — vérifie GitHub au démarrage et applique les mises à jour automatiquement
 
-## Prérequis
+## Windows (recommandé)
 
-- Python **3.10+**
-- Compte **AllDebrid** ou **Real-Debrid** (clé API)
+Téléchargez la dernière version sur la page [**Releases**](https://github.com/tallyhome/Linkora/releases) :
 
-## Installation
+| Fichier | Usage |
+|--------|--------|
+| **`Linkora-Setup-vX.Y.Z.exe`** | Installateur : menu Démarrer, raccourci Bureau, désinstallation |
+| **`Linkora-windows-vX.Y.Z.zip`** | Version portable (dézipper et lancer `Linkora.exe`) |
+
+1. Lancez **Setup** (ou `Linkora.exe` en portable)
+2. **Paramètres** → collez votre clé API AllDebrid ou Real-Debrid → Tester → Enregistrer
+3. Collez une ou plusieurs URLs, indiquez l’hébergeur (`rapidgator`, etc.)
+4. **Récupérer** → **Résoudre** → exportez / copiez / JDownloader
+
+Prérequis : compte **AllDebrid** ou **Real-Debrid** (clé API).  
+Windows peut afficher un avertissement SmartScreen (exe non signé) — voir [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
+
+## macOS / Linux (depuis les sources)
+
+Pas d’installateur desktop pour le moment : lancez l’interface web locale.
 
 ```bash
 git clone https://github.com/tallyhome/Linkora.git
 cd Linkora
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
+python3 -m venv .venv
 source .venv/bin/activate
-
 pip install -r requirements.txt
 python app.py
 ```
 
-Ouvrez [http://127.0.0.1:5000](http://127.0.0.1:5000).
-
-## Premiers pas
-
-1. **Paramètres** → collez votre clé API AllDebrid ou Real-Debrid → Tester → Enregistrer  
-2. Collez une (ou plusieurs) URL(s) de page, indiquez l’hébergeur (`rapidgator`, etc.)  
-3. **Récupérer** → **Résoudre** (globalement ou par bloc de page)  
-4. Exportez / copiez les liens, ou utilisez l’onglet **Renommage** sur un dossier local  
-
-## Build Windows (.exe)
-
-```powershell
-.\tools\build_windows.ps1
-```
-
-Sortie : `dist/Linkora/` + `dist/Linkora-windows-vX.Y.Z.zip`  
-Publiez le zip comme **asset** de la release GitHub.
-
-Signature (optionnel) : voir [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
+Ouvrez [http://127.0.0.1:5000](http://127.0.0.1:5000).  
+Python **3.10+** requis.
 
 ## Documentation
 
@@ -75,21 +66,30 @@ Signature (optionnel) : voir [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
 ## Auto-update
 
-Au démarrage, Linkora interroge les [releases / tags GitHub](https://github.com/tallyhome/Linkora/releases).
+Au démarrage, Linkora interroge les [releases GitHub](https://github.com/tallyhome/Linkora/releases).
 
 - Si une version plus récente existe → elle est **appliquée automatiquement** (si l’option est active)
 - Les données locales (`data/`, clés API, historique) sont **conservées**
 - Un bandeau indique qu’un **redémarrage** est recommandé après mise à jour
-- Source alternative : URL `latest.json` dans Paramètres (voir `docs/latest.example.json`)
 
-Vous pouvez aussi vérifier / forcer une MAJ depuis **Paramètres**.
+Vous pouvez aussi vérifier / forcer une MAJ depuis **Paramètres**.  
+Désactiver : Paramètres → décocher « Mise à jour automatique ».
 
-Désactiver l’auto-update : Paramètres → décocher « Mise à jour automatique ».
+## Build Windows (développeurs)
+
+```powershell
+winget install JRSoftware.InnoSetup   # une fois, pour l’installateur
+.\tools\build_windows.ps1
+```
+
+Sortie : `dist/Linkora/`, zip portable, et `Linkora-Setup-vX.Y.Z.exe`.  
+Signature (optionnel) : [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
 ## Structure
 
 ```
 Linkora/
+├── desktop.py          # Lanceur fenêtre Windows
 ├── app.py              # Serveur Flask
 ├── scraper.py          # Extraction des liens
 ├── debrid.py           # Clients AllDebrid / Real-Debrid

@@ -30,11 +30,18 @@ hiddenimports = [
 ]
 
 a = Analysis(
-    ["app.py"],
+    ["desktop.py"],
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=hiddenimports,
+    hiddenimports=hiddenimports
+    + [
+        "webview",
+        "webview.platforms.winforms",
+        "clr",
+        "desktop",
+        "app",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -57,13 +64,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="static/img/logo.png",
+    icon="static/img/logo.ico",
 )
 
 coll = COLLECT(

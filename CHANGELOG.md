@@ -9,6 +9,8 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 ### Ajouté
 - Roadmap / Changelog / TODO (`docs/ROADMAP.md`, `CHANGELOG.md`, `TODO.md`)
 - Packaging Windows **one-folder** (`linkora.spec`, `tools/build_windows.ps1`)
+- Mode **bureau** (`desktop.py` + pywebview) sans console DOS
+- **Installateur Windows** Inno Setup (`tools/linkora.iss`) : raccourcis Bureau / menu Démarrer, désinstallation
 - MAJ par **zip** (asset release GitHub ou site `latest.json`)
 - Doc + script **signature Authenticode** (`docs/CODE_SIGNING.md`, `tools/sign_windows.ps1`)
 - **Détection d’épisodes manquants** (SxxExx)
@@ -19,6 +21,8 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 ### Modifié
 - Updater : priorise zip Windows, conserve `data/`
 - Paramètres : template renommage + URL manifeste MAJ
+- README centré Windows (Setup / zip) ; sources CLI pour macOS / Linux
+- Fix crash au lancement : icône fenêtre en `.ico` (plus de PNG pour WinForms)
 
 ---
 

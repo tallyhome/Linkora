@@ -12,7 +12,8 @@ Roadmap complète : [docs/ROADMAP.md](docs/ROADMAP.md)
   - [x] Scripts `build_windows.ps1`
   - [x] Updater mode zip (GitHub assets + URL `latest.json`)
   - [x] Préserver `data/` à la MAJ
-  - [ ] Doc install double-clic dans README (à compléter au premier build publié)
+  - [x] Installateur Inno Setup (raccourcis + désinstall)
+  - [x] Doc install dans README
 
 - [x] **2. Signature du `.exe`**
   - [x] Doc `docs/CODE_SIGNING.md`
