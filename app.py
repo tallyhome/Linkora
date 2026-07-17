@@ -71,9 +71,14 @@ def api_update_apply():
     data = request.get_json(silent=True) or {}
     tag = (data.get("tag") or "").strip() or None
     manifest = (data.get("manifest_url") or "").strip() or app_settings.get_update_manifest_url()
-    result = updater.apply_update(tag, manifest_url=manifest or None)
-    status = 200 if result.get("applied") or not result.get("error") else 400
-    return jsonify(result), status
+    # Toujours en arrière-plan pour laisser l’UI afficher la progression
+    result = updater.apply_update(tag, manifest_url=manifest or None, background=True)
+    return jsonify(result)
+
+
+@app.get("/api/update/progress")
+def api_update_progress():
+    return jsonify(updater.get_state())
 
 
 @app.post("/api/episodes/missing")

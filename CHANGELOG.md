@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.2] — 2026-07-17
+
+### Corrigé
+- MAJ `.exe` : plus de fenêtre DOS bloquée — helper silencieux (VBS/PowerShell caché)
+- Popup de **progression** (téléchargement / extraction / redémarrage) puis relance auto
+
+---
+
 ## [1.3.1] — 2026-07-17
 
 ### Ajouté

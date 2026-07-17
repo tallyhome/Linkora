@@ -33,6 +33,11 @@
   const btnUpdateDismiss = document.getElementById("btn-update-dismiss");
   const btnCheckUpdate = document.getElementById("btn-check-update");
   const btnForceUpdate = document.getElementById("btn-force-update");
+  const updateProgressModal = document.getElementById("update-progress-modal");
+  const updateProgressText = document.getElementById("update-progress-text");
+  const updateProgressFill = document.getElementById("update-progress-fill");
+  const updateProgressPct = document.getElementById("update-progress-pct");
+  let updateProgressTimer = null;
   const filterBar = document.getElementById("results-filter-bar");
   const filterStatus = document.getElementById("filter-status");
   const filterText = document.getElementById("filter-text");
@@ -2654,25 +2659,85 @@
     if (updateBanner) updateBanner.hidden = true;
   });
 
-  btnUpdateApply?.addEventListener("click", async () => {
+  function openUpdateProgress() {
+    if (updateBanner) updateBanner.hidden = true;
+    if (updateProgressModal) updateProgressModal.hidden = false;
+    setUpdateProgressUI({ percent: 1, progress_message: "Démarrage…" });
+  }
+
+  function closeUpdateProgress() {
+    if (updateProgressModal) updateProgressModal.hidden = true;
+    if (updateProgressTimer) {
+      clearInterval(updateProgressTimer);
+      updateProgressTimer = null;
+    }
+  }
+
+  function setUpdateProgressUI(state) {
+    const pct = Math.max(0, Math.min(100, Number(state?.percent) || 0));
+    const text =
+      state?.progress_message ||
+      state?.message ||
+      state?.error ||
+      "Mise à jour…";
+    if (updateProgressText) updateProgressText.textContent = text;
+    if (updateProgressFill) updateProgressFill.style.width = `${pct}%`;
+    if (updateProgressPct) updateProgressPct.textContent = `${Math.round(pct)} %`;
+  }
+
+  async function runUpdateWithProgress() {
+    openUpdateProgress();
     try {
-      const res = await fetch("/api/update/apply", {
+      await fetch("/api/update/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",
       });
-      const data = await res.json();
-      showUpdateBanner(data);
-      if (data.error) showToast(data.error);
-      else showToast(data.message || "Mise à jour appliquée.");
-      if (data.restarting) {
-        showToast("Fermeture pour appliquer la MAJ…");
-      }
-      refreshUpdateStatus();
     } catch {
-      // Si le serveur s’est fermé pour redémarrer, c’est attendu
-      showToast("Mise à jour en cours — redémarrage…");
+      /* le serveur peut couper à la fin — on continue le poll */
     }
+
+    if (updateProgressTimer) clearInterval(updateProgressTimer);
+    updateProgressTimer = setInterval(async () => {
+      try {
+        const res = await fetch("/api/update/progress");
+        const state = await res.json();
+        setUpdateProgressUI(state);
+        if (state.error && state.done) {
+          clearInterval(updateProgressTimer);
+          updateProgressTimer = null;
+          showToast(state.error);
+          closeUpdateProgress();
+          showUpdateBanner(state);
+          return;
+        }
+        if (state.restarting) {
+          setUpdateProgressUI({
+            percent: 100,
+            progress_message: "Redémarrage de Linkora…",
+          });
+          // L’app va se fermer toute seule
+          return;
+        }
+        if (state.done && !state.busy) {
+          clearInterval(updateProgressTimer);
+          updateProgressTimer = null;
+          closeUpdateProgress();
+          showUpdateBanner(state);
+          showToast(state.message || "Mise à jour terminée.");
+        }
+      } catch {
+        // Serveur coupé = redémarrage en cours
+        setUpdateProgressUI({
+          percent: 100,
+          progress_message: "Redémarrage de Linkora…",
+        });
+      }
+    }, 350);
+  }
+
+  btnUpdateApply?.addEventListener("click", () => {
+    runUpdateWithProgress();
   });
 
   btnCheckUpdate?.addEventListener("click", async () => {
@@ -2693,22 +2758,7 @@
     }
   });
 
-  btnForceUpdate?.addEventListener("click", async () => {
-    btnForceUpdate.disabled = true;
-    try {
-      const res = await fetch("/api/update/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      const data = await res.json();
-      showUpdateBanner(data);
-      showToast(data.error || data.message || "Terminé.");
-      if (data.restarting) showToast("Fermeture pour appliquer la MAJ…");
-    } catch {
-      showToast("Mise à jour en cours — redémarrage…");
-    } finally {
-      btnForceUpdate.disabled = false;
-    }
+  btnForceUpdate?.addEventListener("click", () => {
+    runUpdateWithProgress();
   });
 })();

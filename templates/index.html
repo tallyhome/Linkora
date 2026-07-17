@@ -473,9 +473,10 @@
           <h2>Mises à jour</h2>
           <p>
             Au démarrage (ou via « Vérifier les mises à jour »), Linkora compare sa version
-            aux tags GitHub. S’il existe une version plus récente avec un zip Windows, elle peut s’appliquer automatiquement.
+            aux tags GitHub. Cliquez <strong>Mettre à jour</strong> : une fenêtre de progression
+            montre le téléchargement, puis Linkora se ferme et redémarre tout seul.
           </p>
-          <p>Vos données <code>data/</code> sont conservées. Redémarrez après une MAJ.</p>
+          <p>Vos données <code>data/</code> sont conservées.</p>
         </section>
 
         <p class="help-foot">Astuce : le bouton <strong>?</strong> en haut à droite rouvre toujours cette page.</p>
@@ -623,6 +624,18 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <div id="update-progress-modal" class="update-progress-modal" hidden>
+    <div class="update-progress-backdrop"></div>
+    <div class="update-progress-panel" role="dialog" aria-modal="true" aria-labelledby="update-progress-title">
+      <h3 id="update-progress-title">Mise à jour en cours</h3>
+      <p id="update-progress-text" class="update-progress-text">Préparation…</p>
+      <div class="update-progress-track" aria-hidden="true">
+        <div id="update-progress-fill" class="update-progress-fill"></div>
+      </div>
+      <p id="update-progress-pct" class="update-progress-pct">0 %</p>
+    </div>
+  </div>
 
   <div id="confirm-modal" class="confirm-modal" hidden>
     <div class="confirm-backdrop" data-confirm-cancel></div>

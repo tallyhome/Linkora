@@ -34,8 +34,15 @@ _state: dict[str, Any] = {
     "error": "",
     "message": "",
     "source": "github",
+    # Progression UI
+    "busy": False,
+    "phase": "",
+    "percent": 0,
+    "progress_message": "",
+    "done": False,
 }
 _lock = threading.Lock()
+_apply_lock = threading.Lock()
 
 # Windows : process détaché sans fenêtre
 _CREATE_NO_WINDOW = 0x08000000
@@ -78,6 +85,16 @@ def get_state() -> dict[str, Any]:
 def _set_state(**kwargs: Any) -> None:
     with _lock:
         _state.update(kwargs)
+
+
+def _set_progress(phase: str, percent: int, message: str, **extra: Any) -> None:
+    _set_state(
+        phase=phase,
+        percent=max(0, min(100, int(percent))),
+        progress_message=message,
+        message=message,
+        **extra,
+    )
 
 
 def _headers() -> dict[str, str]:
@@ -220,12 +237,40 @@ def _apply_via_git(tag: str) -> None:
 
 
 def _download_zip(url: str) -> bytes:
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=120, stream=True)
+    """Télécharge le zip en mettant à jour la barre de progression."""
+    _set_progress("download", 8, "Connexion au serveur de téléchargement…")
+    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=180, stream=True)
     if resp.status_code != 200:
         raise RuntimeError(f"Téléchargement impossible (HTTP {resp.status_code}).")
-    raw = resp.content
+
+    total = int(resp.headers.get("Content-Length") or 0)
+    chunks: list[bytes] = []
+    done = 0
+    last_pct = -1
+    for chunk in resp.iter_content(chunk_size=256 * 1024):
+        if not chunk:
+            continue
+        chunks.append(chunk)
+        done += len(chunk)
+        if total > 0:
+            pct = 8 + int(62 * done / total)  # 8 → 70
+            if pct != last_pct:
+                mb = done / (1024 * 1024)
+                total_mb = total / (1024 * 1024)
+                _set_progress(
+                    "download",
+                    pct,
+                    f"Téléchargement… {mb:.1f} / {total_mb:.1f} Mo",
+                )
+                last_pct = pct
+        else:
+            mb = done / (1024 * 1024)
+            _set_progress("download", min(68, 8 + done // (512 * 1024)), f"Téléchargement… {mb:.1f} Mo")
+
+    raw = b"".join(chunks)
     if raw[:2] != b"PK":
         raise RuntimeError("Le fichier téléchargé n’est pas un zip valide.")
+    _set_progress("download", 70, "Téléchargement terminé.")
     return raw
 
 
@@ -242,16 +287,15 @@ def _zip_root_prefix(names: list[str]) -> str:
 
 
 def _extract_zip_to(raw: bytes, dest: Path, *, preserve_top: set[str] | None = None) -> None:
-    """Extrait un zip vers `dest`, en ignorant éventuels dossiers à préserver."""
     preserve = preserve_top or set()
     dest.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        names = zf.namelist()
+        names = [n for n in zf.namelist() if not n.endswith("/")]
         if not names:
             raise RuntimeError("Archive vide.")
-        root_prefix = _zip_root_prefix(names)
-
-        for info in zf.infolist():
+        root_prefix = _zip_root_prefix(zf.namelist())
+        total = len(names)
+        for idx, info in enumerate(zf.infolist(), start=1):
             if info.is_dir():
                 continue
             rel = info.filename
@@ -268,10 +312,13 @@ def _extract_zip_to(raw: bytes, dest: Path, *, preserve_top: set[str] | None = N
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src, open(target, "wb") as out:
                 shutil.copyfileobj(src, out)
+            if total:
+                pct = 70 + int(18 * idx / total)  # 70 → 88
+                if idx == 1 or idx == total or idx % 25 == 0:
+                    _set_progress("extract", pct, f"Extraction… {idx}/{total} fichiers")
 
 
 def _extract_zip_bytes(raw: bytes) -> None:
-    """Extrait en place (mode source / non frozen), préserve data/."""
     _extract_zip_to(
         raw,
         ROOT,
@@ -279,48 +326,60 @@ def _extract_zip_bytes(raw: bytes) -> None:
     )
 
 
-def _write_windows_updater_script(staging: Path, target_version: str) -> Path:
-    """Script .bat : attend la fin de Linkora, copie les fichiers, relance."""
+def _ps_quote(path: str) -> str:
+    return "'" + path.replace("'", "''") + "'"
+
+
+def _write_silent_updater(staging: Path, target_version: str) -> Path:
+    """
+    Helper PowerShell invisible : attend la fin de Linkora, copie, relance.
+    Lancé via wscript+VBS pour zéro fenêtre console.
+    """
     pid = os.getpid()
-    bat = Path(tempfile.gettempdir()) / f"linkora-apply-{pid}.bat"
     exe_name = Path(sys.executable).name if getattr(sys, "frozen", False) else "Linkora.exe"
     src = str(staging.resolve())
     dst = str(ROOT.resolve())
     exe = str((ROOT / exe_name).resolve())
-    content = f"""@echo off
-setlocal
-set "PID={pid}"
-set "SRC={src}"
-set "DST={dst}"
-set "EXE={exe}"
-echo Linkora update {target_version}...
-:wait
-tasklist /FI "PID eq %PID%" 2>NUL | find "%PID%" >NUL
-if not errorlevel 1 (
-  ping -n 2 127.0.0.1 >NUL
-  goto wait
-)
-ping -n 2 127.0.0.1 >NUL
-robocopy "%SRC%" "%DST%" /E /XD data /R:2 /W:1 /NFL /NDL /NJH /NJS /NP >NUL
-set "RC=%ERRORLEVEL%"
-if %RC% GEQ 8 (
-  echo Echec copie MAJ (robocopy %RC%)
-  exit /b 1
-)
-if exist "%EXE%" start "" "%EXE%"
-rmdir /s /q "%SRC%" 2>NUL
-del "%~f0" 2>NUL
+    tmp = Path(tempfile.gettempdir())
+    ps1 = tmp / f"linkora-apply-{pid}.ps1"
+    vbs = tmp / f"linkora-apply-{pid}.vbs"
+
+    ps_content = f"""$ErrorActionPreference = 'SilentlyContinue'
+$targetPid = {pid}
+$src = {_ps_quote(src)}
+$dst = {_ps_quote(dst)}
+$exe = {_ps_quote(exe)}
+while (Get-Process -Id $targetPid -ErrorAction SilentlyContinue) {{
+  Start-Sleep -Milliseconds 400
+}}
+Start-Sleep -Seconds 1
+$rc = 0
+& robocopy $src $dst /E /XD data /R:3 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+$rc = $LASTEXITCODE
+if ($rc -ge 8) {{ exit $rc }}
+if (Test-Path -LiteralPath $exe) {{
+  Start-Process -FilePath $exe
+}}
+Remove-Item -LiteralPath $src -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 """
-    bat.write_text(content, encoding="utf-8")
-    return bat
+    ps1.write_text(ps_content, encoding="utf-8")
+
+    # VBS : Run ..., 0 = fenêtre cachée
+    vbs_content = (
+        'Set sh = CreateObject("WScript.Shell")\r\n'
+        f'sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{ps1}""", 0, False\r\n'
+    )
+    vbs.write_text(vbs_content, encoding="utf-8")
+    return vbs
 
 
 def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
-    """Lance le script de remplacement puis quitte le process courant."""
-    bat = _write_windows_updater_script(staging, target_version)
+    vbs = _write_silent_updater(staging, target_version)
     flags = _DETACHED_PROCESS | _CREATE_NEW_PROCESS_GROUP | _CREATE_NO_WINDOW
+    # wscript.exe n'ouvre pas de console
     subprocess.Popen(
-        ["cmd.exe", "/c", str(bat)],
+        ["wscript.exe", "//B", "//Nologo", str(vbs)],
         cwd=str(Path(tempfile.gettempdir())),
         creationflags=flags,
         close_fds=True,
@@ -330,19 +389,16 @@ def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     )
 
     def _exit_soon() -> None:
-        time.sleep(1.2)
+        time.sleep(0.8)
         os._exit(0)
 
     threading.Thread(target=_exit_soon, daemon=True, name="linkora-exit-after-update").start()
 
 
 def _apply_frozen_zip(raw: bytes, target_version: str) -> None:
-    """
-    Mode .exe : on ne peut pas écraser les DLL chargées.
-    → extrait dans un dossier temporaire, script post-fermeture, redémarrage.
-    """
     staging = Path(tempfile.mkdtemp(prefix="linkora-upd-"))
     try:
+        _set_progress("extract", 72, "Extraction de la mise à jour…")
         _extract_zip_to(raw, staging, preserve_top=set())
         (staging / "VERSION").write_text(target_version + "\n", encoding="utf-8")
         if not (staging / "Linkora.exe").is_file() and not list(staging.glob("*.exe")):
@@ -350,37 +406,48 @@ def _apply_frozen_zip(raw: bytes, target_version: str) -> None:
                 "Le zip de MAJ ne contient pas Linkora.exe. "
                 "Utilisez l’asset Windows (Linkora-windows-vX.Y.Z.zip)."
             )
+        _set_progress("restart", 95, "Préparation du redémarrage…")
         _schedule_frozen_replace(staging, target_version)
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)
         raise
 
 
-def apply_update(
-    tag: str | None = None,
-    *,
-    download_url: str | None = None,
-    manifest_url: str | None = None,
-) -> dict[str, Any]:
-    state = get_state()
-    if not state.get("checked") or manifest_url:
-        state = check_for_update(manifest_url)
-
-    target = (tag or state.get("latest") or "").lstrip("vV")
-    url = download_url or state.get("download_url") or ""
-    current = read_version()
-    frozen = bool(getattr(sys, "frozen", False))
-
-    if not target:
-        _set_state(error="Aucune version cible.", applied=False)
-        return get_state()
-    if not is_newer(target, current) and tag is None and not download_url:
-        _set_state(message=f"Déjà à jour ({current}).", applied=False)
-        return get_state()
-
+def _run_apply(
+    tag: str | None,
+    download_url: str | None,
+    manifest_url: str | None,
+) -> None:
     try:
+        _set_progress("prepare", 3, "Préparation de la mise à jour…", busy=True, done=False, error="")
+        state = get_state()
+        if not state.get("checked") or manifest_url:
+            _set_progress("prepare", 5, "Vérification de la version…")
+            state = check_for_update(manifest_url)
+
+        target = (tag or state.get("latest") or "").lstrip("vV")
+        url = download_url or state.get("download_url") or ""
+        current = read_version()
+        frozen = bool(getattr(sys, "frozen", False))
+
+        if not target:
+            raise RuntimeError("Aucune version cible.")
+        if not is_newer(target, current) and tag is None and not download_url:
+            _set_state(
+                message=f"Déjà à jour ({current}).",
+                applied=False,
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
+                progress_message=f"Déjà à jour ({current}).",
+            )
+            return
+
         DATA_DIR.mkdir(parents=True, exist_ok=True)
+
         if _is_git_repo() and not frozen and not (url or "").endswith(".zip"):
+            _set_progress("apply", 40, f"Mise à jour git vers {target}…")
             _apply_via_git(target)
             VERSION_FILE.write_text(target + "\n", encoding="utf-8")
             _set_state(
@@ -391,50 +458,55 @@ def apply_update(
                 current=target,
                 latest=target,
                 error="",
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
                 message=f"Mis à jour vers {target}. Redémarrez Linkora.",
+                progress_message=f"Mis à jour vers {target}. Redémarrez Linkora.",
+            )
+            return
+
+        if not url:
+            raise RuntimeError("Pas d’URL de téléchargement pour la MAJ.")
+
+        raw = _download_zip(url)
+        if frozen:
+            _apply_frozen_zip(raw, target)
+            _set_state(
+                applied=True,
+                needs_restart=True,
+                restarting=True,
+                update_available=False,
+                current=target,
+                latest=target,
+                error="",
+                busy=True,
+                done=True,
+                percent=100,
+                phase="restart",
+                message=f"Redémarrage vers {target}…",
+                progress_message="Installation terminée — redémarrage automatique…",
             )
         else:
-            if not url:
-                raise RuntimeError("Pas d’URL de téléchargement pour la MAJ.")
-            raw = _download_zip(url)
-            if frozen:
-                _apply_frozen_zip(raw, target)
-                _set_state(
-                    applied=True,
-                    needs_restart=True,
-                    restarting=True,
-                    update_available=False,
-                    current=target,
-                    latest=target,
-                    error="",
-                    message=(
-                        f"Mise à jour {target} téléchargée. "
-                        "Linkora va se fermer puis redémarrer automatiquement…"
-                    ),
-                )
-            else:
-                _extract_zip_bytes(raw)
-                VERSION_FILE.write_text(target + "\n", encoding="utf-8")
-                _set_state(
-                    applied=True,
-                    needs_restart=True,
-                    restarting=False,
-                    update_available=False,
-                    current=target,
-                    latest=target,
-                    error="",
-                    message=f"Mis à jour vers {target}. Redémarrez Linkora.",
-                )
-    except PermissionError as exc:
-        _set_state(
-            error=(
-                f"Fichier verrouillé (Permission denied) : {exc}. "
-                "Fermez Linkora, réinstallez le Setup/zip manuellement une fois, "
-                "puis les prochaines MAJ redémarreront toutes seules."
-            ),
-            applied=False,
-            message="",
-        )
+            _set_progress("extract", 75, "Installation des fichiers…")
+            _extract_zip_bytes(raw)
+            VERSION_FILE.write_text(target + "\n", encoding="utf-8")
+            _set_state(
+                applied=True,
+                needs_restart=True,
+                restarting=False,
+                update_available=False,
+                current=target,
+                latest=target,
+                error="",
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
+                message=f"Mis à jour vers {target}. Redémarrez Linkora.",
+                progress_message=f"Mis à jour vers {target}. Redémarrez Linkora.",
+            )
     except Exception as exc:
         msg = str(exc)
         if "Permission denied" in msg or "WinError 5" in msg or "[Errno 13]" in msg:
@@ -442,7 +514,48 @@ def apply_update(
                 f"{msg} — fermez Linkora et installez le Setup manuellement une fois ; "
                 "les MAJ suivantes se feront automatiquement."
             )
-        _set_state(error=msg, applied=False, message="")
+        _set_state(
+            error=msg,
+            applied=False,
+            busy=False,
+            done=True,
+            restarting=False,
+            phase="error",
+            percent=100,
+            progress_message=msg,
+            message="",
+        )
+
+
+def apply_update(
+    tag: str | None = None,
+    *,
+    download_url: str | None = None,
+    manifest_url: str | None = None,
+    background: bool = True,
+) -> dict[str, Any]:
+    """
+    Lance la MAJ. En mode background (défaut), retourne tout de suite pour
+    que l’UI puisse afficher la progression via get_state() / /api/update/progress.
+    """
+    if not _apply_lock.acquire(blocking=False):
+        return get_state()
+
+    def worker() -> None:
+        try:
+            _run_apply(tag, download_url, manifest_url)
+        finally:
+            _apply_lock.release()
+
+    if background:
+        _set_progress("prepare", 1, "Démarrage de la mise à jour…", busy=True, done=False, error="")
+        threading.Thread(target=worker, daemon=True, name="linkora-apply").start()
+        return get_state()
+
+    try:
+        _run_apply(tag, download_url, manifest_url)
+    finally:
+        _apply_lock.release()
     return get_state()
 
 
@@ -450,10 +563,8 @@ def startup_autoupdate(*, enabled: bool = True, manifest_url: str | None = None)
     def worker() -> None:
         try:
             state = check_for_update(manifest_url)
-            # En mode .exe : ne pas forcer l'application au démarrage
-            # (évite un redémarrage surprise) — le bandeau UI propose la MAJ.
             if enabled and state.get("update_available") and not getattr(sys, "frozen", False):
-                apply_update(state.get("latest"), manifest_url=manifest_url)
+                apply_update(state.get("latest"), manifest_url=manifest_url, background=True)
         except Exception as exc:
             _set_state(error=str(exc))
 
