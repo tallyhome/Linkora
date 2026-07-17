@@ -1,7 +1,7 @@
 # Linkora
 
 <p align="center">
-  <img src="static/img/logo.svg" alt="Linkora" width="96" height="96">
+  <img src="docs/logo.png" alt="Linkora" width="128" height="128">
 </p>
 
 <p align="center">
