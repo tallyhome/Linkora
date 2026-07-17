@@ -134,6 +134,7 @@ if __name__ == "__main__":
             pid = int(sys.argv[3])
         except ValueError:
             raise SystemExit(1)
-        raise SystemExit(run_helper(sys.argv[2], pid))
+        install_dir = sys.argv[4] if len(sys.argv) >= 5 else None
+        raise SystemExit(run_helper(sys.argv[2], pid, install_dir))
 
     main()

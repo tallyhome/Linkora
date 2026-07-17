@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.5] — 2026-07-17
+
+### Corrigé
+- MAJ Windows : la mise à jour s’installe vraiment et **relance** Linkora
+  (le helper tournait depuis l’exe installé → fichiers verrouillés → copie ratée en silence)
+
+---
+
 ## [1.3.4] — 2026-07-17
 
 ### Corrigé

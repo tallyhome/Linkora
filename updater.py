@@ -328,18 +328,28 @@ def _extract_zip_bytes(raw: bytes) -> None:
 
 def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     """
-    Relance le même Linkora.exe en mode helper (console=False → aucune fenêtre DOS).
-    Plus de .bat / PowerShell / VBS.
+    Lance le helper depuis l’exe du staging (TEMP), pas depuis l’install.
+    Sinon Linkora.exe / _internal restent verrouillés → copie impossible.
     """
-    flags = _DETACHED_PROCESS | _CREATE_NEW_PROCESS_GROUP | _CREATE_NO_WINDOW
+    helper_exe = staging / "Linkora.exe"
+    if not helper_exe.is_file():
+        found = list(staging.glob("*.exe"))
+        if not found:
+            raise RuntimeError("Exe de MAJ introuvable dans le staging.")
+        helper_exe = found[0]
+
+    install_dir = str(ROOT.resolve())
+    flags = _CREATE_NEW_PROCESS_GROUP | _CREATE_NO_WINDOW
+    # Pas de DETACHED_PROCESS : certains antivirus / Win11 cassent le spawn.
     subprocess.Popen(
         [
-            sys.executable,
+            str(helper_exe.resolve()),
             "--linkora-updater",
             str(staging.resolve()),
             str(os.getpid()),
+            install_dir,
         ],
-        cwd=str(ROOT),
+        cwd=str(staging.resolve()),
         creationflags=flags,
         close_fds=True,
         stdin=subprocess.DEVNULL,
@@ -348,7 +358,8 @@ def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     )
 
     def _exit_soon() -> None:
-        time.sleep(0.9)
+        # Laisser le temps à l’UI d’afficher « redémarrage… »
+        time.sleep(1.2)
         os._exit(0)
 
     threading.Thread(target=_exit_soon, daemon=True, name="linkora-exit-after-update").start()
