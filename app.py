@@ -802,6 +802,28 @@ def export_jdownloader():
     )
 
 
+@app.post("/api/library/scan")
+def api_library_scan():
+    """Phase 1 — inventaire lecture seule d’un dossier média."""
+    import library_scan
+
+    data = request.get_json(silent=True) or {}
+    folder = (data.get("folder") or "").strip()
+    recursive = bool(data.get("recursive", True))
+    template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
+    if not folder:
+        return jsonify({"error": "Indiquez un dossier à scanner."}), 400
+    try:
+        result = library_scan.scan_library(
+            folder, recursive=recursive, template_id=template_id
+        )
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"Scan impossible : {exc}"}), 400
+    return jsonify(result)
+
+
 @app.post("/api/rename/preview")
 def rename_preview():
     data = request.get_json(silent=True) or {}

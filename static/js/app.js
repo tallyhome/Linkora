@@ -2300,6 +2300,7 @@
   const tabPanels = {
     extract: document.getElementById("tab-extract"),
     rename: document.getElementById("tab-rename"),
+    library: document.getElementById("tab-library"),
     help: document.getElementById("tab-help"),
   };
 
@@ -2335,6 +2336,151 @@
       switchTab("help");
       setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     });
+  });
+
+  // ─── Bibliothèque (phase 1 — inventaire) ─────────────────────────────────
+  const libraryForm = document.getElementById("library-scan-form");
+  const libraryFolder = document.getElementById("library-folder");
+  const libraryRecursive = document.getElementById("library-recursive");
+  const libraryError = document.getElementById("library-error");
+  const libraryResults = document.getElementById("library-results");
+  const libraryBody = document.getElementById("library-body");
+  const librarySummary = document.getElementById("library-results-summary");
+  const btnLibraryScan = document.getElementById("btn-library-scan");
+  let libraryItems = [];
+
+  function showLibraryError(message) {
+    if (!libraryError) return;
+    if (!message) {
+      libraryError.hidden = true;
+      libraryError.textContent = "";
+      return;
+    }
+    libraryError.hidden = false;
+    libraryError.textContent = message;
+  }
+
+  function setLibraryLoading(loading) {
+    if (!btnLibraryScan) return;
+    btnLibraryScan.disabled = loading;
+    const spinner = btnLibraryScan.querySelector(".btn-spinner");
+    const label = btnLibraryScan.querySelector(".btn-label");
+    if (spinner) spinner.hidden = !loading;
+    if (label) label.textContent = loading ? "Scan…" : "Scanner";
+  }
+
+  function formatSe(item) {
+    if (item.type === "archive" && item.season_pack && item.season != null && item.episode == null) {
+      return `S${String(item.season).padStart(2, "0")} (pack)`;
+    }
+    if (item.season != null && item.episode != null) {
+      return `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
+    }
+    if (item.episode != null) return `E${item.episode}`;
+    if (item.season != null) return `S${String(item.season).padStart(2, "0")}`;
+    return "—";
+  }
+
+  function typeLabel(t, item) {
+    if (t === "tv") return "Série";
+    if (t === "anime") return "Anime";
+    if (t === "movie") return "Film";
+    if (t === "archive") {
+      const fmt = (item?.archive_format || "zip").toUpperCase();
+      if (item?.season_pack) return `Archive ${fmt} (saison)`;
+      return `Archive ${fmt}`;
+    }
+    return "Autre";
+  }
+
+  function renderLibrary(data) {
+    libraryItems = data.items || [];
+    const by = data.by_type || {};
+    if (librarySummary) {
+      const arch = data.archive_count || by.archive || 0;
+      const packs = data.season_pack_count || 0;
+      librarySummary.textContent =
+        `${data.count || 0} fichier(s) · ${data.unique_identities || 0} identité(s) · ` +
+        `${by.movie || 0} film(s) · ${(by.tv || 0) + (by.anime || 0)} épisode(s) · ` +
+        `${arch} archive(s)` +
+        (packs ? ` dont ${packs} pack(s) saison` : "") +
+        ` · ${by.other || 0} autre(s) · ${data.folder || ""}`;
+    }
+    if (libraryBody) {
+      libraryBody.innerHTML = libraryItems
+        .map(
+          (item, i) => `
+        <tr class="${item.type === "archive" ? "is-archive" : ""}">
+          <td>${i + 1}</td>
+          <td>${escapeHtml(typeLabel(item.type, item))}</td>
+          <td>${escapeHtml(item.title || "—")}</td>
+          <td>${escapeHtml(formatSe(item))}</td>
+          <td>${item.year != null ? escapeHtml(String(item.year)) : "—"}</td>
+          <td title="${escapeHtml(item.path || "")}">${escapeHtml(item.filename || "")}</td>
+          <td><code class="identity-key">${escapeHtml(item.identity || "")}</code></td>
+        </tr>`
+        )
+        .join("");
+    }
+    if (libraryResults) libraryResults.hidden = false;
+  }
+
+  libraryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const folder = (libraryFolder?.value || "").trim();
+    if (!folder) {
+      showLibraryError("Indiquez un dossier.");
+      return;
+    }
+    showLibraryError("");
+    setLibraryLoading(true);
+    try {
+      const res = await fetch("/api/library/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder,
+          recursive: !!libraryRecursive?.checked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showLibraryError(data.error || "Scan impossible.");
+        if (libraryResults) libraryResults.hidden = true;
+        return;
+      }
+      renderLibrary(data);
+      showToast(`${data.count || 0} média(s) inventorié(s).`);
+    } catch {
+      showLibraryError("Erreur réseau.");
+    } finally {
+      setLibraryLoading(false);
+    }
+  });
+
+  document.getElementById("btn-library-copy")?.addEventListener("click", async () => {
+    if (!libraryItems.length) {
+      showToast("Rien à copier.");
+      return;
+    }
+    const lines = libraryItems.map((item) => {
+      const se = formatSe(item);
+      return [
+        typeLabel(item.type, item),
+        item.title || "",
+        se === "—" ? "" : se,
+        item.year != null ? String(item.year) : "",
+        item.identity || "",
+        item.path || "",
+      ].join("\t");
+    });
+    const header = ["Type", "Titre", "S/E", "Année", "Identité", "Chemin"].join("\t");
+    try {
+      await navigator.clipboard.writeText([header, ...lines].join("\n"));
+      showToast("Liste copiée.");
+    } catch {
+      showToast("Copie impossible.");
+    }
   });
 
   // ─── Renommage local ─────────────────────────────────────────────────────

@@ -65,6 +65,9 @@
       <button type="button" class="app-tab-btn" data-tab="rename" role="tab" aria-selected="false">
         Renommage
       </button>
+      <button type="button" class="app-tab-btn" data-tab="library" role="tab" aria-selected="false">
+        Bibliothèque
+      </button>
       <button type="button" class="app-tab-btn" data-tab="help" role="tab" aria-selected="false">
         Aide
       </button>
@@ -350,6 +353,71 @@
       </section>
     </section>
 
+    <section id="tab-library" class="app-tab-panel" role="tabpanel" hidden>
+      <section class="rename-hero">
+        <h1 class="hero-title">Bibliothèque</h1>
+        <p class="hero-lead">
+          Scannez un dossier ou un disque : Linkora liste films et séries avec une
+          <strong>identité intelligente</strong> (même épisode = même clé, même si les noms de fichiers diffèrent).
+          Lecture seule — aucun fichier n’est modifié.
+        </p>
+
+        <form id="library-scan-form" class="extract-form rename-form" autocomplete="off">
+          <label class="field">
+            <span class="field-label">Dossier ou disque à scanner</span>
+            <input
+              type="text"
+              id="library-folder"
+              name="folder"
+              required
+              placeholder="D:\Media  ou  \\NAS\films"
+              spellcheck="false"
+            >
+            <span class="field-hint">Chemin local ou UNC. Phase 1 = inventaire plat ; doublons / diff NAS arrivent ensuite.</span>
+          </label>
+          <div class="rename-options">
+            <label class="check-field">
+              <input type="checkbox" id="library-recursive" name="recursive" checked>
+              <span>Inclure les sous-dossiers</span>
+            </label>
+            <button type="submit" class="btn btn-primary" id="btn-library-scan">
+              <span class="btn-label">Scanner</span>
+              <span class="btn-spinner" hidden aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        <p id="library-error" class="form-error" role="alert" hidden></p>
+      </section>
+
+      <section id="library-results" class="rename-results" hidden>
+        <div class="results-toolbar">
+          <div class="results-meta">
+            <h2>Inventaire</h2>
+            <p id="library-results-summary" class="results-summary"></p>
+          </div>
+        </div>
+        <div class="rename-actions-bar">
+          <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier la liste</button>
+        </div>
+        <div class="table-wrap">
+          <table class="links-table rename-table library-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Type</th>
+                <th>Titre</th>
+                <th>S / E</th>
+                <th>Année</th>
+                <th>Fichier</th>
+                <th>Identité</th>
+              </tr>
+            </thead>
+            <tbody id="library-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
     <section id="tab-help" class="app-tab-panel help-panel" role="tabpanel" hidden>
       <article class="help-doc">
         <header class="help-hero">
@@ -367,6 +435,7 @@
           <a href="#help-resolve">Résolution</a>
           <a href="#help-filters">Filtres &amp; sélection</a>
           <a href="#help-rename">Renommage</a>
+          <a href="#help-library">Bibliothèque</a>
           <a href="#help-settings">Paramètres</a>
           <a href="#help-backup">Backup</a>
           <a href="#help-update">Mises à jour</a>
@@ -463,6 +532,21 @@
             <li>Cochez les fichiers à renommer (tout est coché par défaut) — pratique pour laisser les noms déjà propres.</li>
             <li>Toujours un <strong>aperçu</strong> avant de renommer pour de vrai.</li>
             <li>Le <strong>template</strong> se choisit dans Paramètres.</li>
+          </ul>
+        </section>
+
+        <section id="help-library" class="help-section">
+          <h2>Bibliothèque</h2>
+          <p>
+            Scannez un dossier ou disque (lecture seule) pour lister films, séries
+            et <strong>archives</strong> (<code>.zip</code> / <code>.rar</code> / <code>.7z</code>,
+            ex. saison complète).
+            Linkora calcule une <strong>identité</strong> par média : deux fichiers du même épisode
+            (noms différents) partagent la même clé — base des futurs doublons et du diff PC/NAS.
+          </p>
+          <ul>
+            <li>Phase 1 : inventaire plat + copie de la liste.</li>
+            <li>À venir : vue arborescente, doublons, comparaison NAS, affiches TMDB.</li>
           </ul>
         </section>
 

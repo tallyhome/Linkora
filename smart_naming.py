@@ -107,6 +107,11 @@ TV_RE = re.compile(
     r"(?<![0-9])[Ss](\d{1,2})[Ee](\d{1,3})(?:[Ee](\d{1,3}))?",
     re.IGNORECASE,
 )
+# Variante fréquente : S03.E01 / S03_E01 / S03 E01
+TV_DOT_RE = re.compile(
+    r"(?<![0-9])[Ss](\d{1,2})[\s._-]+[Ee](\d{1,3})(?:[\s._-]*[Ee](\d{1,3}))?",
+    re.IGNORECASE,
+)
 TV_X_RE = re.compile(r"(?<![0-9])(\d{1,2})[xX](\d{1,3})(?:[xX](\d{1,3}))?", re.IGNORECASE)
 TV_FR_RE = re.compile(
     r"Saison[\s._-]*(\d{1,2})[\s._-]*Episode[\s._-]*(\d{1,3})",
@@ -289,6 +294,11 @@ def suggest_name(filename: str, template_id: str = "simple") -> dict[str, Any]:
     if m:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
+        # Cas fréquent : "Defiance S03 S01E001" → saison 03, épisode 1
+        trail = re.search(r"[Ss](\d{1,2})\s*$", raw_title)
+        if trail and season == 1:
+            season = int(trail.group(1))
+            raw_title = raw_title[: trail.start()].rstrip("._- ")
         title = _clean_title(raw_title) or "Serie"
         result.update(
             {
@@ -306,6 +316,28 @@ def suggest_name(filename: str, template_id: str = "simple") -> dict[str, Any]:
             result["suggested"] = _safe_filename(
                 f"{p.stem}E{int(ep2):02d}{p.suffix}"
             )
+        else:
+            result["suggested"] = base
+        return result
+
+    # ── Série TV : Sxx.Exx / Sxx_Exx / Sxx E01 ──
+    m = TV_DOT_RE.search(stem)
+    if m:
+        season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
+        raw_title = stem[: m.start()].rstrip("._- ")
+        title = _clean_title(raw_title) or "Serie"
+        result.update(
+            {
+                "type": "tv",
+                "title": title,
+                "season": season,
+                "episode": ep1,
+            }
+        )
+        base = apply_template(result, template_id)
+        if ep2:
+            p = Path(base)
+            result["suggested"] = _safe_filename(f"{p.stem}E{int(ep2):02d}{p.suffix}")
         else:
             result["suggested"] = base
         return result

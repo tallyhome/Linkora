@@ -21,6 +21,7 @@ hiddenimports = [
     "urllib3",
     "episode_gaps",
     "smart_naming",
+    "library_scan",
     "updater",
     "update_helper",
     "paths",

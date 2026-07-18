@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.5.0] — 2026-07-18
+
+### Ajouté — Bibliothèque (phase 1 / 5)
+- Nouvel onglet **Bibliothèque** : scan d’un dossier / disque (lecture seule)
+- Inventaire films / séries / anime avec **clé d’identité** intelligente
+  (ex. `Defiance.S03.E01…` et `Defiance S03 S01E001` → `defiance|s03e01`)
+- Détection des **archives** `.zip` / `.rar` / `.7z` (packs saison signalés)
+- API `POST /api/library/scan` · cahier des charges : `todo-2.md`
+- Parseur : mieux gère `S03.E01` et les noms type `Titre S03 S01E001`
+
+---
+
 ## [1.4.0] — 2026-07-18
 
 ### Sécurité
