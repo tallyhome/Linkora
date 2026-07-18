@@ -1167,6 +1167,107 @@ def api_tmdb_test():
     return jsonify(result)
 
 
+@app.post("/api/library/gaps")
+def api_library_gaps():
+    """Compare une série locale au catalogue TMDB (saisons / épisodes manquants)."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Titre requis."}), 400
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    year = data.get("year")
+    try:
+        year_i = int(year) if year is not None and str(year).strip() != "" else None
+    except (TypeError, ValueError):
+        year_i = None
+    tmdb_id = data.get("tmdb_id")
+    try:
+        tmdb_id_i = int(tmdb_id) if tmdb_id is not None and str(tmdb_id).strip() != "" else None
+    except (TypeError, ValueError):
+        tmdb_id_i = None
+    local_seasons = data.get("seasons") if isinstance(data.get("seasons"), list) else []
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+    try:
+        result = tmdb_mod.find_series_gaps(
+            api_key,
+            title=title,
+            year=year_i,
+            tmdb_id=tmdb_id_i,
+            local_seasons=local_seasons,
+            language=language,
+            force=bool(data.get("force")),
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+    if result.get("error") == "no_key":
+        return jsonify({"error": "Clé TMDB manquante."}), 400
+    if not result.get("found"):
+        return jsonify(result), 404
+    return jsonify(result)
+
+
+@app.post("/api/library/gaps/batch")
+def api_library_gaps_batch():
+    """Vérifie plusieurs séries (synchrone, limité)."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    entries = data.get("entries") or []
+    if not isinstance(entries, list) or not entries:
+        return jsonify({"error": "Liste de séries requise."}), 400
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+
+    results = []
+    incomplete = 0
+    for raw in entries[:80]:
+        if not isinstance(raw, dict):
+            continue
+        title = (raw.get("title") or "").strip()
+        if not title:
+            continue
+        year = raw.get("year")
+        try:
+            year_i = int(year) if year is not None and str(year).strip() != "" else None
+        except (TypeError, ValueError):
+            year_i = None
+        tmdb_id = raw.get("tmdb_id")
+        try:
+            tmdb_id_i = (
+                int(tmdb_id) if tmdb_id is not None and str(tmdb_id).strip() != "" else None
+            )
+        except (TypeError, ValueError):
+            tmdb_id_i = None
+        try:
+            one = tmdb_mod.find_series_gaps(
+                api_key,
+                title=title,
+                year=year_i,
+                tmdb_id=tmdb_id_i,
+                local_seasons=raw.get("seasons") if isinstance(raw.get("seasons"), list) else [],
+                language=language,
+            )
+        except Exception as exc:
+            one = {"found": False, "title": title, "error": str(exc)}
+        if one.get("found") and (one.get("gaps") or {}).get("missing_count"):
+            incomplete += 1
+        results.append(one)
+
+    return jsonify(
+        {
+            "count": len(results),
+            "incomplete": incomplete,
+            "results": results,
+        }
+    )
+
+
 @app.get("/api/library/poster/<key>")
 def api_library_poster(key: str):
     import tmdb as tmdb_mod

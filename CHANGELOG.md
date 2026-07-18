@@ -4,6 +4,19 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.3.0] — 2026-07-18
+
+### Ajouté
+- **Manques TMDB** : compare chaque série au catalogue officiel (saisons / épisodes absents)
+  - Bouton global + bouton par série dans l’arbre
+  - Cache catalogue 14 jours
+
+### Amélioré
+- Barre **Profil** redesignée (compacte, plus de grande ligne sous le label)
+- Aide → section Bibliothèque mise à jour (vues, diff, historique, reboots, manques)
+
+---
+
 ## [2.2.3] — 2026-07-18
 
 ### Ajouté

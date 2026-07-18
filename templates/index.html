@@ -102,16 +102,14 @@
       </p>
 
       <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
-        <div class="profile-bar">
-          <label class="field field-profile">
-            <span class="field-label">Profil</span>
-            <select id="profile-select" aria-label="Profil de récupération">
-              <option value="">— Aucun profil —</option>
-            </select>
-          </label>
+        <div class="profile-bar" role="group" aria-label="Profil de récupération">
+          <span class="profile-chip-label">Profil</span>
+          <select id="profile-select" class="profile-select" aria-label="Choisir un profil">
+            <option value="">— Aucun —</option>
+          </select>
           <div class="profile-bar-actions">
-            <button type="button" class="btn btn-ghost" id="btn-profile-save" title="Enregistrer hébergeur + réglages actuels">Sauver profil</button>
-            <button type="button" class="btn btn-ghost" id="btn-profile-delete" title="Supprimer le profil sélectionné">Suppr.</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-save" title="Enregistrer hébergeur + réglages actuels">Sauver</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-delete" title="Supprimer le profil sélectionné">Suppr.</button>
           </div>
         </div>
 
@@ -514,6 +512,7 @@
             <span>Affiches</span>
           </label>
           <button type="button" class="btn btn-ghost btn-xs" id="btn-library-posters" title="Charger / rafraîchir les affiches TMDB">TMDB</button>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-gaps" title="Comparer aux catalogues TMDB (saisons / épisodes manquants)">Manques TMDB</button>
           <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier</button>
         </div>
         <div id="library-enrich-progress" class="resolve-progress" hidden>
@@ -650,7 +649,7 @@
             <li><strong>Cases à cocher</strong> — sélectionner certains liens.</li>
             <li><strong>Copier / JD</strong> — copie presse-papiers ou fichier JDownloader (<code>URL | Nom</code>).</li>
             <li><strong>CSV / HTML / PDF</strong> — exports du lot affiché.</li>
-            <li><strong>Épisodes manquants</strong> — détecte les trous type S03E07 absents.</li>
+            <li><strong>Épisodes manquants</strong> (Récupération) — trous dans une plage SxxExx déjà listée (sans TMDB).</li>
           </ul>
         </section>
 
@@ -668,17 +667,20 @@
           <h2>Bibliothèque</h2>
           <p>
             Scannez un dossier ou disque (lecture seule) pour lister films, séries
-            et <strong>archives</strong> (<code>.zip</code> / <code>.rar</code> / <code>.7z</code>,
-            ex. saison complète).
-            Linkora calcule une <strong>identité</strong> par média : deux fichiers du même épisode
-            (noms différents) partagent la même clé — base des futurs doublons et du diff PC/NAS.
+            et <strong>archives</strong> (<code>.zip</code> / <code>.rar</code> / <code>.7z</code>).
+            Linkora calcule une <strong>identité</strong> par média (même épisode = même clé,
+            même si les noms de fichiers diffèrent).
           </p>
           <ul>
-            <li>Onglet <strong>Bibliothèque</strong> (entre Renommage et Aide) — redémarrez l’app / Ctrl+F5 si vous ne le voyez pas.</li>
-            <li>Historique : <strong>Ouvrir</strong> un ancien résultat, ou <strong>Relancer</strong> le même dossier (le cache accélère les fichiers inchangés).</li>
-            <li>Filtres Tout / Séries / Films / Archives + recherche.</li>
-            <li>Archives <code>.zip</code> / <code>.rar</code> / <code>.7z</code> détectées (packs saison).</li>
-            <li>Affiches TMDB optionnelles (clé API dans Paramètres).</li>
+            <li><strong>Vue arbre</strong> — séries → saisons → épisodes (fermé par défaut, Tout ouvrir / fermer).</li>
+            <li><strong>Liste plate</strong> — tableau de tous les fichiers.</li>
+            <li><strong>Doublons</strong> — groupes de copies (même identité, chemins différents).</li>
+            <li><strong>Diff PC ↔ NAS</strong> — compare deux listes de dossiers par identité (plusieurs disques possibles).</li>
+            <li><strong>Historique</strong> — Ouvrir un ancien résultat, ou <strong>Relancer</strong> (cache = plus rapide).</li>
+            <li><strong>Affiches TMDB</strong> — jaquettes + bouton pour corriger une mauvaise correspondance.</li>
+            <li><strong>Manques TMDB</strong> — compare chaque série au catalogue officiel (saisons / épisodes absents). Clé API dans Paramètres.</li>
+            <li><strong>Reboots</strong> — dossiers datés séparés : <code>Série (1990)</code> ≠ <code>Série (2024)</code>.</li>
+            <li>Accès NAS UNC : Paramètres → Accès NAS (hôte / partage / login).</li>
           </ul>
         </section>
 
@@ -951,6 +953,25 @@
         <p id="tmdb-pick-status" class="field-hint"></p>
         <div id="tmdb-pick-results" class="tmdb-pick-results"></div>
       </form>
+    </div>
+  </div>
+
+  <div id="library-gaps-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-library-gaps></div>
+    <div class="modal-panel modal-panel-wide" role="dialog" aria-modal="true" aria-labelledby="library-gaps-title">
+      <div class="modal-head">
+        <h2 id="library-gaps-title">Manques TMDB</h2>
+        <button type="button" class="btn btn-close" data-close-library-gaps aria-label="Fermer">×</button>
+      </div>
+      <p class="modal-lead">
+        Comparaison avec le catalogue officiel TMDB (saisons / épisodes). Les « Specials » (S00) sont ignorés.
+      </p>
+      <p id="library-gaps-status" class="field-hint"></p>
+      <div id="library-gaps-body" class="library-gaps-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btn-library-gaps-copy">Copier la liste</button>
+        <button type="button" class="btn btn-primary" data-close-library-gaps>Fermer</button>
+      </div>
     </div>
   </div>
 

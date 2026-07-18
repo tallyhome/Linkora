@@ -694,3 +694,255 @@ def enrich_entries(
             }
         )
     return {"posters": posters, "stats": stats}
+
+
+# ─── Catalogue TV / épisodes manquants ──────────────────────────────────────
+
+CATALOG_PATH = POSTERS_DIR / "tv_catalog.json"
+
+
+def _load_catalog_cache() -> dict[str, Any]:
+    _ensure_dirs()
+    if not CATALOG_PATH.is_file():
+        return {}
+    try:
+        with open(CATALOG_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_catalog_cache(cache: dict[str, Any]) -> None:
+    _ensure_dirs()
+    lock, _ = _locks()
+    with lock:
+        with open(CATALOG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+
+
+def fetch_tv_catalog(
+    api_key: str,
+    *,
+    title: str = "",
+    year: int | None = None,
+    tmdb_id: int | None = None,
+    language: str = "fr-FR",
+    force: bool = False,
+) -> dict[str, Any]:
+    """
+    Récupère le guide des saisons/épisodes TMDB pour une série.
+    Utilise un cache local (tv_catalog.json) pour limiter les appels.
+    """
+    key = ""
+    if tmdb_id:
+        key = f"id:{int(tmdb_id)}"
+    else:
+        key = cache_key(title, "tv", year)
+
+    cache = _load_catalog_cache()
+    cached = cache.get(key) if isinstance(cache.get(key), dict) else None
+    if cached and not force and (cached.get("seasons") is not None):
+        age = int(time.time()) - int(cached.get("fetched_at") or 0)
+        if age < 86400 * 14:  # 14 jours
+            return {**cached, "cached": True}
+
+    tid = int(tmdb_id) if tmdb_id else None
+    if tid is None:
+        hit = search_tmdb(
+            api_key.strip(),
+            title=title,
+            media="tv",
+            year=year,
+            language=language,
+        )
+        if not hit or not hit.get("tmdb_id"):
+            return {
+                "found": False,
+                "error": "Série introuvable sur TMDB.",
+                "title": title,
+                "year": year,
+            }
+        tid = int(hit["tmdb_id"])
+        key = f"id:{tid}"
+
+    data = _get(api_key.strip(), f"/tv/{tid}", {"language": language})
+    seasons_out: list[dict[str, Any]] = []
+    for s in data.get("seasons") or []:
+        try:
+            sn = int(s.get("season_number"))
+        except (TypeError, ValueError):
+            continue
+        if sn < 1:
+            continue  # ignore « Specials »
+        try:
+            ep_count = int(s.get("episode_count") or 0)
+        except (TypeError, ValueError):
+            ep_count = 0
+        if ep_count <= 0:
+            continue
+        seasons_out.append(
+            {
+                "season": sn,
+                "episode_count": ep_count,
+                "name": s.get("name") or f"Saison {sn:02d}",
+            }
+        )
+    seasons_out.sort(key=lambda x: x["season"])
+
+    year_s = (data.get("first_air_date") or "")[:4]
+    result = {
+        "found": True,
+        "cached": False,
+        "tmdb_id": tid,
+        "matched_title": data.get("name") or title,
+        "year": int(year_s) if year_s.isdigit() else year,
+        "number_of_seasons": int(data.get("number_of_seasons") or len(seasons_out) or 0),
+        "number_of_episodes": int(data.get("number_of_episodes") or 0),
+        "seasons": seasons_out,
+        "fetched_at": int(time.time()),
+    }
+    cache[key] = {k: v for k, v in result.items() if k != "cached"}
+    cache[cache_key(title or result["matched_title"], "tv", result.get("year"))] = cache[key]
+    _save_catalog_cache(cache)
+    return result
+
+
+def compare_series_gaps(
+    local_seasons: list[dict[str, Any]],
+    catalog: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Compare inventaire local vs catalogue TMDB.
+    local_seasons: [{season, episodes: [{episode}, ...] ou episodes: [1,2,3]}]
+    """
+    present: dict[int, set[int]] = {}
+    for block in local_seasons or []:
+        try:
+            sn = int(block.get("season"))
+        except (TypeError, ValueError):
+            continue
+        if sn < 1:
+            continue
+        eps_raw = block.get("episodes") or []
+        got: set[int] = set()
+        for ep in eps_raw:
+            if isinstance(ep, dict):
+                val = ep.get("episode")
+            else:
+                val = ep
+            try:
+                if val is not None:
+                    got.add(int(val))
+            except (TypeError, ValueError):
+                continue
+        if got:
+            present[sn] = present.get(sn, set()) | got
+
+    missing_seasons: list[dict[str, Any]] = []
+    missing_episodes: list[dict[str, Any]] = []
+    complete_seasons: list[int] = []
+
+    for season in catalog.get("seasons") or []:
+        sn = int(season["season"])
+        expected_n = int(season.get("episode_count") or 0)
+        if expected_n <= 0:
+            continue
+        expected = set(range(1, expected_n + 1))
+        have = present.get(sn, set())
+        if not have:
+            missing_seasons.append(
+                {
+                    "season": sn,
+                    "episode_count": expected_n,
+                    "label": f"Saison {sn:02d}",
+                    "missing_labels": [f"S{sn:02d}E{e:02d}" for e in range(1, expected_n + 1)],
+                }
+            )
+            continue
+        miss = sorted(expected - have)
+        if miss:
+            missing_episodes.append(
+                {
+                    "season": sn,
+                    "have": len(have & expected),
+                    "expected": expected_n,
+                    "missing": miss,
+                    "missing_labels": [f"S{sn:02d}E{e:02d}" for e in miss],
+                }
+            )
+        else:
+            complete_seasons.append(sn)
+
+    # Saisons locales absentes du catalogue (ex. mauvaise série TMDB)
+    extra_local = sorted(set(present) - {int(s["season"]) for s in (catalog.get("seasons") or [])})
+
+    all_labels: list[str] = []
+    for ms in missing_seasons:
+        all_labels.extend(ms["missing_labels"])
+    for me in missing_episodes:
+        all_labels.extend(me["missing_labels"])
+
+    return {
+        "missing_seasons": missing_seasons,
+        "missing_episodes": missing_episodes,
+        "complete_seasons": complete_seasons,
+        "extra_local_seasons": extra_local,
+        "missing_labels": all_labels,
+        "missing_count": len(all_labels),
+        "present_episode_count": sum(len(v) for v in present.values()),
+        "catalog_episode_count": sum(
+            int(s.get("episode_count") or 0) for s in (catalog.get("seasons") or [])
+        ),
+    }
+
+
+def find_series_gaps(
+    api_key: str,
+    *,
+    title: str,
+    year: int | None = None,
+    tmdb_id: int | None = None,
+    local_seasons: list[dict[str, Any]] | None = None,
+    language: str = "fr-FR",
+    force: bool = False,
+) -> dict[str, Any]:
+    """Point d’entrée : catalogue TMDB + comparaison locale."""
+    if not (api_key or "").strip():
+        return {"found": False, "error": "no_key"}
+    catalog = fetch_tv_catalog(
+        api_key,
+        title=title,
+        year=year,
+        tmdb_id=tmdb_id,
+        language=language,
+        force=force,
+    )
+    if not catalog.get("found"):
+        return catalog
+    gaps = compare_series_gaps(local_seasons or [], catalog)
+    summary = ""
+    if gaps["missing_count"] == 0:
+        summary = "Complet par rapport à TMDB (hors éventuels spéciaux)."
+    else:
+        bits = []
+        if gaps["missing_seasons"]:
+            bits.append(f"{len(gaps['missing_seasons'])} saison(s) absente(s)")
+        if gaps["missing_episodes"]:
+            n_ep = sum(len(x["missing"]) for x in gaps["missing_episodes"])
+            bits.append(f"{n_ep} épisode(s) manquant(s)")
+        summary = " · ".join(bits)
+    return {
+        "found": True,
+        "title": title,
+        "catalog": {
+            "tmdb_id": catalog.get("tmdb_id"),
+            "matched_title": catalog.get("matched_title"),
+            "year": catalog.get("year"),
+            "number_of_seasons": catalog.get("number_of_seasons"),
+            "seasons": catalog.get("seasons"),
+            "cached": catalog.get("cached"),
+        },
+        "gaps": gaps,
+        "summary": summary,
+    }
