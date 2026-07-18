@@ -81,7 +81,7 @@
     realdebrid: "Real-Debrid",
   };
 
-  const MAX_HOSTS = 3;
+  const MAX_HOSTS = 6;
 
   function getHostInputs() {
     return [...document.querySelectorAll("[data-host-input]")];
@@ -168,6 +168,166 @@
     const firstLabel = hostsList.querySelector("[data-host-row] .field-label");
     if (firstLabel) firstLabel.textContent = "Hébergeur";
     syncAddHostButton();
+  }
+
+  function currentHostsList() {
+    if (current?.hosts?.length) return current.hosts;
+    return parseHostsValue(current?.host || getHosts());
+  }
+
+  function isMultiHostSession() {
+    return currentHostsList().length >= 2;
+  }
+
+  function episodeKey(link) {
+    if (link?.media_season != null && link?.media_episode != null) {
+      const title = String(link.media_title || link.clean_name || link.label || "")
+        .toLowerCase()
+        .replace(/s\d{1,2}e\d{1,3}.*$/i, "")
+        .replace(/[^a-z0-9]+/g, "")
+        .slice(0, 40);
+      return `${title}|s${link.media_season}e${link.media_episode}`;
+    }
+    const base = String(
+      link?.clean_name || link?.label || link?.resolve_filename || link?.url || ""
+    )
+      .toLowerCase()
+      .replace(/\.[a-z0-9]{2,4}$/i, "")
+      .replace(/[^a-z0-9]+/g, "");
+    return base || String(link?.url || Math.random());
+  }
+
+  function hostRank(link, hosts) {
+    const h = String(link?.matched_host || "").toLowerCase();
+    const idx = (hosts || []).findIndex((x) => String(x).toLowerCase() === h);
+    return idx >= 0 ? idx : 999;
+  }
+
+  function assignMultiHostRoles() {
+    if (!current?.batches) return;
+    const hosts = currentHostsList();
+    if (hosts.length < 2) {
+      current.batches.forEach((batch) => {
+        (batch.links || []).forEach((link) => {
+          delete link.is_primary;
+          delete link.is_mirror;
+        });
+      });
+      return;
+    }
+
+    current.batches.forEach((batch) => {
+      const groups = new Map();
+      (batch.links || []).forEach((link) => {
+        const key = episodeKey(link);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(link);
+      });
+
+      for (const items of groups.values()) {
+        items.sort((a, b) => hostRank(a, hosts) - hostRank(b, hosts));
+        const oks = items
+          .filter((l) => l.resolve_status === "ok")
+          .sort((a, b) => hostRank(a, hosts) - hostRank(b, hosts));
+
+        let winner = null;
+        if (oks.length) {
+          winner = oks[0];
+        } else {
+          // Priorité hébergeur 1 ; si mort/erreur → prochain miroir non encore tenté, sinon le 1er
+          const untried = items.find(
+            (l) => !l.resolve_status || l.resolve_status === "" || l.resolve_status === "running"
+          );
+          const failedFirst =
+            items[0] &&
+            (items[0].resolve_status === "dead" || items[0].resolve_status === "error");
+          if (failedFirst) {
+            winner =
+              items.find(
+                (l) =>
+                  l !== items[0] &&
+                  (!l.resolve_status ||
+                    (l.resolve_status !== "dead" && l.resolve_status !== "error"))
+              ) || items[0];
+          } else {
+            winner = untried || items[0];
+          }
+        }
+
+        items.forEach((link) => {
+          link.is_primary = link === winner;
+          link.is_mirror = link !== winner;
+        });
+      }
+    });
+  }
+
+  function hasUntriedMirrorsForDeadPrimaries() {
+    if (!isMultiHostSession()) return false;
+    for (const batch of current?.batches || []) {
+      const groups = new Map();
+      (batch.links || []).forEach((link) => {
+        const key = episodeKey(link);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(link);
+      });
+      for (const items of groups.values()) {
+        const primary = items.find((l) => l.is_primary) || items[0];
+        if (!primary) continue;
+        if (primary.resolve_status === "ok") continue;
+        if (primary.resolve_status !== "dead" && primary.resolve_status !== "error") {
+          continue;
+        }
+        const untried = items.find(
+          (l) => l !== primary && (!l.resolve_status || l.resolve_status === "")
+        );
+        if (untried) return true;
+      }
+    }
+    return false;
+  }
+
+  async function resolveWithMultiHostFallback(provider, labelPrefix, onlyBi = null) {
+    assignMultiHostRoles();
+    refreshCurrentView({ scroll: false });
+
+    let ok = 0;
+    let failed = 0;
+    let done = 0;
+    let rounds = 0;
+
+    while (!resolveAbort && rounds < MAX_HOSTS + 1) {
+      rounds += 1;
+      assignMultiHostRoles();
+      const jobs = [];
+      (current?.batches || []).forEach((batch, bi) => {
+        if (onlyBi != null && bi !== onlyBi) return;
+        (batch.links || []).forEach((link, li) => {
+          if (isMultiHostSession() && link.is_mirror) return;
+          if (link.resolve_status === "ok") return;
+          jobs.push({ bi, li });
+        });
+      });
+      if (!jobs.length) break;
+
+      const result = await runResolvePool(
+        jobs,
+        provider,
+        rounds === 1
+          ? labelPrefix || "Résolution…"
+          : `Fallback hébergeur (passe ${rounds})…`
+      );
+      ok += result.ok;
+      failed += result.failed;
+      done += result.done;
+
+      assignMultiHostRoles();
+      if (!hasUntriedMirrorsForDeadPrimaries()) break;
+    }
+
+    assignMultiHostRoles();
+    refreshCurrentView({ scroll: false });
+    return { ok, failed, total: done, done };
   }
 
   let current = null;
@@ -465,6 +625,7 @@
     const ok = [];
     const dead = [];
     (batch.links || []).forEach((link, li) => {
+      if (isMultiHostSession() && link.is_mirror) return;
       if (link.resolve_status === "ok") ok.push({ link, li });
       else if (link.resolve_status === "dead" || link.resolve_status === "error") {
         dead.push({ link, li });
@@ -564,16 +725,56 @@
   }
 
   function pageBlockHtml(batch, bi) {
-    const ok = (batch.links || []).filter((l) => l.resolve_status === "ok").length;
-    const dead = (batch.links || []).filter(
-      (l) => l.resolve_status === "dead" || l.resolve_status === "error"
+    const multi = isMultiHostSession();
+    const indexed = (batch.links || []).map((link, li) => ({ link, li }));
+    const mainItems = multi ? indexed.filter((x) => !x.link.is_mirror) : indexed;
+    const mirrorItems = multi ? indexed.filter((x) => x.link.is_mirror) : [];
+
+    const ok = mainItems.filter((x) => x.link.resolve_status === "ok").length;
+    const dead = mainItems.filter(
+      (x) => x.link.resolve_status === "dead" || x.link.resolve_status === "error"
     ).length;
     const err = batch.error
       ? `<p class="form-error">Erreur : ${escapeHtml(batch.error)}</p>`
       : "";
-    const rows = (batch.links || []).length
-      ? batch.links.map((link, li) => rowHtml(link, bi, li)).join("")
+    const rows = mainItems.length
+      ? mainItems.map(({ link, li }) => rowHtml(link, bi, li)).join("")
       : `<tr><td colspan="8">Aucun lien trouvé sur cette page.</td></tr>`;
+
+    const mirrorRows = mirrorItems.length
+      ? mirrorItems.map(({ link, li }) => rowHtml(link, bi, li)).join("")
+      : "";
+
+    const mirrorBlock =
+      multi && mirrorItems.length
+        ? `
+        <details class="mirrors-block">
+          <summary>
+            Miroirs / doublons
+            <span class="split-count">${mirrorItems.length}</span>
+            <span class="field-hint">— non inclus dans le téléchargement principal</span>
+          </summary>
+          <div class="table-wrap">
+            <table class="links-table">
+              <colgroup>
+                <col class="col-check"><col class="col-num"><col class="col-label"><col class="col-size">
+                <col class="col-status"><col class="col-source"><col class="col-resolved"><col class="col-act">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th></th><th>#</th><th>Label</th><th>Taille</th><th>Statut</th>
+                  <th>Source</th><th>Résolu</th><th></th>
+                </tr>
+              </thead>
+              <tbody>${mirrorRows}</tbody>
+            </table>
+          </div>
+        </details>`
+        : "";
+
+    const hostNote = multi
+      ? ` · multi-hébergeurs · <strong>${mainItems.length}</strong> épisode(s) principal(aux)`
+      : "";
 
     return `
       <article class="page-block" data-batch-index="${bi}">
@@ -581,7 +782,7 @@
           <div>
             <h3 class="page-block-title">${escapeHtml(batch.title || "Page")}</h3>
             <p class="page-block-meta">
-              <strong>${batch.links?.length || 0}</strong> lien(s)
+              <strong>${batch.links?.length || 0}</strong> lien(s)${hostNote}
               ${ok || dead ? ` · <strong>${ok}</strong> valides · <strong>${dead}</strong> morts` : ""}
               · <a href="${escapeHtml(batch.source_url)}" target="_blank" rel="noopener noreferrer">ouvrir la page</a>
             </p>
@@ -605,26 +806,43 @@
             <tbody data-batch-body="${bi}">${rows}</tbody>
           </table>
         </div>
+        ${mirrorBlock}
       </article>`;
   }
 
   function updateSummary() {
     if (!current) return;
     syncFlatLinks();
-    const resolvedOk = (current.links || []).filter((l) => l.resolve_status === "ok").length;
-    const dead = (current.links || []).filter(
+    const multi = isMultiHostSession();
+    const mainLinks = multi
+      ? (current.links || []).filter((l) => !l.is_mirror)
+      : current.links || [];
+    const resolvedOk = mainLinks.filter((l) => l.resolve_status === "ok").length;
+    const dead = mainLinks.filter(
       (l) => l.resolve_status === "dead" || l.resolve_status === "error"
     ).length;
+    const mirrors = multi
+      ? (current.links || []).filter((l) => l.is_mirror).length
+      : 0;
     const pages = current.batches?.length || 1;
-    resultsSummary.innerHTML =
-      `<strong>${current.count}</strong> lien(s) · <strong>${pages}</strong> page(s) · hébergeur <strong>${escapeHtml(current.host)}</strong>` +
-      (resolvedOk || dead
-        ? ` · <strong>${resolvedOk}</strong> valides · <strong>${dead}</strong> morts`
-        : "");
+    resultsSummary.innerHTML = multi
+      ? `<strong>${mainLinks.length}</strong> lien(s) principal(aux)` +
+        (mirrors ? ` · <strong>${mirrors}</strong> miroir(s)` : "") +
+        ` · <strong>${pages}</strong> page(s) · hébergeur <strong>${escapeHtml(current.host)}</strong>` +
+        (resolvedOk || dead
+          ? ` · <strong>${resolvedOk}</strong> valides · <strong>${dead}</strong> morts`
+          : "")
+      : `<strong>${current.count}</strong> lien(s) · <strong>${pages}</strong> page(s) · hébergeur <strong>${escapeHtml(current.host)}</strong>` +
+        (resolvedOk || dead
+          ? ` · <strong>${resolvedOk}</strong> valides · <strong>${dead}</strong> morts`
+          : "");
   }
 
   function renderResults(data, { scroll = true } = {}) {
     current = normalizeCurrent(data);
+    if (data?.hosts?.length) current.hosts = data.hosts;
+    else if (!current.hosts?.length) current.hosts = parseHostsValue(current.host);
+    assignMultiHostRoles();
     syncFlatLinks();
     results.classList.remove("is-closing");
     results.hidden = false;
@@ -1410,22 +1628,27 @@
     current.batches.forEach((batch) => {
       batch.links = (batch.links || []).map(resetLinkForResolve);
     });
+    assignMultiHostRoles();
     syncFlatLinks();
     refreshCurrentView({ scroll: false });
 
-    const jobs = collectJobs((l) => l.resolve_status !== "ok");
+    const jobs = collectJobs(
+      (l) => (!isMultiHostSession() || !l.is_mirror) && l.resolve_status !== "ok"
+    );
 
     if (!jobs.length) {
-      showToast("Tous les liens sont déjà valides.");
+      showToast("Tous les liens principaux sont déjà valides.");
       setResolving(false);
       return;
     }
 
     showToast(
-      `${providerName} — ${jobs.length} lien(s) en parallèle (x${getConcurrency()}, ${getMaxRetries()} essais si dead).`
+      `${providerName} — résolution` +
+        (isMultiHostSession() ? " (1er hébergeur + fallback miroirs)" : "") +
+        ` (x${getConcurrency()}, ${getMaxRetries()} essais si dead).`
     );
 
-    const result = await runResolvePool(jobs, provider, "Résolution…");
+    const result = await resolveWithMultiHostFallback(provider, "Résolution…");
     syncFlatLinks();
     current.resolved_provider = provider;
     updateSummary();
@@ -1538,20 +1761,11 @@
       resolveAbort = false;
       setResolving(true);
       batch.links = batch.links.map(resetLinkForResolve);
+      assignMultiHostRoles();
       syncFlatLinks();
       refreshCurrentView({ scroll: false });
 
-      const jobs = batch.links
-        .map((l, li) => (l.resolve_status === "ok" ? null : { bi, li }))
-        .filter(Boolean);
-
-      if (!jobs.length) {
-        showToast("Tous les liens de cette page sont déjà valides.");
-        setResolving(false);
-        return;
-      }
-
-      const result = await runResolvePool(jobs, provider, `Page ${bi + 1}…`);
+      const result = await resolveWithMultiHostFallback(provider, `Page ${bi + 1}…`, bi);
       current.resolved_provider = provider;
       updateSummary();
       await autoSaveHistory(current);
@@ -1613,6 +1827,7 @@
     if (copySourceBtn) {
       const bi = Number(copySourceBtn.dataset.copyBatchSource);
       const text = (current.batches[bi]?.links || [])
+        .filter((l) => !isMultiHostSession() || !l.is_mirror)
         .map((l) => l.url || "")
         .filter(Boolean)
         .join("\n");
@@ -1628,10 +1843,13 @@
     const copyJdBtn = event.target.closest("[data-copy-batch-jd]");
     if (copyJdBtn) {
       const bi = Number(copyJdBtn.dataset.copyBatchJd);
-      const text = jdownloaderLines(current.batches[bi]?.links);
+      const links = (current.batches[bi]?.links || []).filter(
+        (l) => !isMultiHostSession() || !l.is_mirror
+      );
+      const text = jdownloaderLines(links);
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Format JDownloader copié (page).");
+        showToast("Format JDownloader copié (principaux).");
       } catch {
         showToast("Copie impossible.");
       }
@@ -1651,13 +1869,13 @@
     if (copyOk) {
       const bi = Number(copyOk.dataset.copyBatchOk);
       const text = (current.batches[bi]?.links || [])
-        .filter((l) => l.resolve_status === "ok")
+        .filter((l) => l.resolve_status === "ok" && (!isMultiHostSession() || !l.is_mirror))
         .map((l) => displayUrl(l))
         .filter(Boolean)
         .join("\n");
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Valides de cette page copiés.");
+        showToast("Valides principaux de cette page copiés.");
       } catch {
         showToast("Copie impossible.");
       }
@@ -1684,12 +1902,13 @@
     if (copyResolved) {
       const bi = Number(copyResolved.dataset.copyBatchResolved);
       const text = (current.batches[bi]?.links || [])
+        .filter((l) => !isMultiHostSession() || !l.is_mirror)
         .map((l) => displayUrl(l))
         .filter(Boolean)
         .join("\n");
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Liens de cette page copiés.");
+        showToast("Liens principaux de cette page copiés.");
       } catch {
         showToast("Copie impossible.");
       }
@@ -1703,10 +1922,11 @@
 
   document.getElementById("btn-copy").addEventListener("click", async () => {
     if (!current?.links?.length) return;
-    const text = jdownloaderLines(current.links) || current.links.map((l) => displayUrl(l)).filter(Boolean).join("\n");
+    const links = current.links.filter((l) => !isMultiHostSession() || !l.is_mirror);
+    const text = jdownloaderLines(links) || links.map((l) => displayUrl(l)).filter(Boolean).join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Liens résolus copiés (format JD si dispo).");
+      showToast("Liens principaux copiés (format JD si dispo).");
     } catch {
       showToast("Copie impossible.");
     }
@@ -1714,10 +1934,14 @@
 
   document.getElementById("btn-copy-source").addEventListener("click", async () => {
     if (!current?.links?.length) return;
-    const text = current.links.map((l) => l.url || "").filter(Boolean).join("\n");
+    const text = current.links
+      .filter((l) => !isMultiHostSession() || !l.is_mirror)
+      .map((l) => l.url || "")
+      .filter(Boolean)
+      .join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Liens source copiés.");
+      showToast("Liens source principaux copiés.");
     } catch {
       showToast("Copie impossible.");
     }
@@ -1726,13 +1950,13 @@
   document.getElementById("btn-copy-ok")?.addEventListener("click", async () => {
     if (!current?.links?.length) return;
     const text = current.links
-      .filter((l) => l.resolve_status === "ok")
+      .filter((l) => l.resolve_status === "ok" && (!isMultiHostSession() || !l.is_mirror))
       .map((l) => displayUrl(l))
       .filter(Boolean)
       .join("\n");
     try {
       await navigator.clipboard.writeText(text || "");
-      showToast("Liens valides copiés.");
+      showToast("Liens valides principaux copiés.");
     } catch {
       showToast("Copie impossible.");
     }
@@ -2610,19 +2834,18 @@
     current.batches.forEach((batch) => {
       batch.links = (batch.links || []).map(resetLinkForResolve);
     });
+    assignMultiHostRoles();
     syncFlatLinks();
     refreshCurrentView({ scroll: false });
-    const jobs = collectJobs((l) => l.resolve_status !== "ok");
-    if (!jobs.length) {
-      setResolving(false);
-      return { ok: 0, total: 0, providerName, skipped: true };
-    }
-    const result = await runResolvePool(jobs, provider, "File — résolution…");
+    const result = await resolveWithMultiHostFallback(provider, "File — résolution…");
     syncFlatLinks();
     current.resolved_provider = provider;
     updateSummary();
     await autoSaveHistory(current);
     setResolving(false);
+    if (!result.total) {
+      return { ok: 0, total: 0, providerName, skipped: true };
+    }
     return { ...result, providerName, skipped: false };
   }
 

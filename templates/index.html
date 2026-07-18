@@ -143,7 +143,7 @@
                 </label>
               </div>
             </div>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un 2e ou 3e hébergeur (optionnel)">
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)">
               + Ajouter un hébergeur
             </button>
             <datalist id="host-suggestions">
@@ -389,8 +389,9 @@
             <dt>Hébergeur</dt>
             <dd>
               Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>1fichier</code>).
-              Optionnel : <strong>+ Ajouter un hébergeur</strong> pour en cumuler jusqu’à 3 sur la même page
-              (une seule requête, liens fusionnés et dédupliqués).
+              Optionnel : <strong>+ Ajouter un hébergeur</strong> pour en cumuler jusqu’à 6 sur la même page.
+              Après résolution, le 1er hébergeur est prioritaire ; si un lien est mort, Linkora bascule sur un miroir valide.
+              Le bloc principal garde <strong>un lien par épisode</strong> (prêt pour le téléchargement) ; les doublons/miroirs sont listés à part.
             </dd>
             <dt>Récupérer</dt>
             <dd>Extrait les liens sans encore passer par le débrideur. Les résultats apparaissent par page (un bloc = une URL).</dd>

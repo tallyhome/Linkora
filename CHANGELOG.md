@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.7] — 2026-07-18
+
+### Ajouté
+- Multi-hébergeurs : jusqu’à **6** hébergeurs
+- Après résolution : **fallback** si le 1er hébergeur est mort → miroir valide
+- Bloc principal = **1 lien / épisode** ; miroirs/doublons dans un bloc séparé
+- Copies / JD utilisent les liens principaux uniquement
+
+---
+
 ## [1.3.6] — 2026-07-18
 
 ### Ajouté

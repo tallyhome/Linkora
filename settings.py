@@ -105,7 +105,7 @@ def _normalize_profile(raw: dict | None) -> dict | None:
             continue
         seen_h.add(key)
         hosts.append(value)
-        if len(hosts) >= 3:
+        if len(hosts) >= 6:
             break
     return {
         "id": pid,

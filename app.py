@@ -72,7 +72,7 @@ def _parse_hosts(data: dict) -> list[str]:
             continue
         seen.add(key)
         out.append(value)
-        if len(out) >= 3:
+        if len(out) >= 6:
             break
     return out
 

@@ -614,6 +614,36 @@ main {
   border: 1px solid var(--line);
 }
 
+.mirrors-block {
+  margin-top: 0.85rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+}
+
+.mirrors-block summary {
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  list-style: none;
+}
+
+.mirrors-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.mirrors-block[open] summary {
+  margin-bottom: 0.65rem;
+}
+
+.mirrors-block .field-hint {
+  font-weight: 400;
+}
+
 .field-urls textarea {
   width: 100%;
   border: 1px solid var(--line);
