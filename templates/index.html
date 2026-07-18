@@ -373,7 +373,7 @@
               placeholder="D:\Media  ou  \\NAS\films"
               spellcheck="false"
             >
-            <span class="field-hint">Chemin local ou UNC. Après le scan : vue arbre (séries / saisons) ou liste plate.</span>
+            <span class="field-hint">Chemin local ou UNC. Après le scan : vue arbre, liste plate ou doublons.</span>
           </label>
           <div class="rename-options">
             <label class="check-field">
@@ -410,10 +410,12 @@
           <div class="library-view-toggle" role="group" aria-label="Mode d’affichage">
             <button type="button" class="btn btn-ghost btn-xs library-view is-active" data-lib-view="tree">Vue arbre</button>
             <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="flat">Liste plate</button>
+            <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="dupes">Doublons</button>
           </div>
           <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier</button>
         </div>
         <div id="library-tree" class="library-tree" hidden></div>
+        <div id="library-dupes" class="library-dupes" hidden></div>
         <div id="library-flat-wrap" class="table-wrap" hidden>
           <table class="links-table rename-table library-table">
             <thead>
@@ -561,10 +563,10 @@
           </p>
           <ul>
             <li>Onglet <strong>Bibliothèque</strong> (entre Renommage et Aide) — redémarrez l’app / Ctrl+F5 si vous ne le voyez pas.</li>
-            <li>Après scan : <strong>vue arbre</strong> (Séries → Saisons → Épisodes + Films) ou liste plate.</li>
+            <li>Après scan : <strong>vue arbre</strong>, liste plate, ou <strong>Doublons</strong> (même identité, noms différents).</li>
             <li>Filtres Tout / Séries / Films / Archives + recherche.</li>
             <li>Archives <code>.zip</code> / <code>.rar</code> / <code>.7z</code> détectées (packs saison).</li>
-            <li>À venir : doublons, comparaison NAS, affiches TMDB.</li>
+            <li>À venir : comparaison NAS, affiches TMDB.</li>
           </ul>
         </section>
 

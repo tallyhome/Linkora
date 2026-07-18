@@ -215,6 +215,7 @@ def scan_library(
         "by_type": by_type,
         "items": items,
         "tree": build_library_tree(items),
+        "duplicates": find_duplicates(items),
     }
 
 
@@ -320,4 +321,93 @@ def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
         "movie_count": len(movies),
         "archive_count": len(archives),
         "other_count": len(others),
+    }
+
+
+def _format_size(n: int) -> str:
+    try:
+        size = float(n)
+    except (TypeError, ValueError):
+        return "—"
+    if size < 1024:
+        return f"{int(size)} o"
+    for unit in ("Ko", "Mo", "Go", "To"):
+        size /= 1024.0
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+    return f"{size:.1f} Po"
+
+
+def _is_ambiguous(item: dict[str, Any]) -> bool:
+    """Heuristique : parsing peu fiable → à vérifier manuellement."""
+    media = item.get("type") or "other"
+    identity = str(item.get("identity") or "")
+    if media == "other" or "|other|" in identity:
+        return True
+    if media in ("tv", "anime") and (
+        item.get("season") is None or item.get("episode") is None
+    ):
+        return True
+    if media == "movie" and not (item.get("title") or "").strip():
+        return True
+    return False
+
+
+def find_duplicates(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Phase 3 — groupes de fichiers partageant la même identité (≥ 2).
+    """
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        key = str(item.get("identity") or "").strip()
+        if not key:
+            continue
+        buckets.setdefault(key, []).append(item)
+
+    groups: list[dict[str, Any]] = []
+    for identity, files in buckets.items():
+        if len(files) < 2:
+            continue
+        # Dédupliquer chemins exacts (même fichier listé 2×)
+        seen_paths: set[str] = set()
+        unique_files: list[dict[str, Any]] = []
+        for f in files:
+            path = str(f.get("path") or "")
+            if path and path in seen_paths:
+                continue
+            if path:
+                seen_paths.add(path)
+            unique_files.append(f)
+        if len(unique_files) < 2:
+            continue
+
+        unique_files.sort(key=lambda f: (f.get("size") or 0, f.get("filename") or ""))
+        title = next((f.get("title") for f in unique_files if f.get("title")), "") or identity
+        media = unique_files[0].get("type") or "other"
+        ambiguous = any(_is_ambiguous(f) for f in unique_files)
+        enriched = []
+        for f in unique_files:
+            enriched.append(
+                {
+                    **f,
+                    "size_label": _format_size(int(f.get("size") or 0)),
+                    "ambiguous": _is_ambiguous(f),
+                }
+            )
+        groups.append(
+            {
+                "identity": identity,
+                "title": title,
+                "type": media,
+                "count": len(enriched),
+                "ambiguous": ambiguous,
+                "files": enriched,
+            }
+        )
+
+    groups.sort(key=lambda g: (-g["count"], (g.get("title") or "").lower()))
+    return {
+        "group_count": len(groups),
+        "file_count": sum(g["count"] for g in groups),
+        "groups": groups,
     }

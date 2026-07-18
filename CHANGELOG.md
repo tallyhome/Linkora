@@ -4,13 +4,13 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
-## [1.6.0] — 2026-07-18
+## [1.7.0] — 2026-07-18
 
-### Ajouté — Bibliothèque (phase 2 / 5)
-- **Vue arbre** : Séries → Saisons → Épisodes, plus Films / Archives séparés
-- Filtres Tout / Séries / Films / Archives + **recherche** titre
-- Bascule vue arbre ↔ liste plate · copie filtrée
-- Onglets UI : retour à la ligne (4 boutons toujours visibles) + cache-bust static `?v=`
+### Ajouté — Bibliothèque (phase 3 / 5)
+- Vue **Doublons** : groupes par identité intelligente (≥ 2 fichiers)
+- Affiche taille + chemin ; badge « À vérifier » si parsing ambigu
+- Copie de la liste des doublons
+- Ex. `Defiance.S03.E01…` et `Defiance S03 S01E001` → même groupe
 
 ---
 
