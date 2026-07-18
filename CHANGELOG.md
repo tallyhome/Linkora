@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.8.1] — 2026-07-18
+
+### Corrigé
+- **UI figée** : erreur de syntaxe JS (guillemet manquant) qui empêchait le chargement
+  de `app.js` — plus aucun bouton ne répondait.
+
+---
+
 ## [1.8.0] — 2026-07-18
 
 ### Ajouté — Bibliothèque (phase 4 / 5) + Changelog in-app

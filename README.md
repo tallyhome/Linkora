@@ -16,9 +16,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.8.0.exe"><img src="https://img.shields.io/badge/⬇_Installateur_Windows-Setup.exe-0f766e?style=for-the-badge" alt="Télécharger l'installateur"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.8.1.exe"><img src="https://img.shields.io/badge/⬇_Installateur_Windows-Setup.exe-0f766e?style=for-the-badge" alt="Télécharger l'installateur"></a>
   &nbsp;
-  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.8.0.zip"><img src="https://img.shields.io/badge/⬇_Version_portable-ZIP-3b82f6?style=for-the-badge" alt="Télécharger le portable"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.8.1.zip"><img src="https://img.shields.io/badge/⬇_Version_portable-ZIP-3b82f6?style=for-the-badge" alt="Télécharger le portable"></a>
 </p>
 
 <p align="center">
@@ -31,8 +31,8 @@
 
 | | Fichier | Pour qui ? |
 |---|--------|--------|
-| **Installateur** (recommandé) | [**Linkora-Setup-v1.8.0.exe**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.8.0.exe) | Installation classique : menu Démarrer, raccourci Bureau, désinstallation |
-| **Portable** | [**Linkora-windows-v1.8.0.zip**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.8.0.zip) | Sans install : dézipper → lancer `Linkora.exe` (clé USB, etc.) |
+| **Installateur** (recommandé) | [**Linkora-Setup-v1.8.1.exe**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.8.1.exe) | Installation classique : menu Démarrer, raccourci Bureau, désinstallation |
+| **Portable** | [**Linkora-windows-v1.8.1.zip**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.8.1.zip) | Sans install : dézipper → lancer `Linkora.exe` (clé USB, etc.) |
 
 > Les liens ci-dessus pointent vers la **dernière release**. Page complète : [Releases](https://github.com/tallyhome/Linkora/releases/latest).
 
