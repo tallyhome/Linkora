@@ -2553,11 +2553,14 @@
       const id = `series:${s.key || s.title}`;
       if (seen.has(id)) continue;
       seen.add(id);
+      const rawTitle = s.title || "";
+      const year = s.year ?? null;
+      const title = rawTitle.replace(/\s*\(\d{4}\)\s*$/, "").trim() || rawTitle;
       entries.push({
         id,
-        title: s.title || "",
+        title,
         type: s.kind || "tv",
-        year: null,
+        year,
       });
     }
     for (const m of tree.movies || []) {
@@ -2646,6 +2649,14 @@
           const progRes = await fetch("/api/library/enrich/progress");
           const state = await progRes.json();
           setEnrichProgress(state.percent || 0, state.message || "Affiches…");
+          const partial = state?.result?.posters;
+          if (partial && typeof partial === "object") {
+            const before = Object.keys(libraryPosters).length;
+            libraryPosters = { ...libraryPosters, ...partial };
+            if (Object.keys(libraryPosters).length !== before) {
+              refreshLibraryView();
+            }
+          }
           if (state.done) finish(state);
         } catch {
           clearInterval(libraryEnrichTimer);

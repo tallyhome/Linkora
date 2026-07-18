@@ -1273,14 +1273,22 @@ def api_library_enrich():
         return jsonify({**_enrich_get_state(), "error": "Enrichissement déjà en cours."}), 409
 
     def on_progress(info: dict) -> None:
-        _enrich_set_state(
-            busy=True,
-            done=False,
-            error="",
-            percent=int(info.get("percent") or 0),
-            phase=str(info.get("phase") or ""),
-            message=str(info.get("message") or ""),
-        )
+        posters = info.get("posters")
+        stats = info.get("stats")
+        kwargs = {
+            "busy": True,
+            "done": False,
+            "error": "",
+            "percent": int(info.get("percent") or 0),
+            "phase": str(info.get("phase") or ""),
+            "message": str(info.get("message") or ""),
+        }
+        if isinstance(posters, dict):
+            kwargs["result"] = {
+                "posters": posters,
+                "stats": stats if isinstance(stats, dict) else {},
+            }
+        _enrich_set_state(**kwargs)
 
     def worker() -> None:
         try:
@@ -1353,7 +1361,8 @@ def api_library_enrich_progress():
             "phase": _enrich_state["phase"],
             "message": _enrich_state["message"],
         }
-        if _enrich_state.get("done") and _enrich_state.get("result") is not None:
+        # Résultat partiel pendant le fetch (affiches au fur et à mesure)
+        if _enrich_state.get("result") is not None:
             payload["result"] = _enrich_state["result"]
     return jsonify(payload)
 

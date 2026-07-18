@@ -23,20 +23,41 @@ OVERRIDES_PATH = POSTERS_DIR / "overrides.json"
 IMG_DIR = POSTERS_DIR / "img"
 
 _LAST_REQUEST = 0.0
-_MIN_INTERVAL = 0.08  # ~12 req/s — sous la limite TMDB (~40/10s)
+_MIN_INTERVAL = 0.05  # ~20 req/s API — sous la limite TMDB (~40/10s)
+_throttle_lock = None
+_thread_local = None
 _meta_lock = None
 _overrides_lock = None
 
 
 def _locks():
-    global _meta_lock, _overrides_lock
+    global _meta_lock, _overrides_lock, _throttle_lock, _thread_local
     import threading
 
     if _meta_lock is None:
         _meta_lock = threading.Lock()
     if _overrides_lock is None:
         _overrides_lock = threading.Lock()
+    if _throttle_lock is None:
+        _throttle_lock = threading.Lock()
+    if _thread_local is None:
+        _thread_local = threading.local()
     return _meta_lock, _overrides_lock
+
+
+def _http() -> requests.Session:
+    """Session HTTP réutilisée par thread (connexion keep-alive)."""
+    _locks()
+    import threading
+
+    global _thread_local
+    if _thread_local is None:
+        _thread_local = threading.local()
+    sess = getattr(_thread_local, "session", None)
+    if sess is None:
+        sess = requests.Session()
+        _thread_local.session = sess
+    return sess
 
 
 def _ensure_dirs() -> None:
@@ -94,12 +115,16 @@ def cache_key(title: str, media: str, year: int | None = None) -> str:
 
 
 def _throttle() -> None:
+    """Limite globale thread-safe pour l’API TMDB (pas pour le CDN images)."""
     global _LAST_REQUEST
-    now = time.monotonic()
-    wait = _MIN_INTERVAL - (now - _LAST_REQUEST)
-    if wait > 0:
-        time.sleep(wait)
-    _LAST_REQUEST = time.monotonic()
+    _locks()
+    assert _throttle_lock is not None
+    with _throttle_lock:
+        now = time.monotonic()
+        wait = _MIN_INTERVAL - (now - _LAST_REQUEST)
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_REQUEST = time.monotonic()
 
 
 def _get(api_key: str, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -107,12 +132,12 @@ def _get(api_key: str, path: str, params: dict[str, Any] | None = None) -> dict[
     query = dict(params or {})
     query["api_key"] = api_key
     url = f"{TMDB_API}{path}"
-    res = requests.get(url, params=query, timeout=20)
+    res = _http().get(url, params=query, timeout=15)
     if res.status_code == 401:
         raise PermissionError("Clé API TMDB invalide.")
     if res.status_code == 429:
-        time.sleep(1.2)
-        res = requests.get(url, params=query, timeout=20)
+        time.sleep(1.0)
+        res = _http().get(url, params=query, timeout=15)
     res.raise_for_status()
     data = res.json()
     return data if isinstance(data, dict) else {}
@@ -133,6 +158,7 @@ def test_api_key(api_key: str) -> dict[str, Any]:
 
 def _clean_query(title: str) -> str:
     text = str(title or "").strip()
+    text = re.sub(r"\s*\(\d{4}\)\s*$", "", text)  # "Titre (2020)" → "Titre"
     text = re.sub(r"[\._]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:120]
@@ -240,9 +266,9 @@ def _download_poster(poster_path: str, dest: Path) -> bool:
         return False
     if dest.is_file() and dest.stat().st_size > 0:
         return True
-    _throttle()
+    # CDN images.tmdb.org — pas soumis au quota API, pas de throttle API
     url = f"{TMDB_IMG}{poster_path}"
-    res = requests.get(url, timeout=20)
+    res = _http().get(url, timeout=15)
     res.raise_for_status()
     dest.write_bytes(res.content)
     return dest.is_file()
@@ -258,6 +284,7 @@ def resolve_poster(
     force: bool = False,
     entry_id: str | None = None,
     meta: dict[str, Any] | None = None,
+    overrides: dict[str, Any] | None = None,
     save: bool = True,
     cache_only: bool = False,
 ) -> dict[str, Any]:
@@ -268,8 +295,8 @@ def resolve_poster(
     """
     key = cache_key(title, media, year)
     if entry_id:
-        overrides = _load_overrides()
-        ov = overrides.get(entry_id)
+        ov_map = overrides if overrides is not None else _load_overrides()
+        ov = ov_map.get(entry_id)
         if isinstance(ov, dict) and ov.get("file"):
             path = IMG_DIR / Path(str(ov["file"])).name
             if path.is_file():
@@ -491,8 +518,8 @@ def enrich_entries(
     *,
     language: str = "fr-FR",
     on_progress=None,
-    max_items: int = 120,
-    workers: int = 6,
+    max_items: int = 400,
+    workers: int = 10,
 ) -> dict[str, Any]:
     """
     Enrichit une liste d’entrées {id, title, type, year?}.
@@ -502,6 +529,7 @@ def enrich_entries(
     import threading
 
     posters: dict[str, Any] = {}
+    posters_lock = threading.Lock()
     stats = {"total": 0, "found": 0, "cached": 0, "miss": 0, "errors": 0}
     cleaned: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -533,6 +561,7 @@ def enrich_entries(
 
     total = len(cleaned)
     meta = _load_meta()
+    overrides = _load_overrides()
     to_fetch: list[dict[str, Any]] = []
 
     # Phase 1 — cache / overrides uniquement
@@ -546,6 +575,7 @@ def enrich_entries(
             language=language,
             entry_id=item["id"],
             meta=meta,
+            overrides=overrides,
             save=False,
             cache_only=True,
         )
@@ -571,33 +601,74 @@ def enrich_entries(
                 "phase": "tmdb",
                 "percent": int(100 * (total - len(to_fetch)) / max(1, total)),
                 "message": f"Cache OK — fetch TMDB {len(to_fetch)} titre(s)…",
+                "posters": dict(posters),
+                "stats": dict(stats),
             }
         )
 
     meta_lock = threading.Lock()
 
-    def work(item: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-        with meta_lock:
-            result = resolve_poster(
-                api_key,
-                title=item["title"],
-                media=item["type"],
-                year=item["year"],
-                language=language,
-                entry_id=item["id"],
-                meta=meta,
-                save=False,
-                force=True,
-            )
+    def work_safe(item: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        local_meta: dict[str, Any] = {}
+        result = resolve_poster(
+            api_key,
+            title=item["title"],
+            media=item["type"],
+            year=item["year"],
+            language=language,
+            entry_id=item["id"],
+            meta=local_meta,
+            overrides=overrides,
+            save=False,
+            force=True,
+        )
+        if local_meta:
+            with meta_lock:
+                meta.update(local_meta)
         return item["id"], result
 
     done = total - len(to_fetch)
     if to_fetch:
-        with ThreadPoolExecutor(max_workers=max(2, min(8, workers))) as pool:
-            futures = [pool.submit(work, item) for item in to_fetch]
+        n_workers = max(2, min(12, workers))
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            futures = [pool.submit(work_safe, item) for item in to_fetch]
             for fut in as_completed(futures):
                 done += 1
-                if on_progress:
+                try:
+                    eid, result = fut.result()
+                except Exception:
+                    stats["errors"] += 1
+                    if on_progress:
+                        on_progress(
+                            {
+                                "phase": "tmdb",
+                                "percent": int(100 * done / max(1, total)),
+                                "message": f"Affiches TMDB… {done}/{total}",
+                                "index": done,
+                                "total": total,
+                                "posters": dict(posters),
+                                "stats": dict(stats),
+                            }
+                        )
+                    continue
+                if result.get("error") and result["error"] not in ("no_key",):
+                    stats["errors"] += 1
+                elif result.get("found"):
+                    stats["found"] += 1
+                    entry_poster = {
+                        "poster_url": result.get("poster_url") or "",
+                        "matched_title": result.get("matched_title") or "",
+                        "overview": result.get("overview") or "",
+                        "tmdb_id": result.get("tmdb_id"),
+                        "cached": False,
+                    }
+                    with posters_lock:
+                        posters[eid] = entry_poster
+                else:
+                    stats["miss"] += 1
+                if on_progress and (done % 3 == 0 or done >= total):
+                    with posters_lock:
+                        snap = dict(posters)
                     on_progress(
                         {
                             "phase": "tmdb",
@@ -605,26 +676,10 @@ def enrich_entries(
                             "message": f"Affiches TMDB… {done}/{total}",
                             "index": done,
                             "total": total,
+                            "posters": snap,
+                            "stats": dict(stats),
                         }
                     )
-                try:
-                    eid, result = fut.result()
-                except Exception:
-                    stats["errors"] += 1
-                    continue
-                if result.get("error") and result["error"] not in ("no_key",):
-                    stats["errors"] += 1
-                elif result.get("found"):
-                    stats["found"] += 1
-                    posters[eid] = {
-                        "poster_url": result.get("poster_url") or "",
-                        "matched_title": result.get("matched_title") or "",
-                        "overview": result.get("overview") or "",
-                        "tmdb_id": result.get("tmdb_id"),
-                        "cached": False,
-                    }
-                else:
-                    stats["miss"] += 1
 
     _save_meta(meta)
 
@@ -634,6 +689,8 @@ def enrich_entries(
                 "phase": "done",
                 "percent": 100,
                 "message": f"Affiches : {stats['found']} trouvées ({stats['cached']} cache).",
+                "posters": dict(posters),
+                "stats": dict(stats),
             }
         )
     return {"posters": posters, "stats": stats}

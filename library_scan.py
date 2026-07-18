@@ -213,7 +213,6 @@ def scan_library(
     scanned = 0
     reused = 0
     parsed = 0
-    import os
     import time as _time
 
     t0 = _time.monotonic()
@@ -229,32 +228,31 @@ def scan_library(
 
     root_str = str(root)
     pending: list[tuple] = []
+    is_unc = str(root).startswith("\\\\")
 
-    for entry in _walk_media_files(root, recursive=recursive, allowed=allowed):
+    # Parcours parallèle des dossiers (le 1 Gb/s n’aide pas : c’est la latence SMB)
+    def _on_walk_progress(n_files: int, n_dirs: int) -> None:
+        if not on_progress:
+            return
+        soft = min(55, 5 + int(n_files ** 0.5))
+        on_progress(
+            {
+                "phase": "scan",
+                "percent": soft,
+                "message": f"Indexation… {n_files} fichiers ({n_dirs} dossiers)",
+                "index": n_files,
+            }
+        )
+
+    for path_str, name, ext, size, mtime in _walk_media_files(
+        root,
+        recursive=recursive,
+        allowed=allowed,
+        parallel=True,
+        workers=24 if is_unc else 12,
+        on_progress=_on_walk_progress,
+    ):
         scanned += 1
-        if on_progress and scanned % 80 == 0:
-            soft = min(55, 5 + int(scanned ** 0.5))
-            on_progress(
-                {
-                    "phase": "scan",
-                    "percent": soft,
-                    "message": (
-                        f"Indexation… {scanned} éléments "
-                        f"({reused} cache, {len(pending)} à analyser)"
-                    ),
-                    "index": scanned,
-                }
-            )
-        path_str = entry.path
-        ext = os.path.splitext(entry.name)[1].lower()
-        try:
-            st = entry.stat(follow_symlinks=False)
-            size = int(st.st_size)
-            mtime = float(st.st_mtime)
-        except OSError:
-            size = 0
-            mtime = 0.0
-
         prev = cached_items.get(path_str)
         if (
             prev
@@ -265,9 +263,9 @@ def scan_library(
             items.append(prev)
             reused += 1
             continue
-        pending.append((path_str, entry.name, ext, size, mtime))
+        pending.append((path_str, name, ext, size, mtime))
 
-    # Analyse parallèle des nouveaux fichiers (gros gain après l’indexation NAS)
+    # Analyse parallèle des nouveaux fichiers (CPU local — plus de workers)
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     def _parse_one(row: tuple) -> dict[str, Any]:
@@ -310,7 +308,7 @@ def scan_library(
                     "message": f"Analyse de {len(pending)} nouveau(x) fichier(s)…",
                 }
             )
-        workers = 4 if str(root).startswith("\\\\") else 8
+        workers = 10 if is_unc else 12
         done_p = 0
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(_parse_one, row) for row in pending]
@@ -384,28 +382,90 @@ def scan_library(
     return result
 
 
-def _walk_media_files(root: Path, *, recursive: bool, allowed: set[str]):
-    """Parcours rapide (os.scandir) — bien plus efficace sur NAS que Path.rglob+sorted."""
+def _walk_media_files(
+    root: Path,
+    *,
+    recursive: bool,
+    allowed: set[str],
+    parallel: bool = True,
+    workers: int = 16,
+    on_progress=None,
+):
+    """
+    Parcours os.scandir.
+    En parallèle : plusieurs dossiers listés en même temps (gros gain SMB/NAS :
+    on masque la latence réseau, pas le débit 1 Gb/s).
+    Yield : (path, name, ext, size, mtime)
+    """
     import os
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    stack = [str(root)]
-    while stack:
-        current = stack.pop()
+    def _scan_dir(current: str) -> tuple[list[tuple], list[str]]:
+        found_files: list[tuple] = []
+        found_dirs: list[str] = []
         try:
             with os.scandir(current) as it:
                 for entry in it:
                     try:
                         if entry.is_dir(follow_symlinks=False):
                             if recursive and not entry.name.startswith("."):
-                                stack.append(entry.path)
+                                found_dirs.append(entry.path)
                         elif entry.is_file(follow_symlinks=False):
                             ext = os.path.splitext(entry.name)[1].lower()
-                            if ext in allowed:
-                                yield entry
+                            if ext not in allowed:
+                                continue
+                            try:
+                                st = entry.stat(follow_symlinks=False)
+                                size = int(st.st_size)
+                                mtime = float(st.st_mtime)
+                            except OSError:
+                                size, mtime = 0, 0.0
+                            found_files.append(
+                                (entry.path, entry.name, ext, size, mtime)
+                            )
                     except OSError:
                         continue
         except OSError:
-            continue
+            pass
+        return found_files, found_dirs
+
+    if not parallel:
+        stack = [str(root)]
+        n_dirs = 0
+        n_files = 0
+        while stack:
+            current = stack.pop()
+            files, dirs = _scan_dir(current)
+            n_dirs += 1
+            stack.extend(dirs)
+            for row in files:
+                n_files += 1
+                if on_progress and n_files % 120 == 0:
+                    on_progress(n_files, n_dirs)
+                yield row
+        return
+
+    pending_dirs = [str(root)]
+    n_dirs = 0
+    n_files = 0
+    max_workers = max(4, min(32, int(workers) or 16))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        while pending_dirs:
+            batch = pending_dirs
+            pending_dirs = []
+            futures = [pool.submit(_scan_dir, d) for d in batch]
+            for fut in as_completed(futures):
+                n_dirs += 1
+                try:
+                    files, dirs = fut.result()
+                except Exception:
+                    continue
+                pending_dirs.extend(dirs)
+                for row in files:
+                    n_files += 1
+                    if on_progress and n_files % 120 == 0:
+                        on_progress(n_files, n_dirs)
+                    yield row
 
 
 def _cache_dir() -> Path:

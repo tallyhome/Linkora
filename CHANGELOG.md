@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.2.1] — 2026-07-18
+
+### Amélioré — Perf scan NAS + TMDB
+- Scan : **parcours parallèle** des dossiers (masque la latence SMB, pas le débit 1 Gb/s)
+- TMDB : vrai **parallélisme** (le verrou ne bloque plus le réseau), sessions HTTP réutilisées
+- Affiches affichées **au fur et à mesure** pendant le chargement
+- Images CDN sans throttle API
+
+---
+
 ## [2.2.0] — 2026-07-18
 
 ### Amélioré — Affiches TMDB + arbre + perf
