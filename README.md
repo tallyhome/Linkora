@@ -10,29 +10,33 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tallyhome/Linkora/releases"><img src="https://img.shields.io/github/v/release/tallyhome/Linkora?label=version" alt="Release"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest"><img src="https://img.shields.io/github/v/release/tallyhome/Linkora?label=version&color=0f766e" alt="Release"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest"><img src="https://img.shields.io/github/downloads/tallyhome/Linkora/total?label=téléchargements&color=3b82f6" alt="Downloads"></a>
   <a href="https://github.com/tallyhome/Linkora"><img src="https://img.shields.io/github/license/tallyhome/Linkora?label=license" alt="License"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.4.0.exe"><img src="https://img.shields.io/badge/⬇_Installateur_Windows-Setup.exe-0f766e?style=for-the-badge" alt="Télécharger l'installateur"></a>
+  &nbsp;
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.4.0.zip"><img src="https://img.shields.io/badge/⬇_Version_portable-ZIP-3b82f6?style=for-the-badge" alt="Télécharger le portable"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/tallyhome/Linkora/releases/latest">Toutes les versions →</a>
 </p>
 
 ---
 
-## Fonctionnalités
+## Télécharger (Windows)
 
-- **Extraction multi-pages** — collez plusieurs URLs, un bloc de résultats par page
-- **Débridage** — AllDebrid / Real-Debrid (résolution parallèle + retries)
-- **Historique** — une entrée par page, panneau repliable
-- **Exports** — CSV, HTML, PDF, format JDownloader (`URL | Nom suggéré`)
-- **Renommage intelligent** — séries `S03E01`, films `Titre (2024)`, anime… pour Plex / Kodi / Jellyfin
-- **Auto-update** — vérifie GitHub au démarrage et applique les mises à jour automatiquement
+| | Fichier | Pour qui ? |
+|---|--------|--------|
+| **Installateur** (recommandé) | [**Linkora-Setup-v1.4.0.exe**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v1.4.0.exe) | Installation classique : menu Démarrer, raccourci Bureau, désinstallation |
+| **Portable** | [**Linkora-windows-v1.4.0.zip**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v1.4.0.zip) | Sans install : dézipper → lancer `Linkora.exe` (clé USB, etc.) |
 
-## Windows (recommandé)
+> Les liens ci-dessus pointent vers la **dernière release**. Page complète : [Releases](https://github.com/tallyhome/Linkora/releases/latest).
 
-Téléchargez la dernière version sur la page [**Releases**](https://github.com/tallyhome/Linkora/releases) :
-
-| Fichier | Usage |
-|--------|--------|
-| **`Linkora-Setup-vX.Y.Z.exe`** | Installateur : menu Démarrer, raccourci Bureau, désinstallation |
-| **`Linkora-windows-vX.Y.Z.zip`** | Version portable (dézipper et lancer `Linkora.exe`) |
+### Démarrage rapide
 
 1. Lancez **Setup** (ou `Linkora.exe` en portable)
 2. **Paramètres** → collez votre clé API AllDebrid ou Real-Debrid → Tester → Enregistrer
@@ -41,6 +45,16 @@ Téléchargez la dernière version sur la page [**Releases**](https://github.com
 
 Prérequis : compte **AllDebrid** ou **Real-Debrid** (clé API).  
 Windows peut afficher un avertissement SmartScreen (exe non signé) — voir [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
+
+## Fonctionnalités
+
+- **Extraction multi-pages** — collez plusieurs URLs, un bloc de résultats par page
+- **Débridage** — AllDebrid / Real-Debrid (résolution parallèle + retries)
+- **Historique** — une entrée par page, panneau repliable
+- **Exports** — CSV, HTML, PDF, format JDownloader (`URL | Nom suggéré`)
+- **Renommage intelligent** — séries `S03E01`, films `Titre (2024)`, anime… pour Plex / Kodi / Jellyfin
+- **Multi-hébergeurs** — jusqu’à 6 hébergeurs + fallback si lien mort
+- **Auto-update** — vérifie GitHub au démarrage et applique les mises à jour automatiquement
 
 ## macOS / Linux (depuis les sources)
 
