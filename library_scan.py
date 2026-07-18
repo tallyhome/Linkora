@@ -31,6 +31,36 @@ def normalize_title(title: str) -> str:
     return raw or "inconnu"
 
 
+def soft_series_key(title: str, year: int | None = None) -> str:
+    """
+    Clé de regroupement tolérante :
+    - ignore le n° d'épisode en préfixe
+    - normalise fautes fréquentes (tous/tout, double lettres finales)
+    - sépare les reboot via l'année si connue
+    """
+    text = str(title or "")
+    text = re.sub(r"^\d{1,3}\s*[-–.]?\s*", "", text).strip()
+    key = normalize_title(text)
+    # Variantes FR fréquentes
+    replacements = (
+        ("tousrisques", "toutrisques"),
+        ("tousrisque", "toutrisques"),
+        ("toutrisque", "toutrisques"),
+        ("lagencetous", "lagencetout"),
+        ("agencetous", "agencetout"),
+    )
+    for a, b in replacements:
+        key = key.replace(a, b)
+    # Double lettre finale typo (risquess → risques)
+    key = re.sub(r"([a-z])\1+$", r"\1", key)
+    if year is not None:
+        try:
+            return f"{key}|y{int(year)}"
+        except (TypeError, ValueError):
+            pass
+    return key or "inconnu"
+
+
 def media_identity(info: dict[str, Any]) -> str:
     """
     Clé stable pour doublons / diff (phases 3–4).
@@ -171,9 +201,22 @@ def scan_library(
         raise FileNotFoundError(f"Dossier introuvable : {folder}")
 
     allowed = smart_naming.VIDEO_EXTS | smart_naming.AUDIO_EXTS | ARCHIVE_EXTS
-    paths = root.rglob("*") if recursive else root.iterdir()
+    use_cache = True
+    cache = _load_scan_cache(folder, recursive) if use_cache else None
+    cached_items = {
+        str(it.get("path") or ""): it
+        for it in (cache.get("items") or [])
+        if isinstance(it, dict) and it.get("path")
+    } if cache else {}
+
     items: list[dict[str, Any]] = []
     scanned = 0
+    reused = 0
+    parsed = 0
+    import os
+    import time as _time
+
+    t0 = _time.monotonic()
 
     if on_progress:
         on_progress(
@@ -184,47 +227,67 @@ def scan_library(
             }
         )
 
-    for path in sorted(paths):
+    root_str = str(root)
+    for entry in _walk_media_files(root, recursive=recursive, allowed=allowed):
         scanned += 1
-        if on_progress and scanned % 40 == 0:
-            # Progression soft (pas de total fiable sans double parcours NAS)
+        if on_progress and scanned % 50 == 0:
             soft = min(90, 5 + int(scanned ** 0.55))
             on_progress(
                 {
                     "phase": "scan",
                     "percent": soft,
-                    "message": f"Scan… {len(items)} média(s), {scanned} éléments vus",
+                    "message": (
+                        f"Scan… {len(items)} média(s) "
+                        f"({reused} cache, {parsed} nouveaux)"
+                    ),
                     "index": scanned,
                 }
             )
-        if not path.is_file():
-            continue
-        ext = path.suffix.lower()
-        if ext not in allowed:
-            continue
+        path_str = entry.path
+        ext = os.path.splitext(entry.name)[1].lower()
         try:
-            size = path.stat().st_size
+            st = entry.stat(follow_symlinks=False)
+            size = int(st.st_size)
+            mtime = float(st.st_mtime)
         except OSError:
             size = 0
+            mtime = 0.0
+
+        prev = cached_items.get(path_str)
+        if (
+            prev
+            and prev.get("size") == size
+            and abs(float(prev.get("mtime") or 0) - mtime) < 0.01
+            and prev.get("identity")
+        ):
+            items.append(prev)
+            reused += 1
+            continue
 
         if ext in ARCHIVE_EXTS:
-            info = _parse_archive(path.name, template_id)
+            info = _parse_archive(entry.name, template_id)
         else:
-            info = smart_naming.suggest_name(path.name, template_id=template_id)
+            info = smart_naming.suggest_name(
+                entry.name,
+                template_id=template_id,
+                path_hint=path_str,
+                root_hint=root_str,
+            )
 
         identity = media_identity(info)
         items.append(
             {
-                "path": str(path),
-                "filename": path.name,
+                "path": path_str,
+                "filename": entry.name,
                 "ext": ext,
                 "size": size,
+                "mtime": mtime,
                 "type": info.get("type") or "other",
                 "title": info.get("title") or "",
                 "season": info.get("season"),
                 "episode": info.get("episode"),
                 "year": info.get("year"),
-                "suggested": info.get("suggested") or path.name,
+                "suggested": info.get("suggested") or entry.name,
                 "identity": identity,
                 "season_pack": bool(info.get("season_pack")),
                 "archive_format": info.get("archive_format") or (
@@ -232,6 +295,7 @@ def scan_library(
                 ),
             }
         )
+        parsed += 1
 
     if on_progress:
         on_progress(
@@ -255,6 +319,8 @@ def scan_library(
             if item.get("season_pack"):
                 season_pack_count += 1
 
+    items.sort(key=lambda x: (x.get("path") or "").lower())
+
     folder_out = str(root)
     try:
         if not folder_out.startswith("\\\\"):
@@ -262,7 +328,7 @@ def scan_library(
     except OSError:
         pass
 
-    return {
+    result = {
         "folder": folder_out,
         "recursive": recursive,
         "count": len(items),
@@ -273,11 +339,162 @@ def scan_library(
         "items": items,
         "tree": build_library_tree(items),
         "duplicates": find_duplicates(items),
+        "cache": {
+            "used": bool(cache),
+            "reused": reused,
+            "parsed": parsed,
+            "scanned_entries": scanned,
+            "elapsed_s": round(_time.monotonic() - t0, 2),
+        },
     }
+    _save_scan_cache(folder, recursive, result)
+    return result
+
+
+def _walk_media_files(root: Path, *, recursive: bool, allowed: set[str]):
+    """Parcours rapide (os.scandir) — bien plus efficace sur NAS que Path.rglob+sorted."""
+    import os
+
+    stack = [str(root)]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as it:
+                for entry in it:
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            if recursive and not entry.name.startswith("."):
+                                stack.append(entry.path)
+                        elif entry.is_file(follow_symlinks=False):
+                            ext = os.path.splitext(entry.name)[1].lower()
+                            if ext in allowed:
+                                yield entry
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+
+
+def _cache_dir() -> Path:
+    from paths import DATA_DIR
+
+    d = DATA_DIR / "library_cache"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _cache_key(folder: str, recursive: bool) -> str:
+    import hashlib
+
+    raw = f"{folder.strip().lower()}|{'1' if recursive else '0'}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20]
+
+
+def _load_scan_cache(folder: str, recursive: bool) -> dict[str, Any] | None:
+    import json
+
+    path = _cache_dir() / f"{_cache_key(folder, recursive)}.json"
+    if not path.is_file():
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return data
+    except (OSError, json.JSONDecodeError):
+        return None
+    return None
+
+
+def _save_scan_cache(folder: str, recursive: bool, result: dict[str, Any]) -> None:
+    import json
+    import time as _time
+
+    path = _cache_dir() / f"{_cache_key(folder, recursive)}.json"
+    payload = {
+        "folder": folder,
+        "recursive": recursive,
+        "saved_at": int(_time.time()),
+        "count": result.get("count"),
+        "items": result.get("items") or [],
+    }
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+    except OSError:
+        pass
 
 
 def _series_key(item: dict[str, Any]) -> str:
-    return normalize_title(item.get("title") or "") or "inconnu"
+    year = item.get("year")
+    try:
+        year_i = int(year) if year is not None else None
+    except (TypeError, ValueError):
+        year_i = None
+    return soft_series_key(item.get("title") or "", year_i)
+
+
+def _merge_similar_series(
+    series_map: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Fusionne des clés proches (ratio élevé) si année compatible."""
+    from difflib import SequenceMatcher
+
+    keys = list(series_map.keys())
+    parent: dict[str, str] = {k: k for k in keys}
+
+    def find(k: str) -> str:
+        while parent[k] != k:
+            parent[k] = parent[parent[k]]
+            k = parent[k]
+        return k
+
+    def year_of(k: str):
+        if "|y" in k:
+            try:
+                return int(k.rsplit("|y", 1)[1])
+            except ValueError:
+                return None
+        return series_map[k].get("year")
+
+    def base_of(k: str) -> str:
+        return k.split("|y", 1)[0]
+
+    for i, a in enumerate(keys):
+        for b in keys[i + 1 :]:
+            ya, yb = year_of(a), year_of(b)
+            if ya is not None and yb is not None and ya != yb:
+                continue
+            ba, bb = base_of(a), base_of(b)
+            if not ba or not bb:
+                continue
+            if abs(len(ba) - len(bb)) > max(4, len(ba) // 3):
+                continue
+            if SequenceMatcher(None, ba, bb).ratio() >= 0.88:
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[rb] = ra
+
+    merged: dict[str, dict[str, Any]] = {}
+    for k, entry in series_map.items():
+        root = find(k)
+        if root not in merged:
+            merged[root] = entry
+            merged[root]["key"] = root
+            continue
+        target = merged[root]
+        target["file_count"] += entry["file_count"]
+        target["episode_count"] += entry["episode_count"]
+        target["kinds"] |= entry["kinds"]
+        if len(entry.get("title") or "") > len(target.get("title") or ""):
+            target["title"] = entry["title"]
+        if target.get("year") is None and entry.get("year") is not None:
+            target["year"] = entry["year"]
+        for season_n, block in entry["seasons"].items():
+            if season_n not in target["seasons"]:
+                target["seasons"][season_n] = {"season": season_n, "episodes": []}
+            target["seasons"][season_n]["episodes"].extend(block["episodes"])
+    return merged
 
 
 def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -298,6 +515,7 @@ def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
                 series_map[key] = {
                     "key": key,
                     "title": item.get("title") or "Série",
+                    "year": item.get("year"),
                     "kinds": set(),
                     "seasons": {},
                     "episode_count": 0,
@@ -306,6 +524,11 @@ def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
             entry = series_map[key]
             entry["kinds"].add(media)
             entry["file_count"] += 1
+            cand = item.get("title") or ""
+            if len(cand) > len(entry.get("title") or ""):
+                entry["title"] = cand
+            if entry.get("year") is None and item.get("year") is not None:
+                entry["year"] = item.get("year")
             season_n = item.get("season")
             try:
                 season_n = int(season_n) if season_n is not None else 0
@@ -323,6 +546,8 @@ def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
             archives.append(item)
         else:
             others.append(item)
+
+    series_map = _merge_similar_series(series_map)
 
     series_list: list[dict[str, Any]] = []
     for entry in series_map.values():
@@ -346,10 +571,18 @@ def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
                 }
             )
         kinds = sorted(entry["kinds"])
+        year = entry.get("year")
+        title = entry["title"]
+        if year is not None:
+            try:
+                title = f"{title} ({int(year)})"
+            except (TypeError, ValueError):
+                pass
         series_list.append(
             {
                 "key": entry["key"],
-                "title": entry["title"],
+                "title": title,
+                "year": year,
                 "kind": "anime" if kinds == ["anime"] else ("tv" if "tv" in kinds else kinds[0]),
                 "episode_count": entry["episode_count"],
                 "file_count": entry["file_count"],

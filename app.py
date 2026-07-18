@@ -678,6 +678,26 @@ def api_history_delete(extraction_id: int):
     return jsonify({"ok": True})
 
 
+@app.get("/api/library/history")
+def api_library_history():
+    return jsonify(storage.list_library_history())
+
+
+@app.get("/api/library/history/<int:item_id>")
+def api_library_history_item(item_id: int):
+    item = storage.get_library_history_item(item_id)
+    if not item:
+        return jsonify({"error": "Entrée introuvable."}), 404
+    return jsonify(item)
+
+
+@app.delete("/api/library/history/<int:item_id>")
+def api_library_history_delete(item_id: int):
+    if not storage.delete_library_history(item_id):
+        return jsonify({"error": "Entrée introuvable."}), 404
+    return jsonify({"ok": True})
+
+
 def _payload_from_request() -> dict:
     data = request.get_json(silent=True) or {}
     theme = (data.get("theme") or "").strip()
@@ -1055,6 +1075,23 @@ def api_library_scan():
                 template_id=template_id,
                 on_progress=on_progress,
             )
+            try:
+                cache_info = result.get("cache") or {}
+                storage.save_library_history(
+                    kind="scan",
+                    title=folder,
+                    folders=[folder],
+                    summary=(
+                        f"{result.get('count') or 0} média(s) · "
+                        f"{cache_info.get('reused', 0)} cache · "
+                        f"{cache_info.get('parsed', 0)} nouveaux · "
+                        f"{cache_info.get('elapsed_s', '?')}s"
+                    ),
+                    result=result,
+                    count=int(result.get("count") or 0),
+                )
+            except Exception:
+                pass
             _scan_set_state(
                 busy=False,
                 done=True,
@@ -1309,6 +1346,23 @@ def api_library_diff():
                 label_b=label_b,
                 on_progress=on_progress,
             )
+            try:
+                storage.save_library_history(
+                    kind="diff",
+                    title=f"{label_a} ↔ {label_b}",
+                    folders=list(folders_a) + list(folders_b),
+                    summary=(
+                        f"{result.get('missing_on_b_count') or 0} manquants NAS · "
+                        f"{result.get('missing_on_a_count') or 0} manquants PC · "
+                        f"{result.get('common_count') or 0} communs"
+                    ),
+                    result=result,
+                    count=int(result.get("common_count") or 0)
+                    + int(result.get("missing_on_a_count") or 0)
+                    + int(result.get("missing_on_b_count") or 0),
+                )
+            except Exception:
+                pass
             _diff_set_state(
                 busy=False,
                 done=True,

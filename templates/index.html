@@ -399,7 +399,25 @@
         <p class="field-hint">
           Accès NAS protégé : renseignez hôte / utilisateur / mot de passe dans
           <strong>Paramètres → Accès NAS</strong>.
+          Les scans sont mis en cache : un second passage ne reparse que les fichiers nouveaux/modifiés.
         </p>
+      </section>
+
+      <section class="history history-panel is-collapsed" id="library-history-panel">
+        <button type="button" class="history-toggle" id="btn-library-history-toggle" aria-expanded="false" aria-controls="library-history-body">
+          <span class="history-toggle-main">
+            <span class="history-toggle-title">Historique bibliothèque</span>
+            <span class="history-toggle-meta" id="library-history-count">0 entrée(s)</span>
+          </span>
+          <span class="history-toggle-hint">Scans et diffs sauvegardés — rouvrir sans rescanner</span>
+          <span class="history-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="history-body" id="library-history-body" hidden>
+          <p class="history-lead">Une entrée par scan ou comparaison. Ouvrir recharge le résultat depuis le cache local.</p>
+          <ul id="library-history-list" class="history-list">
+            <li class="history-empty">Aucun scan sauvegardé pour le moment.</li>
+          </ul>
+        </div>
       </section>
 
       <section class="extract-form rename-form library-diff-form">

@@ -2966,6 +2966,13 @@
     if (postersEnabled()) {
       enrichLibraryPosters();
     }
+    const cache = data.cache || {};
+    if (librarySummary && (cache.reused != null || cache.elapsed_s != null)) {
+      librarySummary.textContent +=
+        ` · cache ${cache.reused || 0}/${(cache.reused || 0) + (cache.parsed || 0)}` +
+        (cache.elapsed_s != null ? ` · ${cache.elapsed_s}s` : "");
+    }
+    loadLibraryHistory();
   }
 
   document.querySelectorAll(".library-filter").forEach((btn) => {
@@ -2989,6 +2996,103 @@
   });
 
   librarySearch?.addEventListener("input", () => refreshLibraryView());
+
+  const libraryHistoryPanel = document.getElementById("library-history-panel");
+  const libraryHistoryBody = document.getElementById("library-history-body");
+  const libraryHistoryList = document.getElementById("library-history-list");
+  const libraryHistoryCount = document.getElementById("library-history-count");
+
+  async function loadLibraryHistory() {
+    if (!libraryHistoryList) return;
+    try {
+      const res = await fetch("/api/library/history");
+      const items = await res.json();
+      if (!Array.isArray(items) || !items.length) {
+        if (libraryHistoryCount) libraryHistoryCount.textContent = "0 entrée(s)";
+        libraryHistoryList.innerHTML =
+          '<li class="history-empty">Aucun scan sauvegardé pour le moment.</li>';
+        return;
+      }
+      if (libraryHistoryCount) {
+        libraryHistoryCount.textContent = `${items.length} entrée(s)`;
+      }
+      libraryHistoryList.innerHTML = items
+        .map((item) => {
+          const kind = item.kind === "diff" ? "Diff" : "Scan";
+          const folders = (item.folders || []).join(" · ");
+          const short =
+            folders.length > 80 ? `${folders.slice(0, 77)}…` : folders;
+          return `
+        <li class="history-item" data-id="${item.id}">
+          <div class="history-item-row">
+            <button type="button" class="history-item-main" data-action="open">
+              <p class="history-item-title">${escapeHtml(kind)} — ${escapeHtml(item.title || "")}</p>
+              <p class="history-item-meta">
+                ${escapeHtml(item.summary || "")} · ${formatDate(item.created_at)}
+              </p>
+              ${short ? `<p class="history-item-url" title="${escapeHtml(folders)}">${escapeHtml(short)}</p>` : ""}
+            </button>
+            <div class="history-item-actions">
+              <button type="button" class="btn btn-ghost" data-action="open" style="padding:0.45rem 0.75rem;font-size:0.85rem">Ouvrir</button>
+              <button type="button" class="btn btn-danger" data-action="delete">Supprimer</button>
+            </div>
+          </div>
+        </li>`;
+        })
+        .join("");
+    } catch {
+      if (libraryHistoryCount) libraryHistoryCount.textContent = "0 entrée(s)";
+      libraryHistoryList.innerHTML =
+        '<li class="history-empty">Impossible de charger l’historique.</li>';
+    }
+  }
+
+  document.getElementById("btn-library-history-toggle")?.addEventListener("click", () => {
+    const open = libraryHistoryBody?.hidden;
+    if (libraryHistoryBody) libraryHistoryBody.hidden = !open;
+    libraryHistoryPanel?.classList.toggle("is-collapsed", !open);
+    const btn = document.getElementById("btn-library-history-toggle");
+    if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) loadLibraryHistory();
+  });
+
+  libraryHistoryList?.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-action]");
+    const li = event.target.closest(".history-item");
+    if (!btn || !li) return;
+    const id = li.dataset.id;
+    if (!id) return;
+    if (btn.dataset.action === "delete") {
+      try {
+        const res = await fetch(`/api/library/history/${id}`, { method: "DELETE" });
+        if (res.ok) loadLibraryHistory();
+      } catch {
+        showToast("Suppression impossible.");
+      }
+      return;
+    }
+    if (btn.dataset.action === "open") {
+      try {
+        const res = await fetch(`/api/library/history/${id}`);
+        const data = await res.json();
+        if (!res.ok || !data.result) {
+          showToast(data.error || "Entrée introuvable.");
+          return;
+        }
+        if (data.kind === "diff") {
+          applyLibraryDiffResult(data.result);
+          showToast("Diff restauré depuis l’historique.");
+        } else {
+          renderLibrary(data.result);
+          showToast("Scan restauré depuis l’historique.");
+        }
+      } catch {
+        showToast("Ouverture impossible.");
+      }
+    }
+  });
+
+  loadLibraryHistory();
 
   document.getElementById("library-posters-toggle")?.addEventListener("change", (event) => {
     const on = !!event.target.checked;
@@ -3416,6 +3520,7 @@
           applyLibraryDiffResult(state.result);
           showToast("Comparaison terminée.");
           setTimeout(hideLibraryDiffProgress, 800);
+          loadLibraryHistory();
         } else {
           showLibraryDiffError("Résultat vide.");
           hideLibraryDiffProgress();

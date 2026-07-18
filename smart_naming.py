@@ -122,6 +122,17 @@ ANIME_EP_RE = re.compile(
     re.IGNORECASE,
 )
 YEAR_RE = re.compile(r"(?<![0-9])(19\d{2}|20\d{2})(?![0-9])")
+# Épisode numéroté type « 01 - Titre » / « 01.Titre » / « 12 - Collection »
+NUMBERED_EP_RE = re.compile(
+    r"^(?P<ep>\d{1,2})\s*[-–.]\s+(?P<title>.+)$",
+    re.IGNORECASE,
+)
+# Saison dans un nom de dossier
+SEASON_FOLDER_RE = re.compile(
+    r"(?:^|[\s._-])(?:saison|season|s)[\s._-]*(\d{1,2})$",
+    re.IGNORECASE,
+)
+FOLDER_YEAR_RE = re.compile(r"(?<![0-9])(19\d{2}|20\d{2})(?![0-9])")
 
 
 def _split_tokens(stem: str) -> list[str]:
@@ -269,12 +280,131 @@ def apply_template(info: dict[str, Any], template_id: str = "simple") -> str:
     return _safe_filename(name)
 
 
-def suggest_name(filename: str, template_id: str = "simple") -> dict[str, Any]:
+
+def _strip_leading_episode_num(title: str, episode: int | None) -> str:
+    """Enlève un préfixe '12 ' / '12 -' du titre s'il reprend le n° d'épisode."""
+    text = (title or "").strip()
+    if not text or episode is None:
+        return text
+    m = re.match(r"^(\d{1,3})\s*[-–.]?\s+(.*)$", text)
+    if m and int(m.group(1)) == int(episode):
+        rest = m.group(2).strip(" -._")
+        return rest or text
+    return text
+
+
+def _finalize_tv(
+    result: dict[str, Any],
+    *,
+    title: str,
+    season: int,
+    episode: int,
+    template_id: str,
+    year: int | None = None,
+    ep2: int | None = None,
+) -> dict[str, Any]:
+    clean = _strip_leading_episode_num(_clean_title(title) or "Serie", episode)
+    result.update(
+        {
+            "type": "tv",
+            "title": clean,
+            "season": season,
+            "episode": episode,
+            "year": year,
+        }
+    )
+    base = apply_template(result, template_id)
+    if ep2:
+        p = Path(base)
+        result["suggested"] = _safe_filename(f"{p.stem}E{int(ep2):02d}{p.suffix}")
+    else:
+        result["suggested"] = base
+    return result
+
+
+def path_context(file_path: str | Path, root: str | Path | None = None) -> dict[str, Any]:
+    """
+    Indices issus des dossiers parents : titre de série, saison, année.
+    Ex. .../Les 4400 (2021)/Saison 01/ep.mkv
+    """
+    path = Path(file_path)
+    root_path = Path(root).resolve() if root else None
+    series_hint = ""
+    season_hint: int | None = None
+    year_hint: int | None = None
+
+    parents = list(path.parents)
+    for folder in parents:
+        if root_path is not None:
+            try:
+                folder.relative_to(root_path)
+            except ValueError:
+                break
+            if folder == root_path:
+                # Le dossier racine du scan peut aussi porter le titre
+                name = folder.name
+                ym = FOLDER_YEAR_RE.search(name)
+                if ym and year_hint is None:
+                    year_hint = int(ym.group(1))
+                cleaned = FOLDER_YEAR_RE.sub(" ", name)
+                cleaned = SEASON_FOLDER_RE.sub("", cleaned)
+                cleaned = _clean_title(cleaned)
+                if cleaned and len(cleaned) > 2 and not series_hint:
+                    series_hint = cleaned
+                break
+
+        name = folder.name
+        sm = SEASON_FOLDER_RE.search(name.strip())
+        if sm and season_hint is None:
+            try:
+                season_hint = int(sm.group(1))
+            except ValueError:
+                pass
+            continue
+        ym = FOLDER_YEAR_RE.search(name)
+        if ym and year_hint is None:
+            year_hint = int(ym.group(1))
+        # Dossier « série » : ignorer disques / volumes génériques
+        low = name.lower()
+        if low in {"series", "séries", "films", "movies", "tv", "video", "videos", "media"}:
+            continue
+        cleaned = FOLDER_YEAR_RE.sub(" ", name)
+        cleaned = SEASON_FOLDER_RE.sub("", cleaned)
+        cleaned = _clean_title(cleaned)
+        if cleaned and len(cleaned) > 2 and not series_hint:
+            series_hint = cleaned
+
+    return {
+        "series_title": series_hint,
+        "season": season_hint,
+        "year": year_hint,
+    }
+
+
+def _looks_like_numbered_episode(stem: str) -> re.Match[str] | None:
+    return NUMBERED_EP_RE.match(stem.strip())
+
+
+def suggest_name(
+    filename: str,
+    template_id: str = "simple",
+    *,
+    path_hint: str | Path | None = None,
+    root_hint: str | Path | None = None,
+) -> dict[str, Any]:
     """Produit un nom Plex/Kodi/Jellyfin à partir d'un nom de fichier."""
     original = (filename or "").strip()
     path = Path(original)
     ext = path.suffix.lower() if path.suffix else ""
     stem = path.stem if path.suffix else original
+    ctx = path_context(path_hint or original, root_hint) if (path_hint or root_hint) else {
+        "series_title": "",
+        "season": None,
+        "year": None,
+    }
+    # Si on n'a passé que le nom, tenter le chemin complet via path_hint
+    if path_hint and not ctx.get("series_title"):
+        ctx = path_context(path_hint, root_hint)
 
     result: dict[str, Any] = {
         "original": original,
@@ -289,108 +419,160 @@ def suggest_name(filename: str, template_id: str = "simple") -> dict[str, Any]:
     if not stem:
         return result
 
+    def _title_from(raw: str, episode: int | None = None) -> str:
+        base = ctx.get("series_title") or _clean_title(raw) or "Serie"
+        if ctx.get("series_title"):
+            return str(ctx["series_title"])
+        return _strip_leading_episode_num(base, episode)
+
     # ── Série TV : SxxExx ──
     m = TV_RE.search(stem)
     if m:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
-        # Cas fréquent : "Defiance S03 S01E001" → saison 03, épisode 1
         trail = re.search(r"[Ss](\d{1,2})\s*$", raw_title)
         if trail and season == 1:
             season = int(trail.group(1))
             raw_title = raw_title[: trail.start()].rstrip("._- ")
-        title = _clean_title(raw_title) or "Serie"
-        result.update(
-            {
-                "type": "tv",
-                "title": title,
-                "season": season,
-                "episode": ep1,
-            }
+        if ctx.get("season") and season == 1 and not trail:
+            # Rare : S01Exx dans un dossier Saison 03 → garder S01 du fichier
+            pass
+        year = ctx.get("year")
+        return _finalize_tv(
+            result,
+            title=_title_from(raw_title, ep1),
+            season=season,
+            episode=ep1,
+            template_id=template_id,
+            year=year,
+            ep2=int(ep2) if ep2 else None,
         )
-        # double épisode : garder dans le template via suggested custom
-        base = apply_template(result, template_id)
-        if ep2:
-            # Insérer E02 avant l'extension
-            p = Path(base)
-            result["suggested"] = _safe_filename(
-                f"{p.stem}E{int(ep2):02d}{p.suffix}"
-            )
-        else:
-            result["suggested"] = base
-        return result
 
     # ── Série TV : Sxx.Exx / Sxx_Exx / Sxx E01 ──
     m = TV_DOT_RE.search(stem)
     if m:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
-        title = _clean_title(raw_title) or "Serie"
-        result.update(
-            {
-                "type": "tv",
-                "title": title,
-                "season": season,
-                "episode": ep1,
-            }
+        return _finalize_tv(
+            result,
+            title=_title_from(raw_title, ep1),
+            season=season,
+            episode=ep1,
+            template_id=template_id,
+            year=ctx.get("year"),
+            ep2=int(ep2) if ep2 else None,
         )
-        base = apply_template(result, template_id)
-        if ep2:
-            p = Path(base)
-            result["suggested"] = _safe_filename(f"{p.stem}E{int(ep2):02d}{p.suffix}")
-        else:
-            result["suggested"] = base
-        return result
 
-    # ── Série : 3x01 ──
+    # ── Série : 3x01 (éventuellement collé au titre : Risquess3x13) ──
     m = TV_X_RE.search(stem)
     if m:
         season, ep1, ep2 = int(m.group(1)), int(m.group(2)), m.group(3)
         raw_title = stem[: m.start()].rstrip("._- ")
-        title = _clean_title(raw_title) or "Serie"
-        result.update({"type": "tv", "title": title, "season": season, "episode": ep1})
-        base = apply_template(result, template_id)
-        if ep2:
-            p = Path(base)
-            result["suggested"] = _safe_filename(f"{p.stem}E{int(ep2):02d}{p.suffix}")
-        else:
-            result["suggested"] = base
-        return result
+        # Enlever une lettre orpheline collée (…Risquess → …Risques si double s)
+        raw_title = re.sub(r"([a-zàâäéèêëïîôùûüç])\1+$", r"\1", raw_title, flags=re.I)
+        return _finalize_tv(
+            result,
+            title=_title_from(raw_title, ep1),
+            season=season,
+            episode=ep1,
+            template_id=template_id,
+            year=ctx.get("year"),
+            ep2=int(ep2) if ep2 else None,
+        )
 
     # ── Saison X Episode Y (FR) ──
     m = TV_FR_RE.search(stem)
     if m:
         season, ep1 = int(m.group(1)), int(m.group(2))
         raw_title = stem[: m.start()].rstrip("._- ")
-        title = _clean_title(raw_title) or "Serie"
-        result.update({"type": "tv", "title": title, "season": season, "episode": ep1})
-        result["suggested"] = apply_template(result, template_id)
-        return result
+        return _finalize_tv(
+            result,
+            title=_title_from(raw_title, ep1),
+            season=season,
+            episode=ep1,
+            template_id=template_id,
+            year=ctx.get("year"),
+        )
 
-    # ── Film : Titre (Année) ──
+    # ── Épisode numéroté « 01 - Titre » (souvent séries anciennes / FR) ──
+    numbered = _looks_like_numbered_episode(stem)
+    if numbered:
+        ep = int(numbered.group("ep"))
+        rest = numbered.group("title").strip()
+        # Une année dans le titre d'épisode (ex. Collection 1909) n'en fait PAS un film
+        rest_no_year = YEAR_RE.sub(" ", rest).strip(" ._()-")
+        season = int(ctx["season"]) if ctx.get("season") is not None else 1
+        title = ctx.get("series_title") or _clean_title(rest_no_year) or _clean_title(rest) or "Serie"
+        return _finalize_tv(
+            result,
+            title=title,
+            season=season,
+            episode=ep,
+            template_id=template_id,
+            year=ctx.get("year"),
+        )
+
+    # ── Film : Titre (Année) — uniquement si ce n'est pas un faux positif ──
     year_m = YEAR_RE.search(stem)
     if year_m:
         year = int(year_m.group(1))
-        raw_title = stem[: year_m.start()].rstrip("._- ")
+        raw_title = stem[: year_m.start()].rstrip("._- ()[]")
         title = _clean_title(raw_title) or "Film"
-        result.update({"type": "movie", "title": title, "year": year})
-        result["suggested"] = apply_template(result, template_id)
-        return result
+        # Année très ancienne + titre court / numéroté → plutôt série / autre
+        if year < 1930 and re.match(r"^\d{1,2}\b", title):
+            pass  # ne pas classer film — tombe plus bas
+        else:
+            # Prefer folder series context: fichier dans une série → TV, année = année de série
+            if ctx.get("series_title"):
+                return _finalize_tv(
+                    result,
+                    title=str(ctx["series_title"]),
+                    season=int(ctx["season"] or 1),
+                    episode=1,
+                    template_id=template_id,
+                    year=ctx.get("year") or year,
+                )
+            result.update(
+                {
+                    "type": "movie",
+                    "title": title,
+                    "year": year,
+                }
+            )
+            result["suggested"] = apply_template(result, template_id)
+            return result
 
     # ── Anime / numérotation simple ──
     anime_m = ANIME_EP_RE.search(stem)
     if anime_m:
         ep = int(anime_m.group(1))
         raw_title = stem[: anime_m.start()].rstrip("._- ")
-        title = _clean_title(raw_title) or "Anime"
-        result.update({"type": "anime", "title": title, "season": 1, "episode": ep})
+        title = ctx.get("series_title") or _clean_title(raw_title) or "Anime"
+        result.update(
+            {
+                "type": "anime",
+                "title": title,
+                "season": int(ctx["season"] or 1),
+                "episode": ep,
+                "year": ctx.get("year"),
+            }
+        )
         result["suggested"] = apply_template(result, template_id)
         return result
 
     # ── Fallback ──
-    title = _clean_title(stem)
-    result.update({"title": title, "type": "other"})
-    result["suggested"] = apply_template({**result, "suggested": f"{title}{ext}"}, template_id)
+    title = ctx.get("series_title") or _clean_title(stem)
+    result.update(
+        {
+            "title": title,
+            "type": "tv" if ctx.get("series_title") else "other",
+            "season": ctx.get("season"),
+            "year": ctx.get("year"),
+        }
+    )
+    result["suggested"] = apply_template(
+        {**result, "suggested": f"{title}{ext}"}, template_id
+    )
     return result
 
 

@@ -4,6 +4,19 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.1.0] — 2026-07-18
+
+### Amélioré — Bibliothèque plus intelligente + cache
+- Parseur : `01 - Collection 1909` → **épisode** (plus un faux film 1909)
+- Regroupement séries tolérant aux fautes (`L'Agence Tout Risques` / `Tous Risquess`)
+- Distinction des reboot via **année** (ex. Les 4400 2004 vs 2021)
+- Titre de série / saison / année lus dans les **dossiers parents**
+- **Cache incrémental** des scans (rescans NAS beaucoup plus rapides)
+- Parcours `scandir` (plus efficace que `rglob` sur gros volumes)
+- **Historique bibliothèque** (scans + diffs) rouvrable comme l’historique Récupération
+
+---
+
 ## [2.0.0] — 2026-07-18
 
 ### Ajouté — Bibliothèque phase 5 : affiches TMDB
