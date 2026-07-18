@@ -4,6 +4,15 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.9] — 2026-07-18
+
+### Modifié
+- Thème **Pro** repensé : nuit indigo lumineuse (fini le noir plat) — fond **aurora animé**,
+  cartes en **verre** avec liseré dégradé et survol flottant, onglets pastilles à halo,
+  bouton principal dégradé avec reflet, titres en dégradé. Respecte `prefers-reduced-motion`.
+
+---
+
 ## [1.3.8] — 2026-07-18
 
 ### Ajouté
