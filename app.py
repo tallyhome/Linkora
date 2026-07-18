@@ -49,6 +49,19 @@ _diff_state: dict = {
     "result": None,
 }
 
+# Progression scan bibliothèque
+_scan_lock = threading.Lock()
+_scan_apply_lock = threading.Lock()
+_scan_state: dict = {
+    "busy": False,
+    "done": False,
+    "error": "",
+    "percent": 0,
+    "phase": "",
+    "message": "",
+    "result": None,
+}
+
 
 def _diff_get_state() -> dict:
     with _diff_lock:
@@ -65,6 +78,23 @@ def _diff_get_state() -> dict:
 def _diff_set_state(**kwargs) -> None:
     with _diff_lock:
         _diff_state.update(kwargs)
+
+
+def _scan_get_state() -> dict:
+    with _scan_lock:
+        return {
+            "busy": _scan_state["busy"],
+            "done": _scan_state["done"],
+            "error": _scan_state["error"],
+            "percent": _scan_state["percent"],
+            "phase": _scan_state["phase"],
+            "message": _scan_state["message"],
+        }
+
+
+def _scan_set_state(**kwargs) -> None:
+    with _scan_lock:
+        _scan_state.update(kwargs)
 
 
 @app.before_request
@@ -918,26 +948,140 @@ def export_jdownloader():
     )
 
 
+@app.post("/api/network/test")
+def api_network_test():
+    """Teste une connexion à un partage NAS (Windows)."""
+    import network_shares
+
+    data = request.get_json(silent=True) or {}
+    host = (data.get("host") or "").strip()
+    share = (data.get("share") or "").strip()
+    username = (data.get("username") or "").strip()
+    password = data.get("password")
+    if password is None or (isinstance(password, str) and password.startswith("••••")):
+        # Réutilise le mot de passe enregistré si masqué / vide
+        for entry in app_settings.get_network_shares():
+            if (
+                entry.get("username", "").lower() == username.lower()
+                and (not host or entry.get("host", "").lower() == host.lower())
+                and (not share or entry.get("share", "").lower() == share.lower())
+            ):
+                password = entry.get("password") or ""
+                break
+        else:
+            password = ""
+    try:
+        result = network_shares.test_credentials(
+            host=host,
+            share=share,
+            username=username,
+            password=str(password or ""),
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify(result)
+
+
 @app.post("/api/library/scan")
 def api_library_scan():
-    """Phase 1 — inventaire lecture seule d’un dossier média."""
+    """Phase 1 — inventaire lecture seule d’un dossier média (async + progression)."""
     import library_scan
 
     data = request.get_json(silent=True) or {}
     folder = (data.get("folder") or "").strip()
     recursive = bool(data.get("recursive", True))
     template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
+    background = bool(data.get("background", True))
     if not folder:
         return jsonify({"error": "Indiquez un dossier à scanner."}), 400
-    try:
-        result = library_scan.scan_library(
-            folder, recursive=recursive, template_id=template_id
+
+    if not _scan_apply_lock.acquire(blocking=False):
+        return jsonify({**_scan_get_state(), "error": "Un scan est déjà en cours."}), 409
+
+    def on_progress(info: dict) -> None:
+        _scan_set_state(
+            busy=True,
+            done=False,
+            error="",
+            percent=int(info.get("percent") or 0),
+            phase=str(info.get("phase") or ""),
+            message=str(info.get("message") or ""),
         )
-    except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
-    except Exception as exc:
-        return jsonify({"error": f"Scan impossible : {exc}"}), 400
-    return jsonify(result)
+
+    def worker() -> None:
+        try:
+            _scan_set_state(
+                busy=True,
+                done=False,
+                error="",
+                percent=1,
+                phase="prepare",
+                message="Démarrage du scan…",
+                result=None,
+            )
+            result = library_scan.scan_library(
+                folder,
+                recursive=recursive,
+                template_id=template_id,
+                on_progress=on_progress,
+            )
+            _scan_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
+                message="Scan terminé.",
+                error="",
+                result=result,
+            )
+        except Exception as exc:
+            _scan_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="error",
+                message="",
+                error=str(exc),
+                result=None,
+            )
+        finally:
+            _scan_apply_lock.release()
+
+    if background:
+        threading.Thread(target=worker, daemon=True, name="linkora-library-scan").start()
+        return jsonify(_scan_get_state())
+
+    try:
+        worker()
+        with _scan_lock:
+            err = _scan_state.get("error") or ""
+            result = _scan_state.get("result")
+        if err:
+            return jsonify({"error": err}), 400
+        return jsonify(result or {"error": "Résultat vide."})
+    except Exception:
+        if _scan_apply_lock.locked():
+            try:
+                _scan_apply_lock.release()
+            except RuntimeError:
+                pass
+        raise
+
+
+@app.get("/api/library/scan/progress")
+def api_library_scan_progress():
+    with _scan_lock:
+        payload = {
+            "busy": _scan_state["busy"],
+            "done": _scan_state["done"],
+            "error": _scan_state["error"],
+            "percent": _scan_state["percent"],
+            "phase": _scan_state["phase"],
+            "message": _scan_state["message"],
+        }
+        if _scan_state.get("done") and _scan_state.get("result") is not None:
+            payload["result"] = _scan_state["result"]
+    return jsonify(payload)
 
 
 @app.post("/api/library/diff")

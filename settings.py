@@ -24,6 +24,7 @@ DEFAULTS = {
     "custom_logo": False,
     "profiles": [],
     "active_profile_id": "",
+    "network_shares": [],
     "providers": {
         "alldebrid": {"api_key": "", "api_keys": [], "enabled": True},
         "realdebrid": {"api_key": "", "api_keys": [], "enabled": True},
@@ -67,6 +68,44 @@ def _clamp_int(value, default: int, lo: int, hi: int) -> int:
     except (TypeError, ValueError):
         return default
     return max(lo, min(hi, n))
+
+
+def _normalize_network_share(raw: dict | None) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    username = str(raw.get("username") or "").strip()
+    if not username:
+        return None
+    host = str(raw.get("host") or "").strip()[:120]
+    share = str(raw.get("share") or "").strip()[:120]
+    password = str(raw.get("password") or "")
+    if password.startswith("••••"):
+        password = ""
+    return {
+        "host": host,
+        "share": share,
+        "username": username[:120],
+        "password": password[:256],
+    }
+
+
+def _normalize_network_shares(raw) -> list[dict]:
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    seen: set[str] = set()
+    for item in raw:
+        entry = _normalize_network_share(item)
+        if not entry:
+            continue
+        key = f"{entry['host'].lower()}|{entry['share'].lower()}|{entry['username'].lower()}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(entry)
+        if len(out) >= 12:
+            break
+    return out
 
 
 def _normalize_profile(raw: dict | None) -> dict | None:
@@ -175,6 +214,7 @@ def _ensure() -> dict:
             DATA_DIR / f"{CUSTOM_LOGO_NAME}.webp"
         ).is_file()
     merged["profiles"] = _normalize_profiles(data.get("profiles"))
+    merged["network_shares"] = _normalize_network_shares(data.get("network_shares"))
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
         merged["active_profile_id"] = active_pid
@@ -235,6 +275,33 @@ def update_settings(payload: dict) -> dict:
     # Logo : non personnalisable (marque Linkora figée)
     if "profiles" in payload:
         current["profiles"] = _normalize_profiles(payload.get("profiles"))
+    if "network_shares" in payload:
+        incoming = payload.get("network_shares")
+        if isinstance(incoming, list):
+            # Mot de passe vide / masqué → conserver l’ancien pour la même entrée
+            old_by_key = {
+                f"{e['host'].lower()}|{e['share'].lower()}|{e['username'].lower()}": e
+                for e in current.get("network_shares") or []
+            }
+            merged_shares: list[dict] = []
+            for item in incoming:
+                entry = _normalize_network_share(item)
+                if not entry:
+                    continue
+                key = (
+                    f"{entry['host'].lower()}|{entry['share'].lower()}|"
+                    f"{entry['username'].lower()}"
+                )
+                if not entry["password"] and key in old_by_key:
+                    entry["password"] = old_by_key[key].get("password") or ""
+                # Aussi : champ password masqué côté UI
+                raw_pwd = ""
+                if isinstance(item, dict):
+                    raw_pwd = str(item.get("password") or "")
+                if raw_pwd.startswith("••••") and key in old_by_key:
+                    entry["password"] = old_by_key[key].get("password") or ""
+                merged_shares.append(entry)
+            current["network_shares"] = _normalize_network_shares(merged_shares)
     if "active_profile_id" in payload:
         pid = str(payload.get("active_profile_id") or "")
         if pid and any(p["id"] == pid for p in current["profiles"]):
@@ -305,6 +372,17 @@ def public_settings() -> dict:
         "custom_logo": bool(data.get("custom_logo")),
         "profiles": list(data.get("profiles") or []),
         "active_profile_id": data.get("active_profile_id") or "",
+        "network_shares": [
+            {
+                "host": e.get("host") or "",
+                "share": e.get("share") or "",
+                "username": e.get("username") or "",
+                "password": "",
+                "password_masked": _mask(e["password"]) if e.get("password") else "",
+                "configured": bool(e.get("username")),
+            }
+            for e in (data.get("network_shares") or [])
+        ],
         "providers": {},
     }
     for name, conf in data["providers"].items():
@@ -348,6 +426,11 @@ def clear_custom_logo() -> None:
     data = load_settings()
     data["custom_logo"] = False
     save_settings(data)
+
+
+def get_network_shares() -> list[dict]:
+    data = load_settings()
+    return list(data.get("network_shares") or [])
 
 
 def get_max_retries() -> int:

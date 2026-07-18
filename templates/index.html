@@ -385,8 +385,21 @@
               <span class="btn-spinner" hidden aria-hidden="true"></span>
             </button>
           </div>
+          <div id="library-scan-progress" class="resolve-progress" hidden>
+            <div class="resolve-progress-top">
+              <span id="library-scan-progress-text">Scan…</span>
+              <span id="library-scan-progress-pct">0 %</span>
+            </div>
+            <div class="resolve-progress-bar">
+              <div id="library-scan-progress-fill" class="resolve-progress-fill"></div>
+            </div>
+          </div>
         </form>
         <p id="library-error" class="form-error" role="alert" hidden></p>
+        <p class="field-hint">
+          Accès NAS protégé : renseignez hôte / utilisateur / mot de passe dans
+          <strong>Paramètres → Accès NAS</strong>.
+        </p>
       </section>
 
       <section class="extract-form rename-form library-diff-form">
@@ -782,6 +795,39 @@
             <option value="realdebrid">Real-Debrid</option>
           </select>
         </label>
+
+        <fieldset class="provider-block">
+          <legend>Accès NAS (partages Windows)</legend>
+          <p class="field-hint">
+            Pour les chemins <code>\\NAS\partage\…</code> qui demandent un login.
+            Laissez le mot de passe vide à l’enregistrement pour conserver l’actuel.
+          </p>
+          <div class="settings-grid">
+            <label class="field">
+              <span class="field-label">Hôte / IP</span>
+              <input type="text" id="nas-host" placeholder="NAS ou 192.168.1.50" spellcheck="false" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Partage (pour test)</span>
+              <input type="text" id="nas-share" placeholder="volume1  ou  Media" spellcheck="false" autocomplete="off">
+            </label>
+          </div>
+          <div class="settings-grid">
+            <label class="field">
+              <span class="field-label">Utilisateur</span>
+              <input type="text" id="nas-username" placeholder="admin" spellcheck="false" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Mot de passe</span>
+              <input type="password" id="nas-password" placeholder="vide = conserver" autocomplete="new-password">
+            </label>
+          </div>
+          <span class="field-hint" id="hint-nas">Aucun identifiant NAS enregistré.</span>
+          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+            <button type="button" class="btn btn-ghost" id="btn-nas-test">Tester la connexion</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-nas-clear">Effacer les identifiants</button>
+          </div>
+        </fieldset>
 
         <fieldset class="provider-block">
           <legend>AllDebrid</legend>

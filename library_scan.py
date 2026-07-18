@@ -142,11 +142,30 @@ def scan_library(
     *,
     recursive: bool = True,
     template_id: str = "simple",
+    credentials: list[dict] | None = None,
+    on_progress=None,
 ) -> dict[str, Any]:
     """
     Scanne un dossier et retourne un inventaire plat (pas de modification disque).
     Inclut les vidéos/audios et les archives (.zip / .rar / .7z).
     """
+    try:
+        import network_shares
+        import settings as app_settings
+
+        creds = credentials if credentials is not None else app_settings.get_network_shares()
+        if on_progress:
+            on_progress(
+                {
+                    "phase": "connect",
+                    "percent": 2,
+                    "message": "Connexion au dossier / NAS…",
+                }
+            )
+        network_shares.ensure_path_access(folder, creds)
+    except ImportError:
+        pass
+
     root = Path(folder).expanduser()
     if not root.is_dir():
         raise FileNotFoundError(f"Dossier introuvable : {folder}")
@@ -154,8 +173,30 @@ def scan_library(
     allowed = smart_naming.VIDEO_EXTS | smart_naming.AUDIO_EXTS | ARCHIVE_EXTS
     paths = root.rglob("*") if recursive else root.iterdir()
     items: list[dict[str, Any]] = []
+    scanned = 0
+
+    if on_progress:
+        on_progress(
+            {
+                "phase": "scan",
+                "percent": 5,
+                "message": "Parcours des fichiers…",
+            }
+        )
 
     for path in sorted(paths):
+        scanned += 1
+        if on_progress and scanned % 40 == 0:
+            # Progression soft (pas de total fiable sans double parcours NAS)
+            soft = min(90, 5 + int(scanned ** 0.55))
+            on_progress(
+                {
+                    "phase": "scan",
+                    "percent": soft,
+                    "message": f"Scan… {len(items)} média(s), {scanned} éléments vus",
+                    "index": scanned,
+                }
+            )
         if not path.is_file():
             continue
         ext = path.suffix.lower()
@@ -192,6 +233,15 @@ def scan_library(
             }
         )
 
+    if on_progress:
+        on_progress(
+            {
+                "phase": "build",
+                "percent": 95,
+                "message": "Construction de la bibliothèque…",
+            }
+        )
+
     by_type = {"tv": 0, "anime": 0, "movie": 0, "archive": 0, "other": 0}
     identities: set[str] = set()
     archive_count = 0
@@ -205,8 +255,15 @@ def scan_library(
             if item.get("season_pack"):
                 season_pack_count += 1
 
+    folder_out = str(root)
+    try:
+        if not folder_out.startswith("\\\\"):
+            folder_out = str(root.resolve())
+    except OSError:
+        pass
+
     return {
-        "folder": str(root.resolve()),
+        "folder": folder_out,
         "recursive": recursive,
         "count": len(items),
         "unique_identities": len(identities),
@@ -553,6 +610,16 @@ def diff_libraries(
                 "message": f"Préparation : {len(list_a)} dossier(s) PC, {len(list_b)} NAS…",
             }
         )
+
+    try:
+        import network_shares
+        import settings as app_settings
+
+        network_shares.ensure_paths_access(
+            list_a + list_b, app_settings.get_network_shares()
+        )
+    except ImportError:
+        pass
 
     def progress_a(info: dict[str, Any]) -> None:
         if not on_progress:

@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.10.0] — 2026-07-18
+
+### Ajouté — Accès NAS (login / mot de passe)
+- Paramètres → **Accès NAS** : hôte, partage, utilisateur, mot de passe
+- Connexion Windows (UNC) automatique avant scan / diff bibliothèque
+- Bouton **Tester la connexion**
+- Scan bibliothèque **asynchrone** avec barre de progression (évite les faux « erreur réseau » sur scans longs)
+
+---
+
 ## [1.9.0] — 2026-07-18
 
 ### Ajouté — Diff PC ↔ NAS multi-dossiers

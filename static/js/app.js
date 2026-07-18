@@ -48,6 +48,12 @@
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const notifyOnResolveInput = document.getElementById("notify-on-resolve");
   const sslIgnoreErrorsInput = document.getElementById("ssl-ignore-errors");
+  const nasHostInput = document.getElementById("nas-host");
+  const nasShareInput = document.getElementById("nas-share");
+  const nasUsernameInput = document.getElementById("nas-username");
+  const nasPasswordInput = document.getElementById("nas-password");
+  const hintNas = document.getElementById("hint-nas");
+  let nasClearRequested = false;
   const customAccentInput = document.getElementById("custom-accent");
   const btnResetAccent = document.getElementById("btn-reset-accent");
   const profileSelect = document.getElementById("profile-select");
@@ -1159,6 +1165,17 @@
     if (sslIgnoreErrorsInput) {
       sslIgnoreErrorsInput.checked = settings.ssl_ignore_errors === true;
     }
+    const nasEntry = (settings.network_shares || [])[0] || null;
+    if (nasHostInput) nasHostInput.value = nasEntry?.host || "";
+    if (nasShareInput) nasShareInput.value = nasEntry?.share || "";
+    if (nasUsernameInput) nasUsernameInput.value = nasEntry?.username || "";
+    if (nasPasswordInput) nasPasswordInput.value = "";
+    nasClearRequested = false;
+    if (hintNas) {
+      hintNas.textContent = nasEntry?.configured
+        ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
+        : "Aucun identifiant NAS enregistré.";
+    }
     if (updateManifestInput) {
       updateManifestInput.value = settings.update_manifest_url || "";
     }
@@ -2071,6 +2088,22 @@
         realdebrid: {},
       },
     };
+    if (nasClearRequested) {
+      payload.network_shares = [];
+    } else {
+      const nasUser = (nasUsernameInput?.value || "").trim();
+      const nasHost = (nasHostInput?.value || "").trim();
+      if (nasUser || nasHost || (settings?.network_shares || []).length) {
+        payload.network_shares = [
+          {
+            host: nasHost,
+            share: (nasShareInput?.value || "").trim(),
+            username: nasUser || settings?.network_shares?.[0]?.username || "",
+            password: nasPasswordInput?.value || "",
+          },
+        ].filter((e) => e.username);
+      }
+    }
     if (customAccentInput?.dataset.reset === "1") {
       payload.custom_accent = "";
       delete customAccentInput.dataset.reset;
@@ -2098,6 +2131,14 @@
       applyCustomBranding(data);
       updateProviderBadge();
       refreshProfileSelect();
+      if (nasPasswordInput) nasPasswordInput.value = "";
+      nasClearRequested = false;
+      const nasEntry = (data.network_shares || [])[0] || null;
+      if (hintNas) {
+        hintNas.textContent = nasEntry?.configured
+          ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
+          : "Aucun identifiant NAS enregistré.";
+      }
       const adCount = data.providers?.alldebrid?.key_count || 0;
       const rdCount = data.providers?.realdebrid?.key_count || 0;
       hintAlldebrid.textContent = data.providers?.alldebrid?.configured
@@ -2118,6 +2159,44 @@
       showSettingsMessage("Erreur réseau.", false);
     }
   }
+
+  document.getElementById("btn-nas-clear")?.addEventListener("click", () => {
+    nasClearRequested = true;
+    if (nasHostInput) nasHostInput.value = "";
+    if (nasShareInput) nasShareInput.value = "";
+    if (nasUsernameInput) nasUsernameInput.value = "";
+    if (nasPasswordInput) nasPasswordInput.value = "";
+    if (hintNas) hintNas.textContent = "Identifiants effacés (enregistrez pour confirmer).";
+    showToast("Identifiants NAS marqués pour suppression.");
+  });
+
+  document.getElementById("btn-nas-test")?.addEventListener("click", async () => {
+    const host = (nasHostInput?.value || "").trim();
+    const share = (nasShareInput?.value || "").trim();
+    const username = (nasUsernameInput?.value || "").trim();
+    const password = nasPasswordInput?.value || "";
+    if (!host || !share || !username) {
+      showSettingsMessage("Pour tester : hôte, partage et utilisateur sont requis.", false);
+      return;
+    }
+    showSettingsMessage("Test de connexion NAS…", true);
+    try {
+      const res = await fetch("/api/network/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host, share, username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showSettingsMessage(data.error || "Connexion NAS impossible.", false);
+        return;
+      }
+      showSettingsMessage(data.message || "Connexion NAS OK.", true);
+      showToast("Connexion NAS OK.");
+    } catch (err) {
+      showSettingsMessage(`Erreur réseau : ${err?.message || "échec"}`, false);
+    }
+  });
 
   btnResetAccent?.addEventListener("click", () => {
     if (customAccentInput) {
@@ -2720,6 +2799,29 @@
     }
     showLibraryError("");
     setLibraryLoading(true);
+    const progressEl = document.getElementById("library-scan-progress");
+    const progressText = document.getElementById("library-scan-progress-text");
+    const progressPct = document.getElementById("library-scan-progress-pct");
+    const progressFill = document.getElementById("library-scan-progress-fill");
+    const setProg = (percent, message) => {
+      const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+      if (progressEl) progressEl.hidden = false;
+      if (progressFill) progressFill.style.width = `${pct}%`;
+      if (progressPct) progressPct.textContent = `${Math.round(pct)} %`;
+      if (progressText) progressText.textContent = message || "Scan…";
+    };
+    const hideProg = () => {
+      if (progressEl) progressEl.hidden = true;
+      if (progressFill) progressFill.style.width = "0%";
+    };
+    let pollTimer = null;
+    const stopPoll = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+    setProg(1, "Démarrage du scan…");
     try {
       const res = await fetch("/api/library/scan", {
         method: "POST",
@@ -2727,19 +2829,61 @@
         body: JSON.stringify({
           folder,
           recursive: !!libraryRecursive?.checked,
+          background: true,
         }),
       });
-      const data = await res.json();
+      const startData = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showLibraryError(data.error || "Scan impossible.");
+        showLibraryError(startData.error || "Scan impossible.");
         if (libraryResults) libraryResults.hidden = true;
+        hideProg();
+        setLibraryLoading(false);
         return;
       }
-      renderLibrary(data);
-      showToast(`${data.count || 0} média(s) inventorié(s).`);
-    } catch {
-      showLibraryError("Erreur réseau.");
-    } finally {
+      setProg(startData.percent || 2, startData.message || "Scan en cours…");
+
+      const finish = (state) => {
+        stopPoll();
+        setLibraryLoading(false);
+        if (state?.error) {
+          showLibraryError(state.error);
+          hideProg();
+          if (libraryResults) libraryResults.hidden = true;
+          return;
+        }
+        if (state?.result) {
+          setProg(100, "Scan terminé.");
+          renderLibrary(state.result);
+          showToast(`${state.result.count || 0} média(s) inventorié(s).`);
+          setTimeout(hideProg, 800);
+        } else {
+          showLibraryError("Résultat vide.");
+          hideProg();
+        }
+      };
+
+      pollTimer = setInterval(async () => {
+        try {
+          const progRes = await fetch("/api/library/scan/progress");
+          const state = await progRes.json();
+          setProg(state.percent || 0, state.message || "Scan en cours…");
+          if (state.done) finish(state);
+        } catch (err) {
+          stopPoll();
+          setLibraryLoading(false);
+          showLibraryError(
+            `Erreur pendant le suivi du scan : ${err?.message || "réseau"}. ` +
+              "Si le NAS demande un login, renseignez-le dans Paramètres → Accès NAS."
+          );
+          hideProg();
+        }
+      }, 400);
+    } catch (err) {
+      showLibraryError(
+        `Erreur réseau : ${err?.message || "échec"}. ` +
+          "Vérifiez que Linkora tourne, et les identifiants NAS si besoin."
+      );
+      hideProg();
       setLibraryLoading(false);
     }
   });
