@@ -1173,10 +1173,85 @@ def api_library_poster(key: str):
     safe = (key or "").strip()
     if not safe or "/" in safe or "\\" in safe or ".." in safe:
         return jsonify({"error": "Clé invalide."}), 400
-    path = tmdb_mod.poster_file_for_key(safe)
+    entry_id = (request.args.get("entry") or "").strip() or None
+    path = tmdb_mod.poster_file_for_key(safe, entry_id=entry_id)
     if not path:
         return jsonify({"error": "Affiche introuvable."}), 404
     return send_file(path, mimetype="image/jpeg", max_age=86400 * 30)
+
+
+@app.post("/api/tmdb/search")
+def api_tmdb_search():
+    """Recherche TMDB pour corriger une affiche (liste de candidats)."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    query = (data.get("query") or data.get("title") or "").strip()
+    media = (data.get("media") or data.get("type") or "tv").strip() or "tv"
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    year = data.get("year")
+    try:
+        year_i = int(year) if year is not None and str(year).strip() != "" else None
+    except (TypeError, ValueError):
+        year_i = None
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+    if not query:
+        return jsonify({"error": "Indiquez un titre à rechercher."}), 400
+    try:
+        results = tmdb_mod.search_tmdb_list(
+            api_key,
+            query=query,
+            media=media,
+            year=year_i,
+            language=language,
+            limit=int(data.get("limit") or 8),
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"results": results, "query": query, "media": media})
+
+
+@app.post("/api/library/poster/assign")
+def api_library_poster_assign():
+    """Associe manuellement une série/film à un résultat TMDB."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    entry_id = (data.get("entry_id") or data.get("id") or "").strip()
+    title = (data.get("title") or "").strip()
+    media = (data.get("media") or data.get("type") or "tv").strip() or "tv"
+    tmdb_media = (data.get("tmdb_media") or media).strip()
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    year = data.get("year")
+    try:
+        year_i = int(year) if year is not None and str(year).strip() != "" else None
+    except (TypeError, ValueError):
+        year_i = None
+    try:
+        tmdb_id = int(data.get("tmdb_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "tmdb_id invalide."}), 400
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+    if not entry_id or not title:
+        return jsonify({"error": "entry_id et title requis."}), 400
+    try:
+        result = tmdb_mod.assign_poster(
+            api_key,
+            entry_id=entry_id,
+            title=title,
+            media=media,
+            tmdb_id=tmdb_id,
+            tmdb_media=tmdb_media,
+            language=language,
+            year=year_i,
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(result)
 
 
 @app.post("/api/library/enrich")

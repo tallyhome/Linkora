@@ -521,6 +521,72 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   white-space: nowrap;
 }
 
+.library-poster-wrap {
+  position: relative;
+  width: 3.25rem;
+}
+
+.library-poster-fix {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 0;
+  padding: 0.15rem 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.78);
+  cursor: pointer;
+}
+
+.library-poster-fix:hover {
+  background: var(--accent);
+}
+
+.tmdb-pick-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(50vh, 420px);
+  overflow: auto;
+  margin-top: 0.5rem;
+}
+
+.tmdb-pick-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.tmdb-pick-row:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tmdb-pick-row img {
+  width: 3rem;
+  height: 4.4rem;
+  object-fit: cover;
+  border-radius: 4px;
+  background: rgba(20, 32, 51, 0.08);
+}
+
+.tmdb-pick-row .tmdb-pick-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 #library-enrich-progress {
   margin: 0.65rem 0 0.25rem;
 }

@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.2.0] — 2026-07-18
+
+### Amélioré — Affiches TMDB + arbre + perf
+- **Corriger une affiche** : bouton TMDB sur chaque jaquette → recherche et choix manuel
+- Arbre **fermé par défaut** + boutons Tout ouvrir / Tout fermer
+- Affiches TMDB plus rapides : cache d’abord, fetch **parallèle**, images plus légères
+- Scan NAS : indexation puis **analyse parallèle** des nouveaux fichiers
+
+---
+
 ## [2.1.0] — 2026-07-18
 
 ### Amélioré — Bibliothèque plus intelligente + cache

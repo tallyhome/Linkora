@@ -506,6 +506,8 @@
             <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="flat">Liste plate</button>
             <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="dupes">Doublons</button>
           </div>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-expand" title="Tout ouvrir">Tout ouvrir</button>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-collapse" title="Tout fermer">Tout fermer</button>
           <label class="check-field library-posters-check">
             <input type="checkbox" id="library-posters-toggle" checked>
             <span>Affiches</span>
@@ -925,6 +927,31 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <div id="tmdb-pick-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-tmdb-pick></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="tmdb-pick-title">
+      <div class="modal-head">
+        <h2 id="tmdb-pick-title">Identifier sur TMDB</h2>
+        <button type="button" class="btn btn-close" data-close-tmdb-pick aria-label="Fermer">×</button>
+      </div>
+      <p class="modal-lead">Si l’affiche ne correspond pas, cherchez le bon titre et sélectionnez-le.</p>
+      <form id="tmdb-pick-form" class="settings-form" autocomplete="off" onsubmit="return false;">
+        <input type="hidden" id="tmdb-pick-entry-id">
+        <input type="hidden" id="tmdb-pick-media">
+        <input type="hidden" id="tmdb-pick-year">
+        <label class="field">
+          <span class="field-label">Recherche</span>
+          <div class="library-diff-side-head" style="gap:0.5rem">
+            <input type="text" id="tmdb-pick-query" placeholder="Titre de la série ou du film" spellcheck="false" style="flex:1">
+            <button type="button" class="btn btn-primary btn-xs" id="btn-tmdb-pick-search">Chercher</button>
+          </div>
+        </label>
+        <p id="tmdb-pick-status" class="field-hint"></p>
+        <div id="tmdb-pick-results" class="tmdb-pick-results"></div>
+      </form>
+    </div>
+  </div>
 
   <div id="update-progress-modal" class="update-progress-modal" hidden>
     <div class="update-progress-backdrop"></div>

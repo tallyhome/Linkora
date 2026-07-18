@@ -228,17 +228,19 @@ def scan_library(
         )
 
     root_str = str(root)
+    pending: list[tuple] = []
+
     for entry in _walk_media_files(root, recursive=recursive, allowed=allowed):
         scanned += 1
-        if on_progress and scanned % 50 == 0:
-            soft = min(90, 5 + int(scanned ** 0.55))
+        if on_progress and scanned % 80 == 0:
+            soft = min(55, 5 + int(scanned ** 0.5))
             on_progress(
                 {
                     "phase": "scan",
                     "percent": soft,
                     "message": (
-                        f"Scan… {len(items)} média(s) "
-                        f"({reused} cache, {parsed} nouveaux)"
+                        f"Indexation… {scanned} éléments "
+                        f"({reused} cache, {len(pending)} à analyser)"
                     ),
                     "index": scanned,
                 }
@@ -263,39 +265,70 @@ def scan_library(
             items.append(prev)
             reused += 1
             continue
+        pending.append((path_str, entry.name, ext, size, mtime))
 
+    # Analyse parallèle des nouveaux fichiers (gros gain après l’indexation NAS)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _parse_one(row: tuple) -> dict[str, Any]:
+        path_str, name, ext, size, mtime = row
         if ext in ARCHIVE_EXTS:
-            info = _parse_archive(entry.name, template_id)
+            info = _parse_archive(name, template_id)
         else:
             info = smart_naming.suggest_name(
-                entry.name,
+                name,
                 template_id=template_id,
                 path_hint=path_str,
                 root_hint=root_str,
             )
-
         identity = media_identity(info)
-        items.append(
-            {
-                "path": path_str,
-                "filename": entry.name,
-                "ext": ext,
-                "size": size,
-                "mtime": mtime,
-                "type": info.get("type") or "other",
-                "title": info.get("title") or "",
-                "season": info.get("season"),
-                "episode": info.get("episode"),
-                "year": info.get("year"),
-                "suggested": info.get("suggested") or entry.name,
-                "identity": identity,
-                "season_pack": bool(info.get("season_pack")),
-                "archive_format": info.get("archive_format") or (
-                    ext.lstrip(".") if ext in ARCHIVE_EXTS else ""
-                ),
-            }
-        )
-        parsed += 1
+        return {
+            "path": path_str,
+            "filename": name,
+            "ext": ext,
+            "size": size,
+            "mtime": mtime,
+            "type": info.get("type") or "other",
+            "title": info.get("title") or "",
+            "season": info.get("season"),
+            "episode": info.get("episode"),
+            "year": info.get("year"),
+            "suggested": info.get("suggested") or name,
+            "identity": identity,
+            "season_pack": bool(info.get("season_pack")),
+            "archive_format": info.get("archive_format") or (
+                ext.lstrip(".") if ext in ARCHIVE_EXTS else ""
+            ),
+        }
+
+    if pending:
+        if on_progress:
+            on_progress(
+                {
+                    "phase": "parse",
+                    "percent": 60,
+                    "message": f"Analyse de {len(pending)} nouveau(x) fichier(s)…",
+                }
+            )
+        workers = 4 if str(root).startswith("\\\\") else 8
+        done_p = 0
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_parse_one, row) for row in pending]
+            for fut in as_completed(futures):
+                done_p += 1
+                if on_progress and done_p % 40 == 0:
+                    on_progress(
+                        {
+                            "phase": "parse",
+                            "percent": 60 + int(30 * done_p / max(1, len(pending))),
+                            "message": f"Analyse… {done_p}/{len(pending)}",
+                        }
+                    )
+                try:
+                    items.append(fut.result())
+                    parsed += 1
+                except Exception:
+                    continue
 
     if on_progress:
         on_progress(

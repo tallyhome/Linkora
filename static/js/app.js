@@ -2519,13 +2519,30 @@
     return !!(settings?.tmdb_configured && settings?.library_show_posters !== false);
   }
 
-  function posterHtml(entryId, title) {
+  function posterHtml(entryId, title, media, year) {
     if (!postersEnabled()) return "";
     const info = libraryPosters[entryId];
-    if (info?.poster_url) {
-      return `<img class="library-poster" src="${escapeHtml(info.poster_url)}" alt="" loading="lazy" title="${escapeHtml(info.matched_title || title || "")}">`;
-    }
-    return `<span class="library-poster-ph" aria-hidden="true"></span>`;
+    const img = info?.poster_url
+      ? `<img class="library-poster" src="${escapeHtml(info.poster_url)}" alt="" loading="lazy" title="${escapeHtml(info.matched_title || title || "")}">`
+      : `<span class="library-poster-ph" aria-hidden="true"></span>`;
+    const yearAttr = year != null && year !== "" ? String(year) : "";
+    return `
+      <span class="library-poster-wrap">
+        ${img}
+        <button type="button" class="library-poster-fix"
+          data-tmdb-fix
+          data-entry-id="${escapeHtml(entryId)}"
+          data-title="${escapeHtml(title || "")}"
+          data-media="${escapeHtml(media || "tv")}"
+          data-year="${escapeHtml(yearAttr)}"
+          title="Corriger l’affiche TMDB">TMDB</button>
+      </span>`;
+  }
+
+  function setLibraryTreeExpanded(open) {
+    document.querySelectorAll("#library-tree details.library-series, #library-tree details.library-season").forEach((el) => {
+      el.open = !!open;
+    });
   }
 
   function collectPosterEntries() {
@@ -2751,9 +2768,9 @@
           const posterId = `series:${s.key || s.title}`;
           const hasPoster = postersEnabled() && libraryPosters[posterId]?.poster_url;
           parts.push(`
-            <details class="library-series ${hasPoster || postersEnabled() ? "has-poster" : ""}" open>
+            <details class="library-series ${hasPoster || postersEnabled() ? "has-poster" : ""}">
               <summary class="library-series-head">
-                ${posterHtml(posterId, s.title)}
+                ${posterHtml(posterId, s.title, s.kind || "tv", s.year)}
                 <span class="library-series-text">
                   <span><strong>${escapeHtml(s.title || "Série")}</strong></span>
                   <span class="library-series-meta">${s.season_count || 0} saison(s) · ${s.episode_count || 0} ép. · ${s.file_count || 0} fichier(s)</span>
@@ -2770,7 +2787,7 @@
                     if (!eps.length && q && !(s.title || "").toLowerCase().includes(q)) return "";
                     const list = eps.length ? eps : season.episodes || [];
                     return `
-                    <details class="library-season" open>
+                    <details class="library-season">
                       <summary class="library-season-head">
                         <span>${escapeHtml(season.label || "Saison")}</span>
                         <span class="library-series-meta">${list.length} fichier(s)</span>
@@ -2806,7 +2823,7 @@
           const showPh = postersEnabled();
           parts.push(`
             <div class="library-movie-card ${showPh ? "has-poster" : ""}" title="${escapeHtml(m.path || "")}">
-              ${posterHtml(posterId, m.title)}
+              ${posterHtml(posterId, m.title || m.filename, "movie", m.year)}
               <div class="library-movie-text">
                 <div>
                   <strong>${escapeHtml(m.title || m.filename || "Film")}</strong>
@@ -3108,6 +3125,170 @@
         body: JSON.stringify({ library_show_posters: on }),
       }).catch(() => {});
     }
+  });
+
+  document.getElementById("btn-library-expand")?.addEventListener("click", () => {
+    setLibraryTreeExpanded(true);
+  });
+  document.getElementById("btn-library-collapse")?.addEventListener("click", () => {
+    setLibraryTreeExpanded(false);
+  });
+
+  const tmdbPickModal = document.getElementById("tmdb-pick-modal");
+  const tmdbPickQuery = document.getElementById("tmdb-pick-query");
+  const tmdbPickResults = document.getElementById("tmdb-pick-results");
+  const tmdbPickStatus = document.getElementById("tmdb-pick-status");
+  const tmdbPickEntryId = document.getElementById("tmdb-pick-entry-id");
+  const tmdbPickMedia = document.getElementById("tmdb-pick-media");
+  const tmdbPickYear = document.getElementById("tmdb-pick-year");
+
+  function closeTmdbPick() {
+    if (tmdbPickModal) tmdbPickModal.hidden = true;
+  }
+
+  function openTmdbPick({ entryId, title, media, year }) {
+    if (!settings?.tmdb_configured) {
+      showToast("Ajoutez une clé TMDB dans Paramètres.");
+      return;
+    }
+    if (tmdbPickEntryId) tmdbPickEntryId.value = entryId || "";
+    if (tmdbPickMedia) tmdbPickMedia.value = media || "tv";
+    if (tmdbPickYear) tmdbPickYear.value = year != null ? String(year) : "";
+    if (tmdbPickQuery) tmdbPickQuery.value = (title || "").replace(/\s*\(\d{4}\)\s*$/, "").trim();
+    if (tmdbPickResults) tmdbPickResults.innerHTML = "";
+    if (tmdbPickStatus) tmdbPickStatus.textContent = "";
+    if (tmdbPickModal) tmdbPickModal.hidden = false;
+    tmdbPickQuery?.focus();
+    runTmdbPickSearch();
+  }
+
+  async function runTmdbPickSearch() {
+    const query = (tmdbPickQuery?.value || "").trim();
+    const media = (tmdbPickMedia?.value || "tv").trim();
+    const yearRaw = (tmdbPickYear?.value || "").trim();
+    if (!query) {
+      if (tmdbPickStatus) tmdbPickStatus.textContent = "Indiquez un titre.";
+      return;
+    }
+    if (tmdbPickStatus) tmdbPickStatus.textContent = "Recherche TMDB…";
+    if (tmdbPickResults) tmdbPickResults.innerHTML = "";
+    try {
+      const res = await fetch("/api/tmdb/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          media,
+          year: yearRaw || null,
+          limit: 8,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (tmdbPickStatus) tmdbPickStatus.textContent = data.error || "Recherche impossible.";
+        return;
+      }
+      const results = data.results || [];
+      if (!results.length) {
+        if (tmdbPickStatus) tmdbPickStatus.textContent = "Aucun résultat.";
+        return;
+      }
+      if (tmdbPickStatus) tmdbPickStatus.textContent = `${results.length} résultat(s) — cliquez pour associer.`;
+      if (tmdbPickResults) {
+        tmdbPickResults.innerHTML = results
+          .map((r) => {
+            const preview = r.preview_url
+              ? `<img src="${escapeHtml(r.preview_url)}" alt="">`
+              : `<span class="library-poster-ph"></span>`;
+            const year = r.year != null ? ` (${r.year})` : "";
+            return `
+            <button type="button" class="tmdb-pick-row"
+              data-tmdb-id="${escapeHtml(String(r.tmdb_id || ""))}"
+              data-tmdb-media="${escapeHtml(r.media || media)}"
+              data-matched="${escapeHtml(r.matched_title || "")}">
+              ${preview}
+              <span>
+                <strong>${escapeHtml(r.matched_title || "")}${escapeHtml(year)}</strong>
+                <div class="tmdb-pick-meta">${escapeHtml(r.original_title || "")}</div>
+                <div class="tmdb-pick-meta">${escapeHtml((r.overview || "").slice(0, 120))}</div>
+              </span>
+              <span class="btn btn-ghost btn-xs">Choisir</span>
+            </button>`;
+          })
+          .join("");
+      }
+    } catch (err) {
+      if (tmdbPickStatus) tmdbPickStatus.textContent = `Erreur : ${err?.message || "réseau"}`;
+    }
+  }
+
+  document.getElementById("btn-tmdb-pick-search")?.addEventListener("click", () => runTmdbPickSearch());
+  tmdbPickQuery?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      runTmdbPickSearch();
+    }
+  });
+  tmdbPickModal?.querySelectorAll("[data-close-tmdb-pick]").forEach((el) => {
+    el.addEventListener("click", closeTmdbPick);
+  });
+
+  tmdbPickResults?.addEventListener("click", async (event) => {
+    const row = event.target.closest(".tmdb-pick-row");
+    if (!row) return;
+    const entryId = tmdbPickEntryId?.value || "";
+    const title = (tmdbPickQuery?.value || "").trim();
+    const media = tmdbPickMedia?.value || "tv";
+    const yearRaw = (tmdbPickYear?.value || "").trim();
+    const tmdbId = row.dataset.tmdbId;
+    const tmdbMedia = row.dataset.tmdbMedia || media;
+    if (!entryId || !tmdbId) return;
+    if (tmdbPickStatus) tmdbPickStatus.textContent = "Association…";
+    try {
+      const res = await fetch("/api/library/poster/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entry_id: entryId,
+          title,
+          media,
+          tmdb_id: Number(tmdbId),
+          tmdb_media: tmdbMedia,
+          year: yearRaw || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (tmdbPickStatus) tmdbPickStatus.textContent = data.error || "Échec.";
+        return;
+      }
+      libraryPosters[entryId] = {
+        poster_url: data.poster_url,
+        matched_title: data.matched_title,
+        overview: data.overview || "",
+        tmdb_id: data.tmdb_id,
+        cached: true,
+        override: true,
+      };
+      closeTmdbPick();
+      refreshLibraryView();
+      showToast(`Affiche : ${data.matched_title || "OK"}`);
+    } catch (err) {
+      if (tmdbPickStatus) tmdbPickStatus.textContent = `Erreur : ${err?.message || "réseau"}`;
+    }
+  });
+
+  libraryTree?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-tmdb-fix]");
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openTmdbPick({
+      entryId: btn.dataset.entryId,
+      title: btn.dataset.title,
+      media: btn.dataset.media || "tv",
+      year: btn.dataset.year || null,
+    });
   });
 
   document.getElementById("btn-library-posters")?.addEventListener("click", () => {
