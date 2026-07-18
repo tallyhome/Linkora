@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import os
 import shutil
@@ -28,6 +29,7 @@ _state: dict[str, Any] = {
     "current": "",
     "latest": "",
     "download_url": "",
+    "download_sha256": "",
     "applied": False,
     "needs_restart": False,
     "restarting": False,
@@ -101,7 +103,10 @@ def _headers() -> dict[str, str]:
 
 
 def fetch_from_custom_url(manifest_url: str) -> dict[str, str] | None:
-    """latest.json : { version, url, notes? }"""
+    """latest.json : { version, url, notes?, sha256? } — HTTPS obligatoire (anti-MITM)."""
+    if not manifest_url.lower().startswith("https://"):
+        _set_state(error="URL manifeste refusée : HTTPS obligatoire.")
+        return None
     try:
         resp = requests.get(manifest_url, headers={"User-Agent": USER_AGENT}, timeout=15)
         if resp.status_code != 200:
@@ -109,8 +114,16 @@ def fetch_from_custom_url(manifest_url: str) -> dict[str, str] | None:
         data = resp.json()
         version = str(data.get("version") or "").lstrip("vV").strip()
         url = str(data.get("url") or data.get("download_url") or "").strip()
+        if url and not url.lower().startswith("https://"):
+            _set_state(error="URL de téléchargement refusée : HTTPS obligatoire.")
+            return None
         if version and url:
-            return {"version": version, "url": url, "notes": str(data.get("notes") or "")}
+            return {
+                "version": version,
+                "url": url,
+                "notes": str(data.get("notes") or ""),
+                "sha256": str(data.get("sha256") or "").strip().lower(),
+            }
     except (requests.RequestException, ValueError, TypeError):
         return None
     return None
@@ -171,7 +184,9 @@ def _fetch_github_tag_fallback() -> dict[str, str] | None:
 
 def check_for_update(manifest_url: str | None = None) -> dict[str, Any]:
     current = read_version()
-    _set_state(current=current, checked=True, error="", message="", download_url="")
+    _set_state(
+        current=current, checked=True, error="", message="", download_url="", download_sha256=""
+    )
 
     info = None
     source = "github"
@@ -196,6 +211,7 @@ def check_for_update(manifest_url: str | None = None) -> dict[str, Any]:
     _set_state(
         latest=latest,
         download_url=info.get("url") or "",
+        download_sha256=str(info.get("sha256") or ""),
         update_available=available,
         source=source,
         message=(
@@ -235,8 +251,8 @@ def _apply_via_git(tag: str) -> None:
         raise RuntimeError((pull.stderr or "git pull/checkout a échoué.").strip())
 
 
-def _download_zip(url: str) -> bytes:
-    """Télécharge le zip en mettant à jour la barre de progression."""
+def _download_zip(url: str, expected_sha256: str = "") -> bytes:
+    """Télécharge le zip (progression + vérif SHA-256 optionnelle)."""
     _set_progress("download", 8, "Connexion au serveur de téléchargement…")
     resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=180, stream=True)
     if resp.status_code != 200:
@@ -269,6 +285,14 @@ def _download_zip(url: str) -> bytes:
     raw = b"".join(chunks)
     if raw[:2] != b"PK":
         raise RuntimeError("Le fichier téléchargé n’est pas un zip valide.")
+    expected = (expected_sha256 or "").strip().lower()
+    if expected:
+        actual = hashlib.sha256(raw).hexdigest()
+        if actual != expected:
+            raise RuntimeError(
+                "Empreinte SHA-256 invalide : le zip téléchargé ne correspond pas "
+                "au manifeste. Mise à jour annulée par sécurité."
+            )
     _set_progress("download", 70, "Téléchargement terminé.")
     return raw
 
@@ -288,6 +312,7 @@ def _zip_root_prefix(names: list[str]) -> str:
 def _extract_zip_to(raw: bytes, dest: Path, *, preserve_top: set[str] | None = None) -> None:
     preserve = preserve_top or set()
     dest.mkdir(parents=True, exist_ok=True)
+    dest_resolved = dest.resolve()
     with zipfile.ZipFile(io.BytesIO(raw)) as zf:
         names = [n for n in zf.namelist() if not n.endswith("/")]
         if not names:
@@ -308,6 +333,16 @@ def _extract_zip_to(raw: bytes, dest: Path, *, preserve_top: set[str] | None = N
             if top in preserve:
                 continue
             target = dest / rel_path
+            # Anti zip-slip : refuser toute entrée qui sortirait du dossier cible
+            # (noms contenant ../, chemins absolus, lecteurs Windows…)
+            try:
+                target_resolved = target.resolve()
+            except OSError:
+                raise RuntimeError(f"Archive rejetée : entrée illisible « {rel} ».")
+            if not target_resolved.is_relative_to(dest_resolved):
+                raise RuntimeError(
+                    f"Archive rejetée : entrée dangereuse « {rel} » (hors du dossier cible)."
+                )
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src, open(target, "wb") as out:
                 shutil.copyfileobj(src, out)
@@ -439,7 +474,7 @@ def _run_apply(
         if not url:
             raise RuntimeError("Pas d’URL de téléchargement pour la MAJ.")
 
-        raw = _download_zip(url)
+        raw = _download_zip(url, expected_sha256=str(state.get("download_sha256") or ""))
         if frozen:
             _apply_frozen_zip(raw, target)
             _set_state(

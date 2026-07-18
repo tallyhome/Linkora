@@ -32,6 +32,29 @@ app_settings.load_settings()
 
 _BACKUP_ALLOW = frozenset({"settings.json", "history.db"})
 
+# Hôtes locaux légitimes (le serveur n'écoute que sur 127.0.0.1)
+_LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
+
+
+@app.before_request
+def _local_only_guard():
+    """
+    Anti CSRF / DNS-rebinding : l'API n'est servie qu'en local.
+    - Host doit être 127.0.0.1 / localhost (bloque le DNS rebinding).
+    - Sur les requêtes qui modifient l'état, un en-tête Origin étranger
+      (site web tiers ouvert dans le navigateur) est refusé.
+    """
+    host = (request.host or "").rsplit(":", 1)[0].lower()
+    if host not in _LOCAL_HOSTS:
+        return jsonify({"error": "Hôte non autorisé."}), 403
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        origin = request.headers.get("Origin") or ""
+        if origin:
+            o_host = (urlparse(origin).hostname or "").lower()
+            if o_host not in ("127.0.0.1", "localhost", "::1"):
+                return jsonify({"error": "Origine non autorisée."}), 403
+    return None
+
 
 def _page_title(url: str) -> str:
     try:
@@ -934,10 +957,13 @@ if __name__ == "__main__":
         desktop_main()
     else:
         use_reloader = True
+        # Débogueur Werkzeug (exécution de code) désactivé par défaut :
+        # activer explicitement avec LINKORA_DEBUG=1 pour développer.
+        debug_mode = os.environ.get("LINKORA_DEBUG") == "1"
         if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
             conf = app_settings.load_settings()
             updater.startup_autoupdate(
                 enabled=bool(conf.get("auto_update", True)),
                 manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
             )
-        app.run(debug=True, port=5000, use_reloader=use_reloader)
+        app.run(debug=debug_mode, port=5000, use_reloader=use_reloader)

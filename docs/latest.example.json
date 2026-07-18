@@ -1,5 +1,6 @@
 {
   "version": "1.3.0",
   "url": "https://example.com/linkora/Linkora-windows-v1.3.0.zip",
-  "notes": "Exemple de manifeste pour MAJ hors GitHub (hébergez ce JSON + le zip sur votre site)"
+  "notes": "Exemple de manifeste pour MAJ hors GitHub (hébergez ce JSON + le zip sur votre site)",
+  "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 }

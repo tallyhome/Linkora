@@ -16,10 +16,23 @@ HEADERS = {
 }
 
 
+def _ssl_ignore_enabled() -> bool:
+    try:
+        import settings as app_settings
+
+        return bool(app_settings.load_settings().get("ssl_ignore_errors"))
+    except Exception:
+        return False
+
+
 def fetch_html(url: str) -> str:
     try:
         resp = requests.get(url, headers=HEADERS, timeout=25)
     except requests.exceptions.SSLError:
+        # Repli sans vérification TLS uniquement si l'utilisateur l'a activé
+        # (Paramètres → « Ignorer les erreurs SSL ») : sinon on remonte l'erreur.
+        if not _ssl_ignore_enabled():
+            raise
         warnings.filterwarnings("ignore", message="Unverified HTTPS request")
         resp = requests.get(url, headers=HEADERS, timeout=25, verify=False)
     resp.raise_for_status()
@@ -92,7 +105,10 @@ def extract_links(html: str, host: str | list[str]) -> list[dict]:
             continue
 
         href = a["href"].strip()
-        if not href or href in seen:
+        # Seules les URL http(s) sont acceptées : bloque javascript:, data:, etc.
+        if not href.lower().startswith(("http://", "https://")):
+            continue
+        if href in seen:
             continue
         seen.add(href)
 

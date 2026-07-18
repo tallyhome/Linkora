@@ -19,6 +19,7 @@ DEFAULTS = {
     "update_manifest_url": "",
     "rename_template": "simple",
     "notify_on_resolve": True,
+    "ssl_ignore_errors": False,
     "custom_accent": "",
     "custom_logo": False,
     "profiles": [],
@@ -160,6 +161,8 @@ def _ensure() -> dict:
         merged["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
     if "notify_on_resolve" in data:
         merged["notify_on_resolve"] = bool(data["notify_on_resolve"])
+    if "ssl_ignore_errors" in data:
+        merged["ssl_ignore_errors"] = bool(data["ssl_ignore_errors"])
     if "custom_accent" in data:
         accent = str(data.get("custom_accent") or "").strip()
         merged["custom_accent"] = accent if accent.startswith("#") and len(accent) in (4, 7) else ""
@@ -222,6 +225,8 @@ def update_settings(payload: dict) -> dict:
         current["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
     if "notify_on_resolve" in payload:
         current["notify_on_resolve"] = bool(payload["notify_on_resolve"])
+    if "ssl_ignore_errors" in payload:
+        current["ssl_ignore_errors"] = bool(payload["ssl_ignore_errors"])
     if "custom_accent" in payload:
         accent = str(payload.get("custom_accent") or "").strip()
         current["custom_accent"] = (
@@ -295,6 +300,7 @@ def public_settings() -> dict:
         "update_manifest_url": data.get("update_manifest_url") or "",
         "rename_template": data.get("rename_template") or "simple",
         "notify_on_resolve": bool(data.get("notify_on_resolve", True)),
+        "ssl_ignore_errors": bool(data.get("ssl_ignore_errors")),
         "custom_accent": data.get("custom_accent") or "",
         "custom_logo": bool(data.get("custom_logo")),
         "profiles": list(data.get("profiles") or []),

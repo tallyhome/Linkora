@@ -4,6 +4,24 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.4.0] — 2026-07-18
+
+### Sécurité
+- **Updater** : protection anti « zip slip » (toute archive contenant des chemins
+  sortant du dossier d'installation est rejetée).
+- **Updater** : manifeste de MAJ perso en **HTTPS obligatoire** + vérification
+  **SHA-256** optionnelle du zip (`"sha256"` dans `latest.json`).
+- **API locale** : garde anti-CSRF / DNS-rebinding — seules les requêtes venant de
+  `127.0.0.1` / `localhost` sont acceptées ; une origine web tierce est refusée (403).
+- **Extraction** : seuls les liens `http(s)://` sont retenus (bloque `javascript:`, `data:`…).
+- **SSL** : le contournement des erreurs SSL des pages est désormais **désactivé par
+  défaut** — nouvelle option « Ignorer les erreurs SSL » dans Paramètres si besoin.
+- **Debug** : le débogueur Flask n'est plus actif par défaut en mode source
+  (`LINKORA_DEBUG=1` pour développer).
+- **Aide / Paramètres** : avertissement — le backup contient les clés API en clair.
+
+---
+
 ## [1.3.9] — 2026-07-18
 
 ### Modifié

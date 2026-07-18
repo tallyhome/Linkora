@@ -47,6 +47,7 @@
   const maxRetriesInput = document.getElementById("max-retries");
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const notifyOnResolveInput = document.getElementById("notify-on-resolve");
+  const sslIgnoreErrorsInput = document.getElementById("ssl-ignore-errors");
   const customAccentInput = document.getElementById("custom-accent");
   const btnResetAccent = document.getElementById("btn-reset-accent");
   const profileSelect = document.getElementById("profile-select");
@@ -1155,6 +1156,9 @@
     if (notifyOnResolveInput) {
       notifyOnResolveInput.checked = settings.notify_on_resolve !== false;
     }
+    if (sslIgnoreErrorsInput) {
+      sslIgnoreErrorsInput.checked = settings.ssl_ignore_errors === true;
+    }
     if (updateManifestInput) {
       updateManifestInput.value = settings.update_manifest_url || "";
     }
@@ -2051,6 +2055,9 @@
       notify_on_resolve: notifyOnResolveInput
         ? !!notifyOnResolveInput.checked
         : true,
+      ssl_ignore_errors: sslIgnoreErrorsInput
+        ? !!sslIgnoreErrorsInput.checked
+        : false,
       custom_accent:
         customAccentInput && !customAccentInput.dataset.reset
           ? customAccentInput.value

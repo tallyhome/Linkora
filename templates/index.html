@@ -484,6 +484,10 @@
             <strong>Exporter</strong> crée un zip de <code>data/</code> (historique + réglages / clés).
             <strong>Importer</strong> le restaure sur un autre PC ou après réinstall.
           </p>
+          <p>
+            ⚠️ Le zip contient vos <strong>clés API en clair</strong> : gardez-le pour vous,
+            ne le partagez jamais et ne le déposez pas dans un cloud public.
+          </p>
         </section>
 
         <section id="help-update" class="help-section">
@@ -534,6 +538,10 @@
           <input type="checkbox" id="notify-on-resolve" name="notify_on_resolve" checked>
           <span>Notification Windows à la fin d’une résolution</span>
         </label>
+        <label class="check-field settings-check">
+          <input type="checkbox" id="ssl-ignore-errors" name="ssl_ignore_errors">
+          <span>Ignorer les erreurs SSL des pages (déconseillé — uniquement si un site refuse de charger)</span>
+        </label>
         <label class="field">
           <span class="field-label">URL manifeste MAJ (optionnel)</span>
           <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
@@ -556,7 +564,7 @@
 
         <fieldset class="provider-block">
           <legend>Sauvegarde des données</legend>
-          <p class="field-hint">Exportez ou restaurez historique + réglages (`data/`) pour changer de PC.</p>
+          <p class="field-hint">Exportez ou restaurez historique + réglages (`data/`) pour changer de PC. Le zip contient vos clés API : ne le partagez pas.</p>
           <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
             <button type="button" class="btn btn-secondary" id="btn-backup-export">Exporter backup</button>
             <label class="btn btn-ghost" style="cursor:pointer;margin:0">
