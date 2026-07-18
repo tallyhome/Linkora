@@ -81,10 +81,37 @@ def _normalize_profile(raw: dict | None) -> dict | None:
     provider = str(raw.get("active_provider") or "alldebrid")
     if provider not in ("alldebrid", "realdebrid"):
         provider = "alldebrid"
+    hosts: list[str] = []
+    seen_h: set[str] = set()
+    raw_hosts = raw.get("hosts")
+    candidates: list[str] = []
+    if isinstance(raw_hosts, list):
+        candidates.extend(str(h) for h in raw_hosts)
+    elif isinstance(raw_hosts, str) and raw_hosts.strip():
+        candidates.append(raw_hosts)
+    single = str(raw.get("host") or "").strip()
+    if single:
+        # Ancien format ou libellé "a + b"
+        if " + " in single and not candidates:
+            candidates.extend(single.split(" + "))
+        else:
+            candidates.insert(0, single)
+    for item in candidates:
+        value = str(item or "").strip()[:120]
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen_h:
+            continue
+        seen_h.add(key)
+        hosts.append(value)
+        if len(hosts) >= 3:
+            break
     return {
         "id": pid,
         "name": name[:80],
-        "host": str(raw.get("host") or "").strip()[:120],
+        "host": (hosts[0] if hosts else "")[:120],
+        "hosts": hosts,
         "active_provider": provider,
         "max_retries": _clamp_int(raw.get("max_retries"), 3, 1, 8),
         "resolve_concurrency": _clamp_int(raw.get("resolve_concurrency"), 6, 1, 12),

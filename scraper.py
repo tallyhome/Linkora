@@ -27,11 +27,55 @@ def fetch_html(url: str) -> str:
     return resp.text
 
 
-def extract_links(html: str, host: str) -> list[dict]:
-    """Extrait les liens dont le provider correspond à `host` (libre)."""
+def _normalize_hosts(host: str | list[str] | None) -> list[str]:
+    if host is None:
+        return []
+    if isinstance(host, str):
+        raw = [host]
+    else:
+        raw = list(host)
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+        if len(out) >= 3:
+            break
+    return out
+
+
+def _anchor_matches_host(a, provider_span, host_lower: str) -> bool:
+    if not provider_span:
+        title_attrs = " ".join(
+            filter(
+                None,
+                [
+                    a.get("data-original-title"),
+                    a.get("title"),
+                    a.get_text(" ", strip=True),
+                ],
+            )
+        ).lower()
+        return host_lower in title_attrs
+
+    classes = provider_span.get("class", [])
+    matches_class = any(host_lower in c.lower() for c in classes)
+    title = (provider_span.get("title") or "").lower()
+    matches_title = host_lower in title
+    return matches_class or matches_title
+
+
+def extract_links(html: str, host: str | list[str]) -> list[dict]:
+    """Extrait les liens dont le provider correspond à un ou plusieurs hébergeurs."""
     soup = BeautifulSoup(html, "html.parser")
-    host_lower = host.strip().lower()
-    if not host_lower:
+    hosts = _normalize_hosts(host)
+    if not hosts:
         return []
 
     results: list[dict] = []
@@ -39,29 +83,12 @@ def extract_links(html: str, host: str) -> list[dict]:
 
     for a in soup.find_all("a", href=True):
         provider_span = a.find("span", class_=re.compile(r"^providers", re.I))
-        if not provider_span:
-            # Fallback : titre data-original-title / title contenant le host
-            title_attrs = " ".join(
-                filter(
-                    None,
-                    [
-                        a.get("data-original-title"),
-                        a.get("title"),
-                        a.get_text(" ", strip=True),
-                    ],
-                )
-            ).lower()
-            if host_lower not in title_attrs:
-                continue
-            matches = True
-        else:
-            classes = provider_span.get("class", [])
-            matches_class = any(host_lower in c.lower() for c in classes)
-            title = (provider_span.get("title") or "").lower()
-            matches_title = host_lower in title
-            matches = matches_class or matches_title
-
-        if not matches:
+        matched_host = ""
+        for candidate in hosts:
+            if _anchor_matches_host(a, provider_span, candidate.lower()):
+                matched_host = candidate
+                break
+        if not matched_host:
             continue
 
         href = a["href"].strip()
@@ -76,11 +103,18 @@ def extract_links(html: str, host: str) -> list[dict]:
         size_el = a.find(class_="fichetaille")
         size = size_el.get_text(strip=True) if size_el else ""
 
-        results.append({"label": label, "size": size, "url": href})
+        results.append(
+            {
+                "label": label,
+                "size": size,
+                "url": href,
+                "matched_host": matched_host,
+            }
+        )
 
     return results
 
 
-def scrape(url: str, host: str) -> list[dict]:
+def scrape(url: str, host: str | list[str]) -> list[dict]:
     html = fetch_html(url)
     return extract_links(html, host)

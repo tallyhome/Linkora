@@ -44,6 +44,39 @@ def _page_title(url: str) -> str:
     return urlparse(url).netloc or "Extraction"
 
 
+def _parse_hosts(data: dict) -> list[str]:
+    """Accepte hosts[] et/ou host (rétrocompat). Max 3, dédupliqués."""
+    candidates: list[str] = []
+    raw_hosts = data.get("hosts")
+    if isinstance(raw_hosts, list):
+        candidates.extend(str(h) for h in raw_hosts)
+    elif isinstance(raw_hosts, str) and raw_hosts.strip():
+        for part in raw_hosts.replace(";", ",").replace("|", ",").split(","):
+            if part.strip():
+                candidates.append(part.strip())
+    single = (data.get("host") or "").strip()
+    if single:
+        if " + " in single and not candidates:
+            candidates.extend(p.strip() for p in single.split(" + ") if p.strip())
+        elif not any(c.strip().lower() == single.lower() for c in candidates):
+            candidates.insert(0, single)
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+        if len(out) >= 3:
+            break
+    return out
+
+
 @app.get("/api/version")
 def api_version():
     return jsonify(
@@ -221,7 +254,8 @@ def api_settings_test():
 @app.post("/api/extract")
 def api_extract():
     data = request.get_json(silent=True) or {}
-    host = (data.get("host") or "").strip()
+    hosts = _parse_hosts(data)
+    host_label = " + ".join(hosts)
 
     # Une URL ou une liste / texte multi-lignes
     urls_raw = data.get("urls")
@@ -243,8 +277,8 @@ def api_extract():
 
     if not urls:
         return jsonify({"error": "Veuillez indiquer au moins une URL de page."}), 400
-    if not host:
-        return jsonify({"error": "Veuillez indiquer un hébergeur."}), 400
+    if not hosts:
+        return jsonify({"error": "Veuillez indiquer au moins un hébergeur."}), 400
     for u in urls:
         if not u.startswith(("http://", "https://")):
             return jsonify(
@@ -257,7 +291,7 @@ def api_extract():
     for u in urls:
         title = _page_title(u)
         try:
-            links = scrape(u, host)
+            links = scrape(u, hosts)
             enriched = [
                 smart_naming.enrich_link(
                     {**link, "page_url": u, "page_title": title}
@@ -268,7 +302,8 @@ def api_extract():
                 {
                     "source_url": u,
                     "title": title,
-                    "host": host,
+                    "host": host_label,
+                    "hosts": hosts,
                     "count": len(enriched),
                     "links": enriched,
                 }
@@ -279,7 +314,8 @@ def api_extract():
                 {
                     "source_url": u,
                     "title": title,
-                    "host": host,
+                    "host": host_label,
+                    "hosts": hosts,
                     "count": 0,
                     "links": [],
                     "error": str(exc),
@@ -292,7 +328,8 @@ def api_extract():
 
     return jsonify(
         {
-            "host": host,
+            "host": host_label,
+            "hosts": hosts,
             "batches": batches,
             "source_url": batches[0]["source_url"] if batches else "",
             "source_urls": [b["source_url"] for b in batches],

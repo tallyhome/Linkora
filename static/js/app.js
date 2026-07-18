@@ -2,6 +2,8 @@
   const form = document.getElementById("extract-form");
   const urlsInput = document.getElementById("urls");
   const hostInput = document.getElementById("host");
+  const hostsList = document.getElementById("hosts-list");
+  const btnAddHost = document.getElementById("btn-add-host");
   const btnExtract = document.getElementById("btn-extract");
   const btnLabel = btnExtract.querySelector(".btn-label");
   const btnSpinner = btnExtract.querySelector(".btn-spinner");
@@ -78,6 +80,95 @@
     alldebrid: "AllDebrid",
     realdebrid: "Real-Debrid",
   };
+
+  const MAX_HOSTS = 3;
+
+  function getHostInputs() {
+    return [...document.querySelectorAll("[data-host-input]")];
+  }
+
+  function getHosts() {
+    const out = [];
+    const seen = new Set();
+    for (const input of getHostInputs()) {
+      const value = (input.value || "").trim();
+      if (!value) continue;
+      const key = value.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(value);
+      if (out.length >= MAX_HOSTS) break;
+    }
+    return out;
+  }
+
+  function hostsLabel(hosts) {
+    const list = hosts || getHosts();
+    return list.join(" + ");
+  }
+
+  function parseHostsValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((h) => String(h || "").trim()).filter(Boolean).slice(0, MAX_HOSTS);
+    }
+    const text = String(value || "").trim();
+    if (!text) return [];
+    if (text.includes(" + ")) {
+      return text
+        .split(" + ")
+        .map((h) => h.trim())
+        .filter(Boolean)
+        .slice(0, MAX_HOSTS);
+    }
+    return [text];
+  }
+
+  function syncAddHostButton() {
+    if (!btnAddHost || !hostsList) return;
+    const count = hostsList.querySelectorAll("[data-host-row]").length;
+    btnAddHost.hidden = count >= MAX_HOSTS;
+  }
+
+  function addHostRow(value = "") {
+    if (!hostsList) return;
+    const count = hostsList.querySelectorAll("[data-host-row]").length;
+    if (count >= MAX_HOSTS) return;
+    const row = document.createElement("div");
+    row.className = "host-row";
+    row.setAttribute("data-host-row", "");
+    row.innerHTML = `
+      <label class="field field-host">
+        <span class="field-label">Hébergeur ${count + 1}</span>
+        <div class="host-input-row">
+          <input
+            type="text"
+            data-host-input
+            list="host-suggestions"
+            placeholder="ex. nitroflare"
+            spellcheck="false"
+            value="${escapeHtml(value)}"
+          >
+          <button type="button" class="btn btn-ghost host-remove" data-remove-host title="Retirer">×</button>
+        </div>
+      </label>`;
+    hostsList.appendChild(row);
+    syncAddHostButton();
+    row.querySelector("[data-host-input]")?.focus();
+  }
+
+  function setHosts(hosts) {
+    const list = parseHostsValue(hosts);
+    const primary = list[0] || "";
+    if (hostInput) hostInput.value = primary;
+    if (!hostsList) return;
+    hostsList.querySelectorAll("[data-host-row]").forEach((row, idx) => {
+      if (idx > 0) row.remove();
+    });
+    list.slice(1).forEach((h) => addHostRow(h));
+    const firstLabel = hostsList.querySelector("[data-host-row] .field-label");
+    if (firstLabel) firstLabel.textContent = "Hébergeur";
+    syncAddHostButton();
+  }
 
   let current = null;
   let settings = null;
@@ -170,7 +261,7 @@
       .join("");
     if (queueHint) {
       queueHint.textContent = workQueue.length
-        ? `${workQueue.length} page(s) en file — hébergeur : ${hostInput.value.trim() || "…"}`
+        ? `${workQueue.length} page(s) en file — hébergeur : ${hostsLabel() || "…"}`
         : "Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.";
     }
   }
@@ -328,6 +419,9 @@
     const clean = link.clean_name && link.clean_name !== label
       ? `<div class="link-sub clean-name" title="${escapeHtml(link.clean_name)}">→ ${escapeHtml(link.clean_name)}</div>`
       : "";
+    const hostBadge = link.matched_host
+      ? `<div class="host-pill" title="Hébergeur détecté">${escapeHtml(link.matched_host)}</div>`
+      : "";
     const runningClass = status.cls === "running" ? " is-running" : "";
     const rowStatus =
       status.cls === "ok"
@@ -353,7 +447,7 @@
       <tr class="${runningClass}${rowStatus}" data-batch="${bi}" data-link="${li}">
         <td class="col-check"><input type="checkbox" class="link-check" data-batch="${bi}" data-link="${li}"></td>
         <td>${li + 1}</td>
-        <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}</td>
+        <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}${hostBadge}</td>
         <td><span class="size-pill">${escapeHtml(size)}</span></td>
         <td><span class="status-pill ${status.cls}">${status.text}</span>${attempts}</td>
         <td class="td-source">
@@ -1154,6 +1248,11 @@
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     showError("");
+    const hosts = getHosts();
+    if (!hosts.length) {
+      showError("Veuillez indiquer au moins un hébergeur.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -1162,7 +1261,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           urls: urlsInput.value,
-          host: hostInput.value.trim(),
+          hosts,
+          host: hosts[0] || "",
         }),
       });
       const data = await res.json();
@@ -1947,7 +2047,7 @@
         return;
       }
       urlsInput.value = data.source_url || "";
-      hostInput.value = data.host || "";
+      setHosts(data.hosts || data.host || "");
       renderHistoryInline(item, data);
       showToast("Ouvert sous l’historique.");
     }
@@ -2286,6 +2386,22 @@
     }
   });
 
+  btnAddHost?.addEventListener("click", () => addHostRow(""));
+  hostsList?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-remove-host]");
+    if (!btn) return;
+    const row = btn.closest("[data-host-row]");
+    if (!row || !hostsList.contains(row)) return;
+    if (hostsList.querySelectorAll("[data-host-row]").length <= 1) return;
+    row.remove();
+    hostsList.querySelectorAll("[data-host-row]").forEach((r, idx) => {
+      const label = r.querySelector(".field-label");
+      if (label) label.textContent = idx === 0 ? "Hébergeur" : `Hébergeur ${idx + 1}`;
+    });
+    syncAddHostButton();
+  });
+  syncAddHostButton();
+
   profileSelect?.addEventListener("change", async () => {
     const id = profileSelect.value;
     if (!id) {
@@ -2314,7 +2430,8 @@
       }
       settings = data.settings;
       const prof = data.profile;
-      if (prof?.host) hostInput.value = prof.host;
+      if (prof?.hosts?.length) setHosts(prof.hosts);
+      else if (prof?.host) setHosts(prof.host);
       if (activeProviderSelect) {
         activeProviderSelect.value = settings.active_provider || "alldebrid";
       }
@@ -2353,10 +2470,12 @@
     }
     const profiles = [...(settings?.profiles || [])];
     const existingId = profileSelect?.value || "";
+    const hosts = getHosts();
     const payloadProfile = {
       id: existingId || undefined,
       name: trimmed,
-      host: hostInput.value.trim(),
+      host: hosts[0] || "",
+      hosts,
       active_provider: settings?.active_provider || activeProviderSelect?.value || "alldebrid",
       max_retries: Number(settings?.max_retries || maxRetriesInput?.value || 3),
       resolve_concurrency: Number(
@@ -2454,15 +2573,16 @@
       showToast("Collez d’abord une ou plusieurs URLs.");
       return;
     }
-    const host = hostInput.value.trim();
-    if (!host) {
-      showToast("Indiquez un hébergeur.");
+    const hosts = getHosts();
+    if (!hosts.length) {
+      showToast("Indiquez au moins un hébergeur.");
       return;
     }
+    const host = hostsLabel(hosts);
     let added = 0;
     for (const url of lines) {
       if (workQueue.some((q) => q.url === url && q.host === host)) continue;
-      workQueue.push({ url, host, status: "pending", error: "" });
+      workQueue.push({ url, host, hosts, status: "pending", error: "" });
       added += 1;
     }
     renderQueue();
@@ -2515,9 +2635,9 @@
       showToast("File vide — ajoutez des URLs.");
       return;
     }
-    const host = hostInput.value.trim();
-    if (!host && workQueue.some((q) => !q.host)) {
-      showToast("Indiquez un hébergeur.");
+    const hosts = getHosts();
+    if (!hosts.length && workQueue.some((q) => !(q.hosts?.length || q.host))) {
+      showToast("Indiquez au moins un hébergeur.");
       return;
     }
     queueRunning = true;
@@ -2536,12 +2656,16 @@
         renderQueue();
         showToast(`File ${i + 1}/${workQueue.length} — extraction…`);
         try {
+          const itemHosts = item.hosts?.length
+            ? item.hosts
+            : parseHostsValue(item.host || hosts);
           const res = await fetch("/api/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               urls: item.url,
-              host: item.host || host,
+              hosts: itemHosts,
+              host: itemHosts[0] || "",
             }),
           });
           const data = await res.json();
@@ -2563,7 +2687,8 @@
           current = normalizeCurrent({
             ...data,
             batches: allBatches,
-            host: item.host || host,
+            host: data.host || hostsLabel(itemHosts),
+            hosts: itemHosts,
           });
           syncFlatLinks();
           renderResults(current, { scroll: i === 0 });

@@ -124,17 +124,28 @@
         </label>
 
         <div class="extract-row">
-          <label class="field field-host">
-            <span class="field-label">Hébergeur</span>
-            <input
-              type="text"
-              id="host"
-              name="host"
-              required
-              list="host-suggestions"
-              placeholder="rapidgator, nitroflare, vidoza…"
-              spellcheck="false"
-            >
+          <div class="hosts-block">
+            <div class="hosts-list" id="hosts-list">
+              <div class="host-row" data-host-row>
+                <label class="field field-host">
+                  <span class="field-label">Hébergeur</span>
+                  <div class="host-input-row">
+                    <input
+                      type="text"
+                      id="host"
+                      name="host"
+                      data-host-input
+                      list="host-suggestions"
+                      placeholder="rapidgator, nitroflare, vidoza…"
+                      spellcheck="false"
+                    >
+                  </div>
+                </label>
+              </div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un 2e ou 3e hébergeur (optionnel)">
+              + Ajouter un hébergeur
+            </button>
             <datalist id="host-suggestions">
               <option value="rapidgator">
               <option value="nitroflare">
@@ -145,7 +156,7 @@
               <option value="uptobox">
               <option value="turbobit">
             </datalist>
-          </label>
+          </div>
 
           <button type="submit" class="btn btn-primary" id="btn-extract">
             <span class="btn-label">Récupérer</span>
@@ -376,7 +387,11 @@
             <dt>URL(s) de page(s)</dt>
             <dd>Une adresse par ligne. Linkora ouvre chaque page et extrait les liens de l’hébergeur choisi.</dd>
             <dt>Hébergeur</dt>
-            <dd>Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>1fichier</code>). Seuls les liens contenant ce texte sont gardés.</dd>
+            <dd>
+              Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>1fichier</code>).
+              Optionnel : <strong>+ Ajouter un hébergeur</strong> pour en cumuler jusqu’à 3 sur la même page
+              (une seule requête, liens fusionnés et dédupliqués).
+            </dd>
             <dt>Récupérer</dt>
             <dd>Extrait les liens sans encore passer par le débrideur. Les résultats apparaissent par page (un bloc = une URL).</dd>
             <dt>Historique</dt>

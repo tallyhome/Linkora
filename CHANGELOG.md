@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.6] — 2026-07-18
+
+### Ajouté
+- Récupération : option **multi-hébergeurs** (jusqu’à 3) via « + Ajouter un hébergeur »
+- Badge hébergeur détecté sur chaque lien ; profils & file d’attente compatibles
+
+---
+
 ## [1.3.5] — 2026-07-17
 
 ### Corrigé

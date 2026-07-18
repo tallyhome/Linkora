@@ -556,9 +556,62 @@ main {
 
 .extract-row {
   display: grid;
-  grid-template-columns: minmax(180px, 280px) auto;
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 0.85rem;
   align-items: end;
+}
+
+.hosts-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.hosts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.host-row .field-host {
+  width: 100%;
+}
+
+.host-input-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.host-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.host-remove {
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.1rem;
+}
+
+#btn-add-host {
+  align-self: flex-start;
+}
+
+.host-pill {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
 }
 
 .field-urls textarea {
