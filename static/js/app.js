@@ -2754,7 +2754,7 @@
       }
       const blocks = groups.map((g) => {
         const lines = (g.files || []).map(
-          (f) => `  ${f.size_label || "—}\t${f.filename || ""}\t${f.path || ""}`
+          (f) => `  ${f.size_label || "-"}\t${f.filename || ""}\t${f.path || ""}`
         );
         return `${g.title || ""} [${g.identity || ""}] (${g.count})\n${lines.join("\n")}`;
       });
