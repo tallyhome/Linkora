@@ -452,24 +452,163 @@ def _diff_entry(item: dict[str, Any], *, side: str) -> dict[str, Any]:
     }
 
 
-def diff_libraries(
-    folder_a: str,
-    folder_b: str,
+def _normalize_folder_list(
+    folders: list[str] | str | None = None,
+    *legacy: str,
+) -> list[str]:
+    """Accepte une liste, une chaîne multi-lignes, ou d’anciens args uniques."""
+    candidates: list[str] = []
+    if isinstance(folders, list):
+        candidates.extend(str(x) for x in folders)
+    elif isinstance(folders, str) and folders.strip():
+        for part in folders.replace(";", "\n").splitlines():
+            if part.strip():
+                candidates.append(part.strip())
+    for extra in legacy:
+        if extra and str(extra).strip():
+            candidates.append(str(extra).strip())
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        value = item.strip()
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+        if len(out) >= 12:
+            break
+    return out
+
+
+def scan_many(
+    folders: list[str],
     *,
+    recursive: bool = True,
+    template_id: str = "simple",
+    on_progress=None,
+    side_label: str = "",
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Scanne plusieurs dossiers et fusionne les items."""
+    items: list[dict[str, Any]] = []
+    ok_folders: list[str] = []
+    errors: list[str] = []
+    total = max(1, len(folders))
+    for idx, folder in enumerate(folders):
+        if on_progress:
+            on_progress(
+                {
+                    "phase": "scan",
+                    "side": side_label,
+                    "index": idx + 1,
+                    "total": total,
+                    "folder": folder,
+                    "message": f"Scan {side_label} {idx + 1}/{total} : {folder}",
+                }
+            )
+        try:
+            result = scan_library(
+                folder, recursive=recursive, template_id=template_id
+            )
+            items.extend(result["items"])
+            ok_folders.append(result["folder"])
+        except FileNotFoundError as exc:
+            errors.append(str(exc))
+        except Exception as exc:
+            errors.append(f"{folder} → {exc}")
+    return items, ok_folders, errors
+
+
+def diff_libraries(
+    folder_a: str | list[str] | None = None,
+    folder_b: str | list[str] | None = None,
+    *,
+    folders_a: list[str] | None = None,
+    folders_b: list[str] | None = None,
     recursive: bool = True,
     template_id: str = "simple",
     label_a: str = "PC",
     label_b: str = "NAS",
+    on_progress=None,
 ) -> dict[str, Any]:
     """
-    Phase 4 — compare deux racines par identité média.
+    Compare une ou plusieurs racines PC vs NAS par identité média.
     missing_on_b = présent sur A (PC), absent sur B (NAS)
     missing_on_a = présent sur B (NAS), absent sur A (PC)
     """
-    scan_a = scan_library(folder_a, recursive=recursive, template_id=template_id)
-    scan_b = scan_library(folder_b, recursive=recursive, template_id=template_id)
-    map_a = _identity_map(scan_a["items"])
-    map_b = _identity_map(scan_b["items"])
+    list_a = _normalize_folder_list(folders_a if folders_a is not None else folder_a)
+    list_b = _normalize_folder_list(folders_b if folders_b is not None else folder_b)
+    if not list_a:
+        raise FileNotFoundError("Aucun dossier PC indiqué.")
+    if not list_b:
+        raise FileNotFoundError("Aucun dossier NAS indiqué.")
+
+    if on_progress:
+        on_progress(
+            {
+                "phase": "prepare",
+                "percent": 2,
+                "message": f"Préparation : {len(list_a)} dossier(s) PC, {len(list_b)} NAS…",
+            }
+        )
+
+    def progress_a(info: dict[str, Any]) -> None:
+        if not on_progress:
+            return
+        # PC = 5% → 45%
+        frac = info["index"] / max(1, info["total"])
+        on_progress(
+            {
+                **info,
+                "percent": 5 + int(40 * frac),
+            }
+        )
+
+    def progress_b(info: dict[str, Any]) -> None:
+        if not on_progress:
+            return
+        # NAS = 45% → 85%
+        frac = info["index"] / max(1, info["total"])
+        on_progress(
+            {
+                **info,
+                "percent": 45 + int(40 * frac),
+            }
+        )
+
+    items_a, ok_a, err_a = scan_many(
+        list_a,
+        recursive=recursive,
+        template_id=template_id,
+        on_progress=progress_a,
+        side_label=label_a,
+    )
+    items_b, ok_b, err_b = scan_many(
+        list_b,
+        recursive=recursive,
+        template_id=template_id,
+        on_progress=progress_b,
+        side_label=label_b,
+    )
+
+    if not items_a and err_a and not ok_a:
+        raise FileNotFoundError("Aucun dossier PC accessible : " + " | ".join(err_a))
+    if not items_b and err_b and not ok_b:
+        raise FileNotFoundError("Aucun dossier NAS accessible : " + " | ".join(err_b))
+
+    if on_progress:
+        on_progress(
+            {
+                "phase": "compare",
+                "percent": 90,
+                "message": "Comparaison des identités…",
+            }
+        )
+
+    map_a = _identity_map(items_a)
+    map_b = _identity_map(items_b)
     keys_a = set(map_a)
     keys_b = set(map_b)
 
@@ -496,10 +635,14 @@ def diff_libraries(
     return {
         "label_a": label_a,
         "label_b": label_b,
-        "folder_a": scan_a["folder"],
-        "folder_b": scan_b["folder"],
-        "count_a": scan_a["count"],
-        "count_b": scan_b["count"],
+        "folders_a": ok_a,
+        "folders_b": ok_b,
+        "folder_a": ok_a[0] if ok_a else "",
+        "folder_b": ok_b[0] if ok_b else "",
+        "errors_a": err_a,
+        "errors_b": err_b,
+        "count_a": len(items_a),
+        "count_b": len(items_b),
         "identities_a": len(map_a),
         "identities_b": len(map_b),
         "missing_on_b": missing_on_b,

@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.9.0] — 2026-07-18
+
+### Ajouté — Diff PC ↔ NAS multi-dossiers
+- Plusieurs chemins **PC** et **NAS** (ex. 2 HDD NAS avec chacun un dossier Séries)
+- Agrégation : tout ce qui est présent / manquant d’un côté ou de l’autre
+- **Barre de progression** pendant le scan (plus de doute si ça tourne ou si c’est figé)
+- API async : `POST /api/library/diff` + `GET /api/library/diff/progress`
+
+---
+
 ## [1.8.1] — 2026-07-18
 
 ### Corrigé

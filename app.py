@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import threading
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -34,6 +35,36 @@ _BACKUP_ALLOW = frozenset({"settings.json", "history.db"})
 
 # Hôtes locaux légitimes (le serveur n'écoute que sur 127.0.0.1)
 _LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
+
+# Progression Diff PC/NAS (scan multi-dossiers)
+_diff_lock = threading.Lock()
+_diff_apply_lock = threading.Lock()
+_diff_state: dict = {
+    "busy": False,
+    "done": False,
+    "error": "",
+    "percent": 0,
+    "phase": "",
+    "message": "",
+    "result": None,
+}
+
+
+def _diff_get_state() -> dict:
+    with _diff_lock:
+        return {
+            "busy": _diff_state["busy"],
+            "done": _diff_state["done"],
+            "error": _diff_state["error"],
+            "percent": _diff_state["percent"],
+            "phase": _diff_state["phase"],
+            "message": _diff_state["message"],
+        }
+
+
+def _diff_set_state(**kwargs) -> None:
+    with _diff_lock:
+        _diff_state.update(kwargs)
 
 
 @app.before_request
@@ -911,32 +942,124 @@ def api_library_scan():
 
 @app.post("/api/library/diff")
 def api_library_diff():
-    """Phase 4 — compare deux dossiers (PC ↔ NAS) par identité."""
+    """Phase 4 — compare un ou plusieurs dossiers PC ↔ NAS (async + progression)."""
     import library_scan
 
     data = request.get_json(silent=True) or {}
-    folder_a = (data.get("folder_a") or data.get("folder_pc") or "").strip()
-    folder_b = (data.get("folder_b") or data.get("folder_nas") or "").strip()
+    folders_a = data.get("folders_a") or data.get("folders_pc")
+    folders_b = data.get("folders_b") or data.get("folders_nas")
+    if not folders_a:
+        single = (data.get("folder_a") or data.get("folder_pc") or "").strip()
+        folders_a = [single] if single else []
+    if not folders_b:
+        single = (data.get("folder_b") or data.get("folder_nas") or "").strip()
+        folders_b = [single] if single else []
+    if isinstance(folders_a, str):
+        folders_a = [folders_a]
+    if isinstance(folders_b, str):
+        folders_b = [folders_b]
+    folders_a = [str(x).strip() for x in folders_a if str(x).strip()]
+    folders_b = [str(x).strip() for x in folders_b if str(x).strip()]
+
     recursive = bool(data.get("recursive", True))
     label_a = (data.get("label_a") or "PC").strip() or "PC"
     label_b = (data.get("label_b") or "NAS").strip() or "NAS"
     template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
-    if not folder_a or not folder_b:
-        return jsonify({"error": "Indiquez les deux dossiers (PC et NAS)."}), 400
-    try:
-        result = library_scan.diff_libraries(
-            folder_a,
-            folder_b,
-            recursive=recursive,
-            template_id=template_id,
-            label_a=label_a,
-            label_b=label_b,
+    background = bool(data.get("background", True))
+
+    if not folders_a or not folders_b:
+        return jsonify({"error": "Indiquez au moins un dossier PC et un dossier NAS."}), 400
+
+    if not _diff_apply_lock.acquire(blocking=False):
+        return jsonify({**_diff_get_state(), "error": "Une comparaison est déjà en cours."}), 409
+
+    def on_progress(info: dict) -> None:
+        _diff_set_state(
+            busy=True,
+            done=False,
+            error="",
+            percent=int(info.get("percent") or 0),
+            phase=str(info.get("phase") or ""),
+            message=str(info.get("message") or ""),
         )
-    except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
-    except Exception as exc:
-        return jsonify({"error": f"Comparaison impossible : {exc}"}), 400
-    return jsonify(result)
+
+    def worker() -> None:
+        try:
+            _diff_set_state(
+                busy=True,
+                done=False,
+                error="",
+                percent=1,
+                phase="prepare",
+                message="Démarrage de la comparaison…",
+                result=None,
+            )
+            result = library_scan.diff_libraries(
+                folders_a=folders_a,
+                folders_b=folders_b,
+                recursive=recursive,
+                template_id=template_id,
+                label_a=label_a,
+                label_b=label_b,
+                on_progress=on_progress,
+            )
+            _diff_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
+                message="Comparaison terminée.",
+                error="",
+                result=result,
+            )
+        except Exception as exc:
+            _diff_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="error",
+                message="",
+                error=str(exc),
+                result=None,
+            )
+        finally:
+            _diff_apply_lock.release()
+
+    if background:
+        threading.Thread(target=worker, daemon=True, name="linkora-library-diff").start()
+        return jsonify(_diff_get_state())
+
+    try:
+        worker()
+        with _diff_lock:
+            err = _diff_state.get("error") or ""
+            result = _diff_state.get("result")
+        if err:
+            return jsonify({"error": err}), 400
+        return jsonify(result or {"error": "Résultat vide."})
+    except Exception:
+        if _diff_apply_lock.locked():
+            try:
+                _diff_apply_lock.release()
+            except RuntimeError:
+                pass
+        raise
+
+
+@app.get("/api/library/diff/progress")
+def api_library_diff_progress():
+    with _diff_lock:
+        payload = {
+            "busy": _diff_state["busy"],
+            "done": _diff_state["done"],
+            "error": _diff_state["error"],
+            "percent": _diff_state["percent"],
+            "phase": _diff_state["phase"],
+            "message": _diff_state["message"],
+        }
+        if _diff_state.get("done") and _diff_state.get("result") is not None:
+            payload["result"] = _diff_state["result"]
+    return jsonify(payload)
 
 
 @app.post("/api/rename/preview")

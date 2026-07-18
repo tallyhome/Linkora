@@ -392,18 +392,25 @@
       <section class="extract-form rename-form library-diff-form">
         <h2 class="library-section-title" style="margin-top:0">Diff PC ↔ NAS</h2>
         <p class="field-hint" style="margin-top:0">
-          Compare deux dossiers par <strong>identité</strong> (pas le nom de fichier brut).
-          Ex. présent sur le PC mais pas sur le NAS, et inversement.
+          Compare un ou plusieurs dossiers PC et NAS par <strong>identité</strong>
+          (pas le nom de fichier brut). Utile si le NAS a plusieurs disques
+          (ex. deux dossiers « Séries »).
         </p>
         <div class="library-diff-fields">
-          <label class="field">
-            <span class="field-label">Dossier PC (A)</span>
-            <input type="text" id="library-folder-pc" placeholder="D:\Media" spellcheck="false">
-          </label>
-          <label class="field">
-            <span class="field-label">Dossier NAS (B)</span>
-            <input type="text" id="library-folder-nas" placeholder="\\NAS\Media  ou  Z:\Media" spellcheck="false">
-          </label>
+          <div class="library-diff-side">
+            <div class="library-diff-side-head">
+              <span class="field-label">Dossiers PC</span>
+              <button type="button" class="btn btn-ghost btn-xs" id="btn-library-diff-add-pc">+ Ajouter</button>
+            </div>
+            <div id="library-diff-pc-list" class="library-path-list" data-side="pc"></div>
+          </div>
+          <div class="library-diff-side">
+            <div class="library-diff-side-head">
+              <span class="field-label">Dossiers NAS</span>
+              <button type="button" class="btn btn-ghost btn-xs" id="btn-library-diff-add-nas">+ Ajouter</button>
+            </div>
+            <div id="library-diff-nas-list" class="library-path-list" data-side="nas"></div>
+          </div>
         </div>
         <div class="rename-options">
           <label class="check-field">
@@ -414,6 +421,15 @@
             <span class="btn-label">Comparer</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
+        </div>
+        <div id="library-diff-progress" class="resolve-progress" hidden>
+          <div class="resolve-progress-top">
+            <span id="library-diff-progress-text">Comparaison…</span>
+            <span id="library-diff-progress-pct">0 %</span>
+          </div>
+          <div class="resolve-progress-bar">
+            <div id="library-diff-progress-fill" class="resolve-progress-fill"></div>
+          </div>
         </div>
         <p id="library-diff-error" class="form-error" role="alert" hidden></p>
       </section>

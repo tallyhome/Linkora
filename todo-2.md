@@ -12,7 +12,7 @@ doublons, diff PC ↔ NAS, optionnellement affiches (TMDB).
 | **1** | Scan & inventaire | Scanner un dossier, lister films/séries/archives avec identité intelligente | ✅ faite | **1.5.0** |
 | **2** | Vue bibliothèque | Arborescence Série → Saison → Épisodes + liste Films | ✅ faite | **1.6.0** |
 | **3** | Doublons | Détecter le même film / épisode malgré des noms de fichiers différents | ✅ faite | **1.7.0** |
-| **4** | Diff PC ↔ NAS | Comparer deux racines : manquants des deux côtés | ✅ faite | **1.8.0** |
+| **4** | Diff PC ↔ NAS | Comparer une ou plusieurs racines : manquants des deux côtés (+ progression) | ✅ faite | **1.8.0** → **1.9.0** |
 | **5** | Affiches (option) | Enrichir avec TMDB (posters) + cache local | ⏳ | **2.0.0** |
 
 ---

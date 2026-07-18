@@ -2787,17 +2787,22 @@
     }
   });
 
-  // ─── Diff PC ↔ NAS (phase 4) ─────────────────────────────────────────────
+  // ─── Diff PC ↔ NAS (multi-dossiers + progression) ────────────────────────
   const btnLibraryDiff = document.getElementById("btn-library-diff");
-  const libraryFolderPc = document.getElementById("library-folder-pc");
-  const libraryFolderNas = document.getElementById("library-folder-nas");
+  const libraryDiffPcList = document.getElementById("library-diff-pc-list");
+  const libraryDiffNasList = document.getElementById("library-diff-nas-list");
   const libraryDiffRecursive = document.getElementById("library-diff-recursive");
   const libraryDiffError = document.getElementById("library-diff-error");
   const libraryDiffResults = document.getElementById("library-diff-results");
   const libraryDiffSummary = document.getElementById("library-diff-summary");
   const libraryDiffBody = document.getElementById("library-diff-body");
+  const libraryDiffProgress = document.getElementById("library-diff-progress");
+  const libraryDiffProgressText = document.getElementById("library-diff-progress-text");
+  const libraryDiffProgressPct = document.getElementById("library-diff-progress-pct");
+  const libraryDiffProgressFill = document.getElementById("library-diff-progress-fill");
   let libraryDiffData = null;
   let libraryDiffTab = "missing_b";
+  let libraryDiffPollTimer = null;
 
   function showLibraryDiffError(message) {
     if (!libraryDiffError) return;
@@ -2817,7 +2822,94 @@
     const label = btnLibraryDiff.querySelector(".btn-label");
     if (spinner) spinner.hidden = !loading;
     if (label) label.textContent = loading ? "Comparaison…" : "Comparer";
+    document.querySelectorAll(".library-path-row input, .library-path-row button, #btn-library-diff-add-pc, #btn-library-diff-add-nas").forEach((el) => {
+      el.disabled = loading;
+    });
   }
+
+  function setLibraryDiffProgress(percent, message) {
+    const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (libraryDiffProgress) libraryDiffProgress.hidden = false;
+    if (libraryDiffProgressFill) libraryDiffProgressFill.style.width = `${pct}%`;
+    if (libraryDiffProgressPct) libraryDiffProgressPct.textContent = `${Math.round(pct)} %`;
+    if (libraryDiffProgressText) {
+      libraryDiffProgressText.textContent = message || "Comparaison…";
+    }
+  }
+
+  function hideLibraryDiffProgress() {
+    if (libraryDiffProgress) libraryDiffProgress.hidden = true;
+    if (libraryDiffProgressFill) libraryDiffProgressFill.style.width = "0%";
+  }
+
+  function stopLibraryDiffPoll() {
+    if (libraryDiffPollTimer) {
+      clearInterval(libraryDiffPollTimer);
+      libraryDiffPollTimer = null;
+    }
+  }
+
+  function addLibraryPathRow(listEl, value = "", placeholder = "") {
+    if (!listEl) return;
+    const row = document.createElement("div");
+    row.className = "library-path-row";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.spellcheck = false;
+    input.placeholder = placeholder;
+    input.value = value;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "btn btn-ghost btn-xs btn-path-remove";
+    removeBtn.title = "Retirer";
+    removeBtn.setAttribute("aria-label", "Retirer");
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      const rows = listEl.querySelectorAll(".library-path-row");
+      if (rows.length <= 1) {
+        input.value = "";
+        return;
+      }
+      row.remove();
+    });
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    listEl.appendChild(row);
+    return row;
+  }
+
+  function collectLibraryPaths(listEl) {
+    if (!listEl) return [];
+    const paths = [];
+    const seen = new Set();
+    listEl.querySelectorAll("input").forEach((input) => {
+      const value = (input.value || "").trim();
+      if (!value) return;
+      const key = value.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      paths.push(value);
+    });
+    return paths;
+  }
+
+  function initLibraryDiffPaths() {
+    if (libraryDiffPcList && !libraryDiffPcList.children.length) {
+      addLibraryPathRow(libraryDiffPcList, "", "D:\\Media\\Series");
+    }
+    if (libraryDiffNasList && !libraryDiffNasList.children.length) {
+      addLibraryPathRow(libraryDiffNasList, "", "\\\\NAS\\Volume1\\Series");
+      addLibraryPathRow(libraryDiffNasList, "", "\\\\NAS\\Volume2\\Series");
+    }
+  }
+
+  document.getElementById("btn-library-diff-add-pc")?.addEventListener("click", () => {
+    addLibraryPathRow(libraryDiffPcList, "", "D:\\Media");
+  });
+  document.getElementById("btn-library-diff-add-nas")?.addEventListener("click", () => {
+    addLibraryPathRow(libraryDiffNasList, "", "\\\\NAS\\Media");
+  });
+  initLibraryDiffPaths();
 
   function formatDiffLabel(item) {
     const se = formatSe(item);
@@ -2832,6 +2924,27 @@
     if (libraryDiffTab === "missing_a") return libraryDiffData.missing_on_a || [];
     if (libraryDiffTab === "common") return libraryDiffData.common || [];
     return libraryDiffData.missing_on_b || [];
+  }
+
+  function applyLibraryDiffResult(data) {
+    libraryDiffData = data;
+    const nPc = (data.folders_a || []).length || 1;
+    const nNas = (data.folders_b || []).length || 1;
+    const warns = [...(data.errors_a || []), ...(data.errors_b || [])];
+    if (libraryDiffSummary) {
+      libraryDiffSummary.textContent =
+        `${nPc} dossier(s) PC · ${nNas} NAS · ` +
+        `${data.identities_a || 0} identité(s) PC · ${data.identities_b || 0} NAS · ` +
+        `${data.missing_on_b_count || 0} manquant(s) sur NAS · ` +
+        `${data.missing_on_a_count || 0} manquant(s) sur PC · ` +
+        `${data.common_count || 0} commun(s)` +
+        (warns.length ? ` · ${warns.length} avertissement(s)` : "");
+    }
+    if (warns.length) {
+      showLibraryDiffError("Certains dossiers n’ont pas pu être scannés : " + warns.join(" | "));
+    }
+    if (libraryDiffResults) libraryDiffResults.hidden = false;
+    renderLibraryDiff();
   }
 
   function renderLibraryDiff() {
@@ -2851,8 +2964,8 @@
               <span class="library-dupe-size">OK</span>
               <div>
                 <strong>${escapeHtml(row.title || row.identity || "")}</strong>
-                <div class="diff-meta">${escapeHtml(labelA)}: ${escapeHtml(a.filename || "")}</div>
-                <div class="diff-meta">${escapeHtml(labelB)}: ${escapeHtml(b.filename || "")}</div>
+                <div class="diff-meta">${escapeHtml(labelA)}: ${escapeHtml(a.path || a.filename || "")}</div>
+                <div class="diff-meta">${escapeHtml(labelB)}: ${escapeHtml(b.path || b.filename || "")}</div>
                 <div class="diff-meta"><code class="identity-key">${escapeHtml(row.identity || "")}</code></div>
               </div>
             </div>`;
@@ -2892,46 +3005,75 @@
   });
 
   btnLibraryDiff?.addEventListener("click", async () => {
-    const folderA = (libraryFolderPc?.value || "").trim();
-    const folderB = (libraryFolderNas?.value || "").trim();
-    if (!folderA || !folderB) {
-      showLibraryDiffError("Indiquez le dossier PC et le dossier NAS.");
+    const foldersA = collectLibraryPaths(libraryDiffPcList);
+    const foldersB = collectLibraryPaths(libraryDiffNasList);
+    if (!foldersA.length || !foldersB.length) {
+      showLibraryDiffError("Indiquez au moins un dossier PC et un dossier NAS.");
       return;
     }
     showLibraryDiffError("");
+    stopLibraryDiffPoll();
     setLibraryDiffLoading(true);
+    setLibraryDiffProgress(1, "Démarrage de la comparaison…");
+    if (libraryDiffResults) libraryDiffResults.hidden = true;
+
     try {
       const res = await fetch("/api/library/diff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          folder_a: folderA,
-          folder_b: folderB,
+          folders_a: foldersA,
+          folders_b: foldersB,
           recursive: !!libraryDiffRecursive?.checked,
           label_a: "PC",
           label_b: "NAS",
+          background: true,
         }),
       });
-      const data = await res.json();
+      const startData = await res.json();
       if (!res.ok) {
-        showLibraryDiffError(data.error || "Comparaison impossible.");
-        if (libraryDiffResults) libraryDiffResults.hidden = true;
+        showLibraryDiffError(startData.error || "Comparaison impossible.");
+        hideLibraryDiffProgress();
+        setLibraryDiffLoading(false);
         return;
       }
-      libraryDiffData = data;
-      if (libraryDiffSummary) {
-        libraryDiffSummary.textContent =
-          `${data.identities_a || 0} identité(s) PC · ${data.identities_b || 0} NAS · ` +
-          `${data.missing_on_b_count || 0} manquant(s) sur NAS · ` +
-          `${data.missing_on_a_count || 0} manquant(s) sur PC · ` +
-          `${data.common_count || 0} commun(s)`;
-      }
-      if (libraryDiffResults) libraryDiffResults.hidden = false;
-      renderLibraryDiff();
-      showToast("Comparaison terminée.");
+      setLibraryDiffProgress(startData.percent || 2, startData.message || "Scan en cours…");
+
+      const finish = (state) => {
+        stopLibraryDiffPoll();
+        setLibraryDiffLoading(false);
+        if (state?.error) {
+          showLibraryDiffError(state.error);
+          hideLibraryDiffProgress();
+          return;
+        }
+        if (state?.result) {
+          setLibraryDiffProgress(100, "Comparaison terminée.");
+          applyLibraryDiffResult(state.result);
+          showToast("Comparaison terminée.");
+          setTimeout(hideLibraryDiffProgress, 800);
+        } else {
+          showLibraryDiffError("Résultat vide.");
+          hideLibraryDiffProgress();
+        }
+      };
+
+      libraryDiffPollTimer = setInterval(async () => {
+        try {
+          const progRes = await fetch("/api/library/diff/progress");
+          const state = await progRes.json();
+          setLibraryDiffProgress(state.percent || 0, state.message || "Scan en cours…");
+          if (state.done) finish(state);
+        } catch {
+          stopLibraryDiffPoll();
+          setLibraryDiffLoading(false);
+          showLibraryDiffError("Erreur réseau pendant le suivi de progression.");
+          hideLibraryDiffProgress();
+        }
+      }, 400);
     } catch {
       showLibraryDiffError("Erreur réseau.");
-    } finally {
+      hideLibraryDiffProgress();
       setLibraryDiffLoading(false);
     }
   });
