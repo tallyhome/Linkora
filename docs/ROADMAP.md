@@ -49,4 +49,10 @@ Profils, notifications, backup `data/`, file d’attente.
 
 ---
 
+## Suite possible (hors phases)
+
+Monétisation (**dons** ou **paiement / Pro**) — idées et contreparties : [TODO.md](../TODO.md).
+
+---
+
 Voir aussi : [CHANGELOG.md](../CHANGELOG.md) · [TODO.md](../TODO.md) · [UPDATE_SITE.md](UPDATE_SITE.md)
