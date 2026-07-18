@@ -214,4 +214,110 @@ def scan_library(
         "season_pack_count": season_pack_count,
         "by_type": by_type,
         "items": items,
+        "tree": build_library_tree(items),
+    }
+
+
+def _series_key(item: dict[str, Any]) -> str:
+    return normalize_title(item.get("title") or "") or "inconnu"
+
+
+def build_library_tree(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Phase 2 — regroupe l’inventaire :
+    séries → saisons → épisodes | films | archives | autres
+    """
+    series_map: dict[str, dict[str, Any]] = {}
+    movies: list[dict[str, Any]] = []
+    archives: list[dict[str, Any]] = []
+    others: list[dict[str, Any]] = []
+
+    for item in items:
+        media = item.get("type") or "other"
+        if media in ("tv", "anime"):
+            key = _series_key(item)
+            if key not in series_map:
+                series_map[key] = {
+                    "key": key,
+                    "title": item.get("title") or "Série",
+                    "kinds": set(),
+                    "seasons": {},
+                    "episode_count": 0,
+                    "file_count": 0,
+                }
+            entry = series_map[key]
+            entry["kinds"].add(media)
+            entry["file_count"] += 1
+            season_n = item.get("season")
+            try:
+                season_n = int(season_n) if season_n is not None else 0
+            except (TypeError, ValueError):
+                season_n = 0
+            seasons = entry["seasons"]
+            if season_n not in seasons:
+                seasons[season_n] = {"season": season_n, "episodes": []}
+            seasons[season_n]["episodes"].append(item)
+            if item.get("episode") is not None:
+                entry["episode_count"] += 1
+        elif media == "movie":
+            movies.append(item)
+        elif media == "archive":
+            archives.append(item)
+        else:
+            others.append(item)
+
+    series_list: list[dict[str, Any]] = []
+    for entry in series_map.values():
+        seasons_sorted = []
+        for season_n in sorted(entry["seasons"].keys()):
+            block = entry["seasons"][season_n]
+            eps = sorted(
+                block["episodes"],
+                key=lambda x: (
+                    x.get("episode") is None,
+                    int(x["episode"]) if x.get("episode") is not None else 0,
+                    x.get("filename") or "",
+                ),
+            )
+            seasons_sorted.append(
+                {
+                    "season": season_n,
+                    "label": f"Saison {season_n:02d}" if season_n else "Sans saison",
+                    "count": len(eps),
+                    "episodes": eps,
+                }
+            )
+        kinds = sorted(entry["kinds"])
+        series_list.append(
+            {
+                "key": entry["key"],
+                "title": entry["title"],
+                "kind": "anime" if kinds == ["anime"] else ("tv" if "tv" in kinds else kinds[0]),
+                "episode_count": entry["episode_count"],
+                "file_count": entry["file_count"],
+                "season_count": len(seasons_sorted),
+                "seasons": seasons_sorted,
+            }
+        )
+
+    series_list.sort(key=lambda s: (s["title"] or "").lower())
+    movies.sort(
+        key=lambda m: (
+            (m.get("title") or "").lower(),
+            m.get("year") is None,
+            m.get("year") or 0,
+        )
+    )
+    archives.sort(key=lambda a: ((a.get("title") or "").lower(), a.get("season") or 0))
+    others.sort(key=lambda o: (o.get("filename") or "").lower())
+
+    return {
+        "series": series_list,
+        "movies": movies,
+        "archives": archives,
+        "other": others,
+        "series_count": len(series_list),
+        "movie_count": len(movies),
+        "archive_count": len(archives),
+        "other_count": len(others),
     }

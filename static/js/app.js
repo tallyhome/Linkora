@@ -2338,7 +2338,7 @@
     });
   });
 
-  // ─── Bibliothèque (phase 1 — inventaire) ─────────────────────────────────
+  // ─── Bibliothèque (phase 1–2 — inventaire + vue arbre) ───────────────────
   const libraryForm = document.getElementById("library-scan-form");
   const libraryFolder = document.getElementById("library-folder");
   const libraryRecursive = document.getElementById("library-recursive");
@@ -2346,8 +2346,14 @@
   const libraryResults = document.getElementById("library-results");
   const libraryBody = document.getElementById("library-body");
   const librarySummary = document.getElementById("library-results-summary");
+  const libraryTree = document.getElementById("library-tree");
+  const libraryFlatWrap = document.getElementById("library-flat-wrap");
+  const librarySearch = document.getElementById("library-search");
   const btnLibraryScan = document.getElementById("btn-library-scan");
   let libraryItems = [];
+  let libraryTreeData = null;
+  let libraryFilter = "all";
+  let libraryView = "tree";
 
   function showLibraryError(message) {
     if (!libraryError) return;
@@ -2393,23 +2399,29 @@
     return "Autre";
   }
 
-  function renderLibrary(data) {
-    libraryItems = data.items || [];
-    const by = data.by_type || {};
-    if (librarySummary) {
-      const arch = data.archive_count || by.archive || 0;
-      const packs = data.season_pack_count || 0;
-      librarySummary.textContent =
-        `${data.count || 0} fichier(s) · ${data.unique_identities || 0} identité(s) · ` +
-        `${by.movie || 0} film(s) · ${(by.tv || 0) + (by.anime || 0)} épisode(s) · ` +
-        `${arch} archive(s)` +
-        (packs ? ` dont ${packs} pack(s) saison` : "") +
-        ` · ${by.other || 0} autre(s) · ${data.folder || ""}`;
-    }
+  function matchesLibrarySearch(text) {
+    const q = (librarySearch?.value || "").trim().toLowerCase();
+    if (!q) return true;
+    return String(text || "").toLowerCase().includes(q);
+  }
+
+  function filteredFlatItems() {
+    return libraryItems.filter((item) => {
+      if (libraryFilter === "series" && item.type !== "tv" && item.type !== "anime") return false;
+      if (libraryFilter === "movies" && item.type !== "movie") return false;
+      if (libraryFilter === "archives" && item.type !== "archive") return false;
+      const blob = [item.title, item.filename, item.identity, formatSe(item)].join(" ");
+      return matchesLibrarySearch(blob);
+    });
+  }
+
+  function renderLibraryFlat() {
+    const rows = filteredFlatItems();
     if (libraryBody) {
-      libraryBody.innerHTML = libraryItems
-        .map(
-          (item, i) => `
+      libraryBody.innerHTML = rows.length
+        ? rows
+            .map(
+              (item, i) => `
         <tr class="${item.type === "archive" ? "is-archive" : ""}">
           <td>${i + 1}</td>
           <td>${escapeHtml(typeLabel(item.type, item))}</td>
@@ -2419,11 +2431,188 @@
           <td title="${escapeHtml(item.path || "")}">${escapeHtml(item.filename || "")}</td>
           <td><code class="identity-key">${escapeHtml(item.identity || "")}</code></td>
         </tr>`
-        )
-        .join("");
+            )
+            .join("")
+        : `<tr><td colspan="7" class="library-empty">Aucun résultat pour ce filtre.</td></tr>`;
+    }
+  }
+
+  function renderLibraryTree() {
+    if (!libraryTree) return;
+    const tree = libraryTreeData || { series: [], movies: [], archives: [], other: [] };
+    const q = (librarySearch?.value || "").trim().toLowerCase();
+    const parts = [];
+
+    const showSeries = libraryFilter === "all" || libraryFilter === "series";
+    const showMovies = libraryFilter === "all" || libraryFilter === "movies";
+    const showArchives = libraryFilter === "all" || libraryFilter === "archives";
+
+    if (showSeries) {
+      const series = (tree.series || []).filter((s) => {
+        if (!q) return true;
+        if ((s.title || "").toLowerCase().includes(q)) return true;
+        return (s.seasons || []).some((season) =>
+          (season.episodes || []).some((ep) =>
+            [ep.filename, ep.identity, formatSe(ep)].join(" ").toLowerCase().includes(q)
+          )
+        );
+      });
+      if (series.length) {
+        parts.push(`<h3 class="library-section-title">Séries (${series.length})</h3>`);
+        for (const s of series) {
+          const sid = `lib-ser-${escapeHtml(s.key)}`;
+          parts.push(`
+            <details class="library-series" open>
+              <summary class="library-series-head">
+                <span><strong>${escapeHtml(s.title || "Série")}</strong></span>
+                <span class="library-series-meta">${s.season_count || 0} saison(s) · ${s.episode_count || 0} ép. · ${s.file_count || 0} fichier(s)</span>
+              </summary>
+              <div class="library-series-body" id="${sid}">
+                ${(s.seasons || [])
+                  .map((season) => {
+                    const eps = (season.episodes || []).filter((ep) => {
+                      if (!q) return true;
+                      if ((s.title || "").toLowerCase().includes(q)) return true;
+                      return [ep.filename, ep.identity, formatSe(ep)].join(" ").toLowerCase().includes(q);
+                    });
+                    if (!eps.length && q && !(s.title || "").toLowerCase().includes(q)) return "";
+                    const list = eps.length ? eps : season.episodes || [];
+                    return `
+                    <details class="library-season" open>
+                      <summary class="library-season-head">
+                        <span>${escapeHtml(season.label || "Saison")}</span>
+                        <span class="library-series-meta">${list.length} fichier(s)</span>
+                      </summary>
+                      <ul class="library-episode-list">
+                        ${list
+                          .map(
+                            (ep) => `
+                          <li title="${escapeHtml(ep.path || "")}">
+                            <span>${escapeHtml(formatSe(ep))}</span>
+                            <span class="ep-file">${escapeHtml(ep.filename || "")}</span>
+                          </li>`
+                          )
+                          .join("")}
+                      </ul>
+                    </details>`;
+                  })
+                  .join("")}
+              </div>
+            </details>`);
+        }
+      }
+    }
+
+    if (showMovies) {
+      const movies = (tree.movies || []).filter((m) =>
+        matchesLibrarySearch([m.title, m.filename, m.year, m.identity].join(" "))
+      );
+      if (movies.length) {
+        parts.push(`<h3 class="library-section-title">Films (${movies.length})</h3>`);
+        for (const m of movies) {
+          parts.push(`
+            <div class="library-movie-card" title="${escapeHtml(m.path || "")}">
+              <div>
+                <strong>${escapeHtml(m.title || m.filename || "Film")}</strong>
+                ${m.year != null ? ` <span class="library-item-meta">(${escapeHtml(String(m.year))})</span>` : ""}
+              </div>
+              <span class="library-item-meta">${escapeHtml(m.filename || "")}</span>
+            </div>`);
+        }
+      }
+    }
+
+    if (showArchives) {
+      const archives = (tree.archives || []).filter((a) =>
+        matchesLibrarySearch([a.title, a.filename, formatSe(a), a.identity].join(" "))
+      );
+      if (archives.length) {
+        parts.push(`<h3 class="library-section-title">Archives (${archives.length})</h3>`);
+        for (const a of archives) {
+          parts.push(`
+            <div class="library-archive-card" title="${escapeHtml(a.path || "")}">
+              <div>
+                <strong>${escapeHtml(a.title || a.filename || "Archive")}</strong>
+                <span class="library-item-meta"> · ${escapeHtml(typeLabel("archive", a))} · ${escapeHtml(formatSe(a))}</span>
+              </div>
+              <span class="library-item-meta">${escapeHtml(a.filename || "")}</span>
+            </div>`);
+        }
+      }
+    }
+
+    if (libraryFilter === "all") {
+      const others = (tree.other || []).filter((o) =>
+        matchesLibrarySearch([o.title, o.filename, o.identity].join(" "))
+      );
+      if (others.length) {
+        parts.push(`<h3 class="library-section-title">Autres (${others.length})</h3>`);
+        for (const o of others) {
+          parts.push(`
+            <div class="library-movie-card" title="${escapeHtml(o.path || "")}">
+              <strong>${escapeHtml(o.filename || "Fichier")}</strong>
+              <span class="library-item-meta">${escapeHtml(o.title || "")}</span>
+            </div>`);
+        }
+      }
+    }
+
+    libraryTree.innerHTML = parts.length
+      ? parts.join("")
+      : `<p class="library-empty">Aucun résultat pour ce filtre / recherche.</p>`;
+  }
+
+  function refreshLibraryView() {
+    if (libraryView === "tree") {
+      if (libraryTree) libraryTree.hidden = false;
+      if (libraryFlatWrap) libraryFlatWrap.hidden = true;
+      renderLibraryTree();
+    } else {
+      if (libraryTree) libraryTree.hidden = true;
+      if (libraryFlatWrap) libraryFlatWrap.hidden = false;
+      renderLibraryFlat();
+    }
+  }
+
+  function renderLibrary(data) {
+    libraryItems = data.items || [];
+    libraryTreeData = data.tree || null;
+    const by = data.by_type || {};
+    const tree = data.tree || {};
+    if (librarySummary) {
+      const arch = data.archive_count || by.archive || 0;
+      const packs = data.season_pack_count || 0;
+      librarySummary.textContent =
+        `${data.count || 0} fichier(s) · ${tree.series_count || 0} série(s) · ${tree.movie_count || by.movie || 0} film(s) · ` +
+        `${arch} archive(s)` +
+        (packs ? ` (${packs} pack saison)` : "") +
+        ` · ${data.folder || ""}`;
     }
     if (libraryResults) libraryResults.hidden = false;
+    refreshLibraryView();
   }
+
+  document.querySelectorAll(".library-filter").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      libraryFilter = btn.dataset.libFilter || "all";
+      document.querySelectorAll(".library-filter").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      refreshLibraryView();
+    });
+  });
+
+  document.querySelectorAll(".library-view").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      libraryView = btn.dataset.libView || "tree";
+      document.querySelectorAll(".library-view").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      refreshLibraryView();
+    });
+  });
+
+  librarySearch?.addEventListener("input", () => refreshLibraryView());
 
   libraryForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2459,11 +2648,12 @@
   });
 
   document.getElementById("btn-library-copy")?.addEventListener("click", async () => {
-    if (!libraryItems.length) {
+    const rows = filteredFlatItems();
+    if (!rows.length) {
       showToast("Rien à copier.");
       return;
     }
-    const lines = libraryItems.map((item) => {
+    const lines = rows.map((item) => {
       const se = formatSe(item);
       return [
         typeLabel(item.type, item),

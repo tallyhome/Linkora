@@ -4,6 +4,27 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.6.0] — 2026-07-18
+
+### Ajouté — Bibliothèque (phase 2 / 5)
+- **Vue arbre** : Séries → Saisons → Épisodes, plus Films / Archives séparés
+- Filtres Tout / Séries / Films / Archives + **recherche** titre
+- Bascule vue arbre ↔ liste plate · copie filtrée
+- Onglets UI : retour à la ligne (4 boutons toujours visibles) + cache-bust static `?v=`
+
+---
+
+## [1.6.0] — 2026-07-18
+
+### Ajouté — Bibliothèque (phase 2 / 5)
+- **Vue arbre** : Séries → Saisons → Épisodes, Films et Archives séparés
+- Filtres Tout / Séries / Films / Archives + **recherche** par titre
+- Bascule vue arbre / liste plate
+- Onglets qui passent à la ligne (4e onglet Bibliothèque plus visible)
+- Cache-bust static `?v=version` pour forcer le rechargement UI
+
+---
+
 ## [1.5.0] — 2026-07-18
 
 ### Ajouté — Bibliothèque (phase 1 / 5)

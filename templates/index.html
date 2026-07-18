@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
 </head>
 <body>
   <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -373,7 +373,7 @@
               placeholder="D:\Media  ou  \\NAS\films"
               spellcheck="false"
             >
-            <span class="field-hint">Chemin local ou UNC. Phase 1 = inventaire plat ; doublons / diff NAS arrivent ensuite.</span>
+            <span class="field-hint">Chemin local ou UNC. Après le scan : vue arbre (séries / saisons) ou liste plate.</span>
           </label>
           <div class="rename-options">
             <label class="check-field">
@@ -392,14 +392,29 @@
       <section id="library-results" class="rename-results" hidden>
         <div class="results-toolbar">
           <div class="results-meta">
-            <h2>Inventaire</h2>
+            <h2>Bibliothèque</h2>
             <p id="library-results-summary" class="results-summary"></p>
           </div>
         </div>
-        <div class="rename-actions-bar">
-          <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier la liste</button>
+        <div class="library-toolbar rename-actions-bar">
+          <div class="library-filters" role="group" aria-label="Filtres bibliothèque">
+            <button type="button" class="btn btn-ghost btn-xs library-filter is-active" data-lib-filter="all">Tout</button>
+            <button type="button" class="btn btn-ghost btn-xs library-filter" data-lib-filter="series">Séries</button>
+            <button type="button" class="btn btn-ghost btn-xs library-filter" data-lib-filter="movies">Films</button>
+            <button type="button" class="btn btn-ghost btn-xs library-filter" data-lib-filter="archives">Archives</button>
+          </div>
+          <label class="field library-search-field">
+            <span class="visually-hidden">Rechercher</span>
+            <input type="search" id="library-search" placeholder="Rechercher un titre…" spellcheck="false">
+          </label>
+          <div class="library-view-toggle" role="group" aria-label="Mode d’affichage">
+            <button type="button" class="btn btn-ghost btn-xs library-view is-active" data-lib-view="tree">Vue arbre</button>
+            <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="flat">Liste plate</button>
+          </div>
+          <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier</button>
         </div>
-        <div class="table-wrap">
+        <div id="library-tree" class="library-tree" hidden></div>
+        <div id="library-flat-wrap" class="table-wrap" hidden>
           <table class="links-table rename-table library-table">
             <thead>
               <tr>
@@ -545,8 +560,11 @@
             (noms différents) partagent la même clé — base des futurs doublons et du diff PC/NAS.
           </p>
           <ul>
-            <li>Phase 1 : inventaire plat + copie de la liste.</li>
-            <li>À venir : vue arborescente, doublons, comparaison NAS, affiches TMDB.</li>
+            <li>Onglet <strong>Bibliothèque</strong> (entre Renommage et Aide) — redémarrez l’app / Ctrl+F5 si vous ne le voyez pas.</li>
+            <li>Après scan : <strong>vue arbre</strong> (Séries → Saisons → Épisodes + Films) ou liste plate.</li>
+            <li>Filtres Tout / Séries / Films / Archives + recherche.</li>
+            <li>Archives <code>.zip</code> / <code>.rar</code> / <code>.7z</code> détectées (packs saison).</li>
+            <li>À venir : doublons, comparaison NAS, affiches TMDB.</li>
           </ul>
         </section>
 
@@ -760,6 +778,6 @@
     </div>
   </div>
 
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v={{ app_version }}"></script>
 </body>
 </html>

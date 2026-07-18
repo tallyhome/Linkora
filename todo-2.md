@@ -10,7 +10,7 @@ doublons, diff PC ↔ NAS, optionnellement affiches (TMDB).
 | Phase | Nom | Objectif | État | Version |
 |------:|-----|----------|------|---------|
 | **1** | Scan & inventaire | Scanner un dossier, lister films/séries/archives avec identité intelligente | ✅ faite | **1.5.0** |
-| **2** | Vue bibliothèque | Arborescence Série → Saison → Épisodes + liste Films | ⏳ | 1.6.0 |
+| **2** | Vue bibliothèque | Arborescence Série → Saison → Épisodes + liste Films | ✅ faite | **1.6.0** |
 | **3** | Doublons | Détecter le même film / épisode malgré des noms de fichiers différents | ⏳ | 1.7.0 |
 | **4** | Diff PC ↔ NAS | Comparer deux racines : manquants des deux côtés | ⏳ | 1.8.0 |
 | **5** | Affiches (option) | Enrichir avec TMDB (posters) + cache local | ⏳ | **2.0.0** |
@@ -56,9 +56,9 @@ Présenter l’inventaire de façon lisible : **Films** d’un côté, **Séries
 - Export liste (texte / CSV) optionnel
 
 ### Critères d’acceptation
-- [ ] Une série regroupe ses saisons/épisodes
-- [ ] Les films sont listés séparément
-- [ ] Recherche filtre la vue
+- [x] Une série regroupe ses saisons/épisodes
+- [x] Les films sont listés séparément
+- [x] Recherche filtre la vue
 
 ---
 
@@ -142,14 +142,14 @@ Enrichir la vue bibliothèque avec posters / infos (esprit Plex / Jellyfin lége
 ## Suivi d’implémentation
 
 - [x] Phase 1 — Scan & inventaire
-- [ ] Phase 2 — Vue bibliothèque
+- [x] Phase 2 — Vue bibliothèque
 - [ ] Phase 3 — Doublons
 - [ ] Phase 4 — Diff PC ↔ NAS
 - [ ] Phase 5 — Affiches TMDB
 
-### Fichiers phase 1
+### Fichiers phases 1–2
 - `todo-2.md` — cahier des charges
-- `library_scan.py` — inventaire + clé d’identité
-- `smart_naming.py` — mieux gère `S03.E01` et `Titre S03 S01E001`
+- `library_scan.py` — inventaire, archives, `build_library_tree`
+- `smart_naming.py` — `S03.E01` / `Titre S03 S01E001`
 - `app.py` — `POST /api/library/scan`
-- UI : onglet Bibliothèque (`templates/index.html`, `static/js/app.js`, CSS)
+- UI : onglet Bibliothèque (filtres, recherche, vue arbre / liste)

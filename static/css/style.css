@@ -414,6 +414,155 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   background: rgba(245, 158, 11, 0.06);
 }
 
+.library-table td:nth-child(6) {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.library-toolbar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.library-filters,
+.library-view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.library-filter.is-active,
+.library-view.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.library-search-field {
+  flex: 1 1 12rem;
+  margin: 0;
+  min-width: 10rem;
+}
+
+.library-search-field input {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  color: var(--ink);
+}
+
+.library-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.25rem 0 1rem;
+}
+
+.library-section-title {
+  margin: 0.5rem 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.library-series,
+.library-movie-card,
+.library-archive-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.library-series-head,
+.library-season-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.library-movie-card,
+.library-archive-card {
+  padding: 0.7rem 0.9rem;
+}
+
+.library-series-head:hover,
+.library-season-head:hover {
+  background: var(--accent-soft);
+}
+
+.library-series-meta,
+.library-item-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.library-series-body {
+  border-top: 1px solid var(--line);
+  padding: 0.35rem 0.5rem 0.6rem;
+}
+
+.library-season {
+  margin: 0.35rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-solid);
+}
+
+.library-episode-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.6rem 0.55rem;
+}
+
+.library-episode-list li {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.5rem;
+  padding: 0.28rem 0.2rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.library-episode-list .ep-file {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-empty {
+  color: var(--muted);
+  padding: 1rem;
+  text-align: center;
+}
+
 .rename-table .col-check input {
   width: 1.05rem;
   height: 1.05rem;
@@ -1725,6 +1874,7 @@ html[data-theme="alldebrid"] .status-pill.running {
   margin: 0 auto 1rem;
   padding: 0 1.5rem;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
