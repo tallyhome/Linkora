@@ -4,6 +4,15 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.3.8] — 2026-07-18
+
+### Ajouté
+- Nouveau **3e thème « Pro »** (sombre graphite, dense et intuitif) : palette indigo/vert,
+  en-tête compact fixe, onglets segmentés, panneaux à liseré d’accent, tableaux serrés (URL en mono),
+  vert = valide / rouge = mort. Thèmes Linkora (défaut) et Ambre conservés.
+
+---
+
 ## [1.3.7] — 2026-07-18
 
 ### Ajouté

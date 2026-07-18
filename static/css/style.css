@@ -45,6 +45,30 @@ html[data-theme="alldebrid"] {
   --logo-spark: #f5c518;
 }
 
+/* ── Thème « Pro » : sombre graphite, dense, intuitif (vert = ok, rouge = mort) ── */
+html[data-theme="nocturne"] {
+  --ink: #e7ecf3;
+  --ink-soft: #b3bdcc;
+  --muted: #7e8a9c;
+  --line: rgba(148, 163, 184, 0.16);
+  --surface: rgba(22, 26, 34, 0.92);
+  --surface-solid: #171b23;
+  --accent: #6366f1;
+  --accent-deep: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.16);
+  --danger: #f26d78;
+  --ok: #34d399;
+  --ok-bg: rgba(52, 211, 153, 0.14);
+  --dead: #f26d78;
+  --dead-bg: rgba(242, 109, 120, 0.13);
+  --pending: #7e8a9c;
+  --body-bg: #0c0e13;
+  --radius: 9px;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --logo-accent: #818cf8;
+  --logo-spark: #a5b4fc;
+}
+
 *,
 *::before,
 *::after {
@@ -2096,4 +2120,157 @@ html[data-theme="alldebrid"] .toast {
     white-space: normal;
     word-break: break-all;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THÈME « PRO » (nocturne) — couleurs + disposition repensée
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Fond : dégradé graphite discret + grille technique */
+html[data-theme="nocturne"] .bg-atmosphere {
+  background:
+    radial-gradient(ellipse 70% 50% at 8% -6%, rgba(99, 102, 241, 0.16), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 95% 6%, rgba(52, 211, 153, 0.07), transparent 52%),
+    linear-gradient(165deg, #0c0e13 0%, #10131b 50%, #0c0e13 100%);
+}
+
+html[data-theme="nocturne"] .bg-atmosphere::after {
+  opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* En-tête compact FIXE, pleine largeur (repère toujours visible) */
+html[data-theme="nocturne"] .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  max-width: none;
+  margin: 0;
+  padding: 0.7rem 1.4rem;
+  background: rgba(12, 14, 19, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+html[data-theme="nocturne"] .brand-logo {
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+html[data-theme="nocturne"] .logo-stop-a { stop-color: #818cf8; }
+html[data-theme="nocturne"] .logo-stop-b { stop-color: #6366f1; }
+html[data-theme="nocturne"] .logo-stop-c { stop-color: #34d399; }
+
+/* Boutons de thème / onglets : anguleux et sobres */
+html[data-theme="nocturne"] .theme-switch {
+  border-radius: 8px;
+}
+
+html[data-theme="nocturne"] .theme-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+html[data-theme="nocturne"] .btn,
+html[data-theme="nocturne"] .btn-secondary,
+html[data-theme="nocturne"] .btn-ghost,
+html[data-theme="nocturne"] .btn-primary {
+  border-radius: 8px;
+}
+
+/* Hero plus discret — on privilégie l'outil, pas la vitrine */
+html[data-theme="nocturne"] .hero {
+  margin-top: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+html[data-theme="nocturne"] .hero-title {
+  font-size: clamp(1.7rem, 3.6vw, 2.4rem);
+  letter-spacing: -0.02em;
+}
+
+html[data-theme="nocturne"] .hero-lead {
+  font-size: 0.96rem;
+  max-width: 42rem;
+}
+
+html[data-theme="nocturne"] .hero-logo {
+  width: 44px;
+  height: 44px;
+}
+
+/* Onglets : barre segmentée alignée à gauche, boutons carrés */
+html[data-theme="nocturne"] .app-tabs {
+  gap: 0.3rem;
+  padding: 0 1.4rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.5rem;
+}
+
+html[data-theme="nocturne"] .app-tab-btn {
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+}
+
+html[data-theme="nocturne"] .app-tab-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Panneaux : liseré d'accent à gauche = repère fonctionnel */
+html[data-theme="nocturne"] .extract-form,
+html[data-theme="nocturne"] .page-block,
+html[data-theme="nocturne"] .queue-panel,
+html[data-theme="nocturne"] .rename-results {
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+}
+
+/* Tableaux plus denses + colonnes techniques en mono */
+html[data-theme="nocturne"] .links-table th,
+html[data-theme="nocturne"] .links-table td {
+  padding: 0.42rem 0.6rem;
+}
+
+html[data-theme="nocturne"] .links-table th {
+  background: #12151d;
+  color: var(--muted);
+}
+
+html[data-theme="nocturne"] .links-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+html[data-theme="nocturne"] .links-table .cell-url,
+html[data-theme="nocturne"] .size-pill {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+}
+
+/* Vert franc pour un lien valide (lecture instantanée) */
+html[data-theme="nocturne"] .links-table .cell-url.ok {
+  color: var(--ok);
+}
+
+html[data-theme="nocturne"] .links-table .cell-url.dead,
+html[data-theme="nocturne"] .links-table .cell-url.error {
+  color: var(--dead);
+}
+
+html[data-theme="nocturne"] .status-pill.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+/* Barre de progression indigo */
+html[data-theme="nocturne"] .resolve-progress-fill {
+  background: linear-gradient(90deg, var(--accent), var(--ok));
+}
+
+/* Bandeau MAJ / cartes secondaires cohérents */
+html[data-theme="nocturne"] .btn-view {
+  background: var(--surface-solid);
 }

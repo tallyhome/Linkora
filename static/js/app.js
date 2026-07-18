@@ -1038,28 +1038,40 @@
     }
   }
 
+  const THEME_LABELS = {
+    linkora: "Linkora",
+    alldebrid: "Ambre",
+    nocturne: "Pro (sombre)",
+  };
+
+  function normalizeTheme(theme) {
+    if (theme === "lienlab") return "linkora";
+    return THEME_LABELS[theme] ? theme : "linkora";
+  }
+
   function applyTheme(theme) {
-    const value = theme === "alldebrid" ? "alldebrid" : "linkora";
+    const value = normalizeTheme(theme);
     document.documentElement.setAttribute("data-theme", value);
     document.querySelectorAll("[data-theme-set]").forEach((btn) => {
       const key = btn.dataset.themeSet === "lienlab" ? "linkora" : btn.dataset.themeSet;
       btn.classList.toggle("is-active", key === value);
     });
-    if (uiThemeSelect) uiThemeSelect.value = value === "alldebrid" ? "alldebrid" : "linkora";
+    if (uiThemeSelect) uiThemeSelect.value = value;
   }
 
   async function persistTheme(theme) {
-    applyTheme(theme);
+    const value = normalizeTheme(theme);
+    applyTheme(value);
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme }),
+        body: JSON.stringify({ theme: value }),
       });
       const data = await res.json();
       if (res.ok) {
         settings = { ...(settings || {}), ...data };
-        showToast(theme === "alldebrid" ? "Thème Ambre activé." : "Thème Linkora activé.");
+        showToast(`Thème ${THEME_LABELS[value]} activé.`);
       }
     } catch {
       /* ignore */
@@ -1135,8 +1147,7 @@
     settings = await res.json();
     activeProviderSelect.value = settings.active_provider || "alldebrid";
     if (uiThemeSelect) {
-      uiThemeSelect.value =
-        settings.theme === "alldebrid" ? "alldebrid" : "linkora";
+      uiThemeSelect.value = normalizeTheme(settings.theme);
     }
     if (autoUpdateInput) {
       autoUpdateInput.checked = settings.auto_update !== false;
@@ -1154,7 +1165,7 @@
     if (concurrencyInput) {
       concurrencyInput.value = String(settings.resolve_concurrency || 6);
     }
-    applyTheme(settings.theme === "alldebrid" ? "alldebrid" : "linkora");
+    applyTheme(normalizeTheme(settings.theme));
     applyCustomBranding(settings);
     const adCount = settings.providers?.alldebrid?.key_count || 0;
     const rdCount = settings.providers?.realdebrid?.key_count || 0;
@@ -2076,7 +2087,7 @@
         return;
       }
       settings = data;
-      applyTheme(data.theme === "alldebrid" ? "alldebrid" : "linkora");
+      applyTheme(normalizeTheme(data.theme));
       applyCustomBranding(data);
       updateProviderBadge();
       refreshProfileSelect();

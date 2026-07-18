@@ -204,7 +204,7 @@ def update_settings(payload: dict) -> dict:
     current = load_settings()
     if "active_provider" in payload:
         current["active_provider"] = payload["active_provider"]
-    if "theme" in payload and payload["theme"] in ("linkora", "lienlab", "alldebrid"):
+    if "theme" in payload and payload["theme"] in ("linkora", "lienlab", "alldebrid", "nocturne"):
         theme = payload["theme"]
         current["theme"] = "linkora" if theme == "lienlab" else theme
     if "max_retries" in payload:
