@@ -25,6 +25,8 @@ DEFAULTS = {
     "profiles": [],
     "active_profile_id": "",
     "network_shares": [],
+    "tmdb_api_key": "",
+    "library_show_posters": True,
     "providers": {
         "alldebrid": {"api_key": "", "api_keys": [], "enabled": True},
         "realdebrid": {"api_key": "", "api_keys": [], "enabled": True},
@@ -215,6 +217,10 @@ def _ensure() -> dict:
         ).is_file()
     merged["profiles"] = _normalize_profiles(data.get("profiles"))
     merged["network_shares"] = _normalize_network_shares(data.get("network_shares"))
+    if "tmdb_api_key" in data:
+        merged["tmdb_api_key"] = str(data.get("tmdb_api_key") or "")
+    if "library_show_posters" in data:
+        merged["library_show_posters"] = bool(data.get("library_show_posters"))
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
         merged["active_profile_id"] = active_pid
@@ -302,6 +308,16 @@ def update_settings(payload: dict) -> dict:
                     entry["password"] = old_by_key[key].get("password") or ""
                 merged_shares.append(entry)
             current["network_shares"] = _normalize_network_shares(merged_shares)
+    if "tmdb_api_key" in payload:
+        key = payload.get("tmdb_api_key")
+        if key is None:
+            pass
+        elif isinstance(key, str) and key.startswith("••••"):
+            pass
+        else:
+            current["tmdb_api_key"] = str(key or "").strip()
+    if "library_show_posters" in payload:
+        current["library_show_posters"] = bool(payload.get("library_show_posters"))
     if "active_profile_id" in payload:
         pid = str(payload.get("active_profile_id") or "")
         if pid and any(p["id"] == pid for p in current["profiles"]):
@@ -383,6 +399,10 @@ def public_settings() -> dict:
             }
             for e in (data.get("network_shares") or [])
         ],
+        "tmdb_api_key": "",
+        "tmdb_api_key_masked": _mask(data["tmdb_api_key"]) if data.get("tmdb_api_key") else "",
+        "tmdb_configured": bool(str(data.get("tmdb_api_key") or "").strip()),
+        "library_show_posters": bool(data.get("library_show_posters", True)),
         "providers": {},
     }
     for name, conf in data["providers"].items():
@@ -431,6 +451,14 @@ def clear_custom_logo() -> None:
 def get_network_shares() -> list[dict]:
     data = load_settings()
     return list(data.get("network_shares") or [])
+
+
+def get_tmdb_api_key() -> str:
+    return str(load_settings().get("tmdb_api_key") or "").strip()
+
+
+def get_library_show_posters() -> bool:
+    return bool(load_settings().get("library_show_posters", True))
 
 
 def get_max_retries() -> int:

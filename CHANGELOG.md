@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.0.0] — 2026-07-18
+
+### Ajouté — Bibliothèque phase 5 : affiches TMDB
+- Clé API TMDB dans Paramètres (+ test de connexion)
+- Matching titre / type / année, cache local `data/posters/`
+- Affiches optionnelles dans la vue arbre (séries + films)
+- Bouton **TMDB** + case **Affiches** — l’app fonctionne sans clé
+
+---
+
 ## [1.10.0] — 2026-07-18
 
 ### Ajouté — Accès NAS (login / mot de passe)

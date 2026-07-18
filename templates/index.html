@@ -488,7 +488,21 @@
             <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="flat">Liste plate</button>
             <button type="button" class="btn btn-ghost btn-xs library-view" data-lib-view="dupes">Doublons</button>
           </div>
+          <label class="check-field library-posters-check">
+            <input type="checkbox" id="library-posters-toggle" checked>
+            <span>Affiches</span>
+          </label>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-posters" title="Charger / rafraîchir les affiches TMDB">TMDB</button>
           <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier</button>
+        </div>
+        <div id="library-enrich-progress" class="resolve-progress" hidden>
+          <div class="resolve-progress-top">
+            <span id="library-enrich-progress-text">Affiches…</span>
+            <span id="library-enrich-progress-pct">0 %</span>
+          </div>
+          <div class="resolve-progress-bar">
+            <div id="library-enrich-progress-fill" class="resolve-progress-fill"></div>
+          </div>
         </div>
         <div id="library-tree" class="library-tree" hidden></div>
         <div id="library-dupes" class="library-dupes" hidden></div>
@@ -643,7 +657,7 @@
             <li>Après scan : <strong>vue arbre</strong>, liste plate, ou <strong>Doublons</strong> (même identité, noms différents).</li>
             <li>Filtres Tout / Séries / Films / Archives + recherche.</li>
             <li>Archives <code>.zip</code> / <code>.rar</code> / <code>.7z</code> détectées (packs saison).</li>
-            <li>À venir : affiches TMDB.</li>
+            <li>Affiches TMDB optionnelles (clé API dans Paramètres).</li>
           </ul>
         </section>
 
@@ -826,6 +840,27 @@
           <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
             <button type="button" class="btn btn-ghost" id="btn-nas-test">Tester la connexion</button>
             <button type="button" class="btn btn-ghost btn-xs" id="btn-nas-clear">Effacer les identifiants</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="provider-block">
+          <legend>TMDB (affiches bibliothèque)</legend>
+          <p class="field-hint">
+            Optionnel. Créez une clé gratuite sur
+            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>
+            — rien n’est envoyé sans clé.
+          </p>
+          <label class="field">
+            <span class="field-label">Clé API TMDB</span>
+            <input type="password" id="tmdb-api-key" placeholder="vide = conserver" autocomplete="new-password" spellcheck="false">
+            <span class="field-hint" id="hint-tmdb">Aucune clé enregistrée.</span>
+          </label>
+          <label class="check-field settings-check">
+            <input type="checkbox" id="library-show-posters" checked>
+            <span>Charger les affiches après un scan (si clé présente)</span>
+          </label>
+          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+            <button type="button" class="btn btn-ghost" id="btn-tmdb-test">Tester TMDB</button>
           </div>
         </fieldset>
 

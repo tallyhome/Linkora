@@ -24,6 +24,7 @@ hiddenimports = [
     "smart_naming",
     "library_scan",
     "network_shares",
+    "tmdb",
     "updater",
     "update_helper",
     "paths",

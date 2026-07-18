@@ -490,6 +490,41 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   overflow: hidden;
 }
 
+.library-series.has-poster > summary.library-series-head,
+.library-movie-card.has-poster,
+.library-archive-card.has-poster {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr;
+  gap: 0.65rem 0.85rem;
+  align-items: center;
+}
+
+.library-poster {
+  width: 3.25rem;
+  height: 4.75rem;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(20, 32, 51, 0.08);
+  display: block;
+}
+
+.library-poster-ph {
+  width: 3.25rem;
+  height: 4.75rem;
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(20, 32, 51, 0.08), rgba(20, 32, 51, 0.02));
+}
+
+.library-posters-check {
+  margin: 0;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+#library-enrich-progress {
+  margin: 0.65rem 0 0.25rem;
+}
+
 .library-series-head,
 .library-season-head {
   display: flex;
@@ -514,6 +549,22 @@ html[data-theme="alldebrid"] .bg-atmosphere {
 .library-series-head:hover,
 .library-season-head:hover {
   background: var(--accent-soft);
+}
+
+.library-series-text,
+.library-movie-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.library-series.has-poster > summary.library-series-head {
+  align-items: start;
+}
+
+.library-series.has-poster > summary.library-series-head .library-series-text {
+  padding-top: 0.15rem;
 }
 
 .library-series-meta,

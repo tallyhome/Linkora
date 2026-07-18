@@ -53,6 +53,9 @@
   const nasUsernameInput = document.getElementById("nas-username");
   const nasPasswordInput = document.getElementById("nas-password");
   const hintNas = document.getElementById("hint-nas");
+  const tmdbApiKeyInput = document.getElementById("tmdb-api-key");
+  const hintTmdb = document.getElementById("hint-tmdb");
+  const libraryShowPostersInput = document.getElementById("library-show-posters");
   let nasClearRequested = false;
   const customAccentInput = document.getElementById("custom-accent");
   const btnResetAccent = document.getElementById("btn-reset-accent");
@@ -1176,6 +1179,20 @@
         ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
         : "Aucun identifiant NAS enregistré.";
     }
+    if (tmdbApiKeyInput) tmdbApiKeyInput.value = "";
+    if (libraryShowPostersInput) {
+      libraryShowPostersInput.checked = settings.library_show_posters !== false;
+    }
+    if (hintTmdb) {
+      hintTmdb.textContent = settings.tmdb_configured
+        ? `Clé enregistrée · ${settings.tmdb_api_key_masked || "••••"}`
+        : "Aucune clé enregistrée.";
+    }
+    const postersToggle = document.getElementById("library-posters-toggle");
+    if (postersToggle) {
+      postersToggle.checked = settings.library_show_posters !== false;
+      postersToggle.disabled = !settings.tmdb_configured;
+    }
     if (updateManifestInput) {
       updateManifestInput.value = settings.update_manifest_url || "";
     }
@@ -2104,6 +2121,12 @@
         ].filter((e) => e.username);
       }
     }
+    if (libraryShowPostersInput) {
+      payload.library_show_posters = !!libraryShowPostersInput.checked;
+    }
+    if (tmdbApiKeyInput?.value.trim()) {
+      payload.tmdb_api_key = tmdbApiKeyInput.value.trim();
+    }
     if (customAccentInput?.dataset.reset === "1") {
       payload.custom_accent = "";
       delete customAccentInput.dataset.reset;
@@ -2139,6 +2162,17 @@
           ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
           : "Aucun identifiant NAS enregistré.";
       }
+      if (tmdbApiKeyInput) tmdbApiKeyInput.value = "";
+      if (hintTmdb) {
+        hintTmdb.textContent = data.tmdb_configured
+          ? `Clé enregistrée · ${data.tmdb_api_key_masked || "••••"}`
+          : "Aucune clé enregistrée.";
+      }
+      const postersToggle = document.getElementById("library-posters-toggle");
+      if (postersToggle) {
+        postersToggle.checked = data.library_show_posters !== false;
+        postersToggle.disabled = !data.tmdb_configured;
+      }
       const adCount = data.providers?.alldebrid?.key_count || 0;
       const rdCount = data.providers?.realdebrid?.key_count || 0;
       hintAlldebrid.textContent = data.providers?.alldebrid?.configured
@@ -2159,6 +2193,27 @@
       showSettingsMessage("Erreur réseau.", false);
     }
   }
+
+  document.getElementById("btn-tmdb-test")?.addEventListener("click", async () => {
+    const apiKey = (tmdbApiKeyInput?.value || "").trim();
+    showSettingsMessage("Test TMDB…", true);
+    try {
+      const res = await fetch("/api/tmdb/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showSettingsMessage(data.error || "Clé TMDB invalide.", false);
+        return;
+      }
+      showSettingsMessage(data.message || "Clé TMDB valide.", true);
+      showToast("TMDB OK.");
+    } catch (err) {
+      showSettingsMessage(`Erreur réseau : ${err?.message || "échec"}`, false);
+    }
+  });
 
   document.getElementById("btn-nas-clear")?.addEventListener("click", () => {
     nasClearRequested = true;
@@ -2455,6 +2510,137 @@
   let libraryDupesData = null;
   let libraryFilter = "all";
   let libraryView = "tree";
+  let libraryPosters = {};
+  let libraryEnrichTimer = null;
+
+  function postersEnabled() {
+    const toggle = document.getElementById("library-posters-toggle");
+    if (toggle) return !!toggle.checked && !toggle.disabled;
+    return !!(settings?.tmdb_configured && settings?.library_show_posters !== false);
+  }
+
+  function posterHtml(entryId, title) {
+    if (!postersEnabled()) return "";
+    const info = libraryPosters[entryId];
+    if (info?.poster_url) {
+      return `<img class="library-poster" src="${escapeHtml(info.poster_url)}" alt="" loading="lazy" title="${escapeHtml(info.matched_title || title || "")}">`;
+    }
+    return `<span class="library-poster-ph" aria-hidden="true"></span>`;
+  }
+
+  function collectPosterEntries() {
+    const entries = [];
+    const seen = new Set();
+    const tree = libraryTreeData || {};
+    for (const s of tree.series || []) {
+      const id = `series:${s.key || s.title}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      entries.push({
+        id,
+        title: s.title || "",
+        type: s.kind || "tv",
+        year: null,
+      });
+    }
+    for (const m of tree.movies || []) {
+      const id = `movie:${m.identity || m.path || m.title}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      entries.push({
+        id,
+        title: m.title || m.filename || "",
+        type: "movie",
+        year: m.year ?? null,
+      });
+    }
+    return entries;
+  }
+
+  function setEnrichProgress(percent, message) {
+    const box = document.getElementById("library-enrich-progress");
+    const text = document.getElementById("library-enrich-progress-text");
+    const pct = document.getElementById("library-enrich-progress-pct");
+    const fill = document.getElementById("library-enrich-progress-fill");
+    const n = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (box) box.hidden = false;
+    if (fill) fill.style.width = `${n}%`;
+    if (pct) pct.textContent = `${Math.round(n)} %`;
+    if (text) text.textContent = message || "Affiches…";
+  }
+
+  function hideEnrichProgress() {
+    const box = document.getElementById("library-enrich-progress");
+    const fill = document.getElementById("library-enrich-progress-fill");
+    if (box) box.hidden = true;
+    if (fill) fill.style.width = "0%";
+  }
+
+  async function enrichLibraryPosters({ force = false } = {}) {
+    if (!settings?.tmdb_configured) {
+      if (force) showToast("Ajoutez une clé TMDB dans Paramètres.");
+      return;
+    }
+    if (!postersEnabled() && !force) return;
+    const entries = collectPosterEntries();
+    if (!entries.length) {
+      if (force) showToast("Rien à enrichir.");
+      return;
+    }
+    if (libraryEnrichTimer) {
+      clearInterval(libraryEnrichTimer);
+      libraryEnrichTimer = null;
+    }
+    setEnrichProgress(1, "Chargement des affiches TMDB…");
+    try {
+      const res = await fetch("/api/library/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries, background: true, language: "fr-FR" }),
+      });
+      const start = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        hideEnrichProgress();
+        if (force) showToast(start.error || "Enrichissement impossible.");
+        return;
+      }
+      const finish = (state) => {
+        if (libraryEnrichTimer) {
+          clearInterval(libraryEnrichTimer);
+          libraryEnrichTimer = null;
+        }
+        if (state?.error) {
+          hideEnrichProgress();
+          if (force) showToast(state.error);
+          return;
+        }
+        const posters = state?.result?.posters || {};
+        libraryPosters = { ...libraryPosters, ...posters };
+        const stats = state?.result?.stats || {};
+        setEnrichProgress(100, `Affiches : ${stats.found || 0} trouvées`);
+        refreshLibraryView();
+        setTimeout(hideEnrichProgress, 900);
+        if (force) {
+          showToast(`${stats.found || 0} affiche(s) · ${stats.cached || 0} cache`);
+        }
+      };
+      libraryEnrichTimer = setInterval(async () => {
+        try {
+          const progRes = await fetch("/api/library/enrich/progress");
+          const state = await progRes.json();
+          setEnrichProgress(state.percent || 0, state.message || "Affiches…");
+          if (state.done) finish(state);
+        } catch {
+          clearInterval(libraryEnrichTimer);
+          libraryEnrichTimer = null;
+          hideEnrichProgress();
+        }
+      }, 400);
+    } catch (err) {
+      hideEnrichProgress();
+      if (force) showToast(`Erreur TMDB : ${err?.message || "réseau"}`);
+    }
+  }
 
   function showLibraryError(message) {
     if (!libraryError) return;
@@ -2562,11 +2748,16 @@
         parts.push(`<h3 class="library-section-title">Séries (${series.length})</h3>`);
         for (const s of series) {
           const sid = `lib-ser-${escapeHtml(s.key)}`;
+          const posterId = `series:${s.key || s.title}`;
+          const hasPoster = postersEnabled() && libraryPosters[posterId]?.poster_url;
           parts.push(`
-            <details class="library-series" open>
+            <details class="library-series ${hasPoster || postersEnabled() ? "has-poster" : ""}" open>
               <summary class="library-series-head">
-                <span><strong>${escapeHtml(s.title || "Série")}</strong></span>
-                <span class="library-series-meta">${s.season_count || 0} saison(s) · ${s.episode_count || 0} ép. · ${s.file_count || 0} fichier(s)</span>
+                ${posterHtml(posterId, s.title)}
+                <span class="library-series-text">
+                  <span><strong>${escapeHtml(s.title || "Série")}</strong></span>
+                  <span class="library-series-meta">${s.season_count || 0} saison(s) · ${s.episode_count || 0} ép. · ${s.file_count || 0} fichier(s)</span>
+                </span>
               </summary>
               <div class="library-series-body" id="${sid}">
                 ${(s.seasons || [])
@@ -2611,13 +2802,18 @@
       if (movies.length) {
         parts.push(`<h3 class="library-section-title">Films (${movies.length})</h3>`);
         for (const m of movies) {
+          const posterId = `movie:${m.identity || m.path || m.title}`;
+          const showPh = postersEnabled();
           parts.push(`
-            <div class="library-movie-card" title="${escapeHtml(m.path || "")}">
-              <div>
-                <strong>${escapeHtml(m.title || m.filename || "Film")}</strong>
-                ${m.year != null ? ` <span class="library-item-meta">(${escapeHtml(String(m.year))})</span>` : ""}
+            <div class="library-movie-card ${showPh ? "has-poster" : ""}" title="${escapeHtml(m.path || "")}">
+              ${posterHtml(posterId, m.title)}
+              <div class="library-movie-text">
+                <div>
+                  <strong>${escapeHtml(m.title || m.filename || "Film")}</strong>
+                  ${m.year != null ? ` <span class="library-item-meta">(${escapeHtml(String(m.year))})</span>` : ""}
+                </div>
+                <span class="library-item-meta">${escapeHtml(m.filename || "")}</span>
               </div>
-              <span class="library-item-meta">${escapeHtml(m.filename || "")}</span>
             </div>`);
         }
       }
@@ -2750,6 +2946,7 @@
     libraryItems = data.items || [];
     libraryTreeData = data.tree || null;
     libraryDupesData = data.duplicates || null;
+    libraryPosters = {};
     const by = data.by_type || {};
     const tree = data.tree || {};
     const dupes = data.duplicates || {};
@@ -2766,6 +2963,9 @@
     }
     if (libraryResults) libraryResults.hidden = false;
     refreshLibraryView();
+    if (postersEnabled()) {
+      enrichLibraryPosters();
+    }
   }
 
   document.querySelectorAll(".library-filter").forEach((btn) => {
@@ -2789,6 +2989,26 @@
   });
 
   librarySearch?.addEventListener("input", () => refreshLibraryView());
+
+  document.getElementById("library-posters-toggle")?.addEventListener("change", (event) => {
+    const on = !!event.target.checked;
+    refreshLibraryView();
+    if (on) enrichLibraryPosters({ force: true });
+    else hideEnrichProgress();
+    // Persiste la préférence si possible
+    if (settings) {
+      settings.library_show_posters = on;
+      fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ library_show_posters: on }),
+      }).catch(() => {});
+    }
+  });
+
+  document.getElementById("btn-library-posters")?.addEventListener("click", () => {
+    enrichLibraryPosters({ force: true });
+  });
 
   libraryForm?.addEventListener("submit", async (event) => {
     event.preventDefault();

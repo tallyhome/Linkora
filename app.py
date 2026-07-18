@@ -62,6 +62,19 @@ _scan_state: dict = {
     "result": None,
 }
 
+# Progression enrichissement TMDB
+_enrich_lock = threading.Lock()
+_enrich_apply_lock = threading.Lock()
+_enrich_state: dict = {
+    "busy": False,
+    "done": False,
+    "error": "",
+    "percent": 0,
+    "phase": "",
+    "message": "",
+    "result": None,
+}
+
 
 def _diff_get_state() -> dict:
     with _diff_lock:
@@ -95,6 +108,23 @@ def _scan_get_state() -> dict:
 def _scan_set_state(**kwargs) -> None:
     with _scan_lock:
         _scan_state.update(kwargs)
+
+
+def _enrich_get_state() -> dict:
+    with _enrich_lock:
+        return {
+            "busy": _enrich_state["busy"],
+            "done": _enrich_state["done"],
+            "error": _enrich_state["error"],
+            "percent": _enrich_state["percent"],
+            "phase": _enrich_state["phase"],
+            "message": _enrich_state["message"],
+        }
+
+
+def _enrich_set_state(**kwargs) -> None:
+    with _enrich_lock:
+        _enrich_state.update(kwargs)
 
 
 @app.before_request
@@ -1081,6 +1111,138 @@ def api_library_scan_progress():
         }
         if _scan_state.get("done") and _scan_state.get("result") is not None:
             payload["result"] = _scan_state["result"]
+    return jsonify(payload)
+
+
+@app.post("/api/tmdb/test")
+def api_tmdb_test():
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    key = (data.get("api_key") or "").strip()
+    if not key or key.startswith("••••"):
+        key = app_settings.get_tmdb_api_key()
+    try:
+        result = tmdb_mod.test_api_key(key)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify(result)
+
+
+@app.get("/api/library/poster/<key>")
+def api_library_poster(key: str):
+    import tmdb as tmdb_mod
+
+    safe = (key or "").strip()
+    if not safe or "/" in safe or "\\" in safe or ".." in safe:
+        return jsonify({"error": "Clé invalide."}), 400
+    path = tmdb_mod.poster_file_for_key(safe)
+    if not path:
+        return jsonify({"error": "Affiche introuvable."}), 404
+    return send_file(path, mimetype="image/jpeg", max_age=86400 * 30)
+
+
+@app.post("/api/library/enrich")
+def api_library_enrich():
+    """Charge les affiches TMDB pour une liste de titres (async)."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    entries = data.get("entries") or []
+    if not isinstance(entries, list):
+        return jsonify({"error": "Liste d’entrées invalide."}), 400
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    background = bool(data.get("background", True))
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+
+    if not _enrich_apply_lock.acquire(blocking=False):
+        return jsonify({**_enrich_get_state(), "error": "Enrichissement déjà en cours."}), 409
+
+    def on_progress(info: dict) -> None:
+        _enrich_set_state(
+            busy=True,
+            done=False,
+            error="",
+            percent=int(info.get("percent") or 0),
+            phase=str(info.get("phase") or ""),
+            message=str(info.get("message") or ""),
+        )
+
+    def worker() -> None:
+        try:
+            _enrich_set_state(
+                busy=True,
+                done=False,
+                error="",
+                percent=1,
+                phase="prepare",
+                message="Préparation des affiches…",
+                result=None,
+            )
+            result = tmdb_mod.enrich_entries(
+                api_key,
+                entries,
+                language=language,
+                on_progress=on_progress,
+            )
+            _enrich_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="done",
+                message="Affiches prêtes.",
+                error="",
+                result=result,
+            )
+        except Exception as exc:
+            _enrich_set_state(
+                busy=False,
+                done=True,
+                percent=100,
+                phase="error",
+                message="",
+                error=str(exc),
+                result=None,
+            )
+        finally:
+            _enrich_apply_lock.release()
+
+    if background:
+        threading.Thread(target=worker, daemon=True, name="linkora-tmdb-enrich").start()
+        return jsonify(_enrich_get_state())
+
+    try:
+        worker()
+        with _enrich_lock:
+            err = _enrich_state.get("error") or ""
+            result = _enrich_state.get("result")
+        if err:
+            return jsonify({"error": err}), 400
+        return jsonify(result or {"error": "Résultat vide."})
+    except Exception:
+        if _enrich_apply_lock.locked():
+            try:
+                _enrich_apply_lock.release()
+            except RuntimeError:
+                pass
+        raise
+
+
+@app.get("/api/library/enrich/progress")
+def api_library_enrich_progress():
+    with _enrich_lock:
+        payload = {
+            "busy": _enrich_state["busy"],
+            "done": _enrich_state["done"],
+            "error": _enrich_state["error"],
+            "percent": _enrich_state["percent"],
+            "phase": _enrich_state["phase"],
+            "message": _enrich_state["message"],
+        }
+        if _enrich_state.get("done") and _enrich_state.get("result") is not None:
+            payload["result"] = _enrich_state["result"]
     return jsonify(payload)
 
 

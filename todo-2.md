@@ -13,7 +13,7 @@ doublons, diff PC ↔ NAS, optionnellement affiches (TMDB).
 | **2** | Vue bibliothèque | Arborescence Série → Saison → Épisodes + liste Films | ✅ faite | **1.6.0** |
 | **3** | Doublons | Détecter le même film / épisode malgré des noms de fichiers différents | ✅ faite | **1.7.0** |
 | **4** | Diff PC ↔ NAS | Comparer une ou plusieurs racines : manquants des deux côtés (+ progression) | ✅ faite | **1.8.0** → **1.9.0** |
-| **5** | Affiches (option) | Enrichir avec TMDB (posters) + cache local | ⏳ | **2.0.0** |
+| **5** | Affiches (option) | Enrichir avec TMDB (posters) + cache local | ✅ faite | **2.0.0** |
 
 ---
 
@@ -122,9 +122,9 @@ Enrichir la vue bibliothèque avec posters / infos (esprit Plex / Jellyfin lége
 - Affichage optionnel (case à cocher) — l’app reste utilisable sans
 
 ### Critères d’acceptation
-- [ ] Sans clé TMDB : bibliothèque fonctionne normalement
-- [ ] Avec clé : posters affichés pour les titres matchés
-- [ ] Cache évite de re-télécharger à chaque scan
+- [x] Sans clé TMDB : bibliothèque fonctionne normalement
+- [x] Avec clé : posters affichés pour les titres matchés
+- [x] Cache évite de re-télécharger à chaque scan
 
 ---
 
@@ -145,11 +145,13 @@ Enrichir la vue bibliothèque avec posters / infos (esprit Plex / Jellyfin lége
 - [x] Phase 2 — Vue bibliothèque
 - [x] Phase 3 — Doublons
 - [x] Phase 4 — Diff PC ↔ NAS
-- [ ] Phase 5 — Affiches TMDB
+- [x] Phase 5 — Affiches TMDB
 
-### Fichiers phases 1–4
+### Fichiers phases 1–5
 - `todo-2.md` — cahier des charges
 - `library_scan.py` — inventaire, arbre, doublons, `diff_libraries`
-- `app.py` — `/api/library/scan`, `/api/library/diff`, `/api/changelog`
-- UI : Bibliothèque + **Changelog** dans Aide
+- `tmdb.py` — matching TMDB + cache `data/posters/`
+- `network_shares.py` — identifiants NAS (UNC)
+- `app.py` — `/api/library/*`, `/api/tmdb/test`, `/api/changelog`
+- UI : Bibliothèque + affiches + Changelog dans Aide
 - `CHANGELOG.md` embarqué dans le build Windows
