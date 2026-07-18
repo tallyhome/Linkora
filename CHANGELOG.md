@@ -4,6 +4,21 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.2.3] — 2026-07-18
+
+### Ajouté
+- Historique biblio : bouton **Relancer** (rescan / re-diff, accéléré par le cache)
+
+### Amélioré
+- Formulaire **Diff PC ↔ NAS** : pleine largeur, champs de chemins plus longs
+- **Reboots** : séries séparées par année (`Les 4400 (2004)` ≠ `(2021)`) dans l’arbre, les doublons et le diff
+
+### Corrigé (inclus depuis 2.2.2 local)
+- Bascules Vue arbre / Liste plate / Doublons
+- Affichage clair des groupes de doublons
+
+---
+
 ## [2.2.2] — 2026-07-18
 
 ### Corrigé — Vues bibliothèque

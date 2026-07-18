@@ -183,7 +183,7 @@ def save_library_history(
     *,
     kind: str,
     title: str,
-    folders: list[str],
+    folders: list[str] | dict | None,
     summary: str,
     result: dict,
     count: int = 0,
@@ -206,7 +206,7 @@ def save_library_history(
             (
                 kind,
                 title[:200],
-                json.dumps(folders, ensure_ascii=False),
+                json.dumps(folders if folders is not None else [], ensure_ascii=False),
                 summary[:500],
                 "",
                 int(count),
@@ -243,6 +243,38 @@ def save_library_history(
     return get_library_history_item(row_id) or {"id": row_id}
 
 
+def _parse_library_folders(raw: str | None) -> dict:
+    """Normalise folders_json (liste legacy ou dict a/b/path)."""
+    try:
+        data = json.loads(raw or "[]")
+    except json.JSONDecodeError:
+        data = []
+    if isinstance(data, dict):
+        folders_a = [str(x).strip() for x in (data.get("a") or []) if str(x).strip()]
+        folders_b = [str(x).strip() for x in (data.get("b") or []) if str(x).strip()]
+        path = str(data.get("path") or "").strip()
+        if path and not folders_a and not folders_b:
+            folders = [path]
+        else:
+            folders = folders_a + folders_b
+        recursive = data.get("recursive")
+        return {
+            "folders": folders,
+            "folders_a": folders_a,
+            "folders_b": folders_b,
+            "recursive": True if recursive is None else bool(recursive),
+        }
+    if isinstance(data, list):
+        folders = [str(x).strip() for x in data if str(x).strip()]
+        return {
+            "folders": folders,
+            "folders_a": [],
+            "folders_b": [],
+            "recursive": True,
+        }
+    return {"folders": [], "folders_a": [], "folders_b": [], "recursive": True}
+
+
 def list_library_history(limit: int = 40) -> list[dict]:
     init_library_history()
     with _connect() as conn:
@@ -258,15 +290,13 @@ def list_library_history(limit: int = 40) -> list[dict]:
     out = []
     for row in rows:
         item = dict(row)
-        try:
-            item["folders"] = json.loads(item.pop("folders_json") or "[]")
-        except json.JSONDecodeError:
-            item["folders"] = []
+        parsed = _parse_library_folders(item.pop("folders_json", None))
+        item.update(parsed)
         out.append(item)
     return out
 
 
-def get_library_history_item(item_id: int) -> dict | None:
+def get_library_history_item(item_id: int, *, include_result: bool = True) -> dict | None:
     from paths import DATA_DIR
 
     init_library_history()
@@ -277,11 +307,11 @@ def get_library_history_item(item_id: int) -> dict | None:
     if not row:
         return None
     item = dict(row)
-    try:
-        item["folders"] = json.loads(item.pop("folders_json") or "[]")
-    except json.JSONDecodeError:
-        item["folders"] = []
-        item.pop("folders_json", None)
+    parsed = _parse_library_folders(item.pop("folders_json", None))
+    item.update(parsed)
+    if not include_result:
+        item["result"] = None
+        return item
     result_file = item.get("result_file") or ""
     path = DATA_DIR / "library_history" / result_file
     if path.is_file():

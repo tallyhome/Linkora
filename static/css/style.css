@@ -806,18 +806,33 @@ html[data-theme="alldebrid"] .bg-atmosphere {
 
 .library-diff-form {
   margin-top: 1.25rem;
+  /* extract-form est en grille 3 colonnes — ici on veut toute la largeur */
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 0.85rem;
+}
+
+.library-diff-form > .field-hint {
+  margin: 0;
+  max-width: none;
 }
 
 .library-diff-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 800px) {
   .library-diff-fields {
     grid-template-columns: 1fr;
   }
+}
+
+.library-diff-side {
+  min-width: 0;
 }
 
 .library-diff-side-head {
@@ -844,6 +859,8 @@ html[data-theme="alldebrid"] .bg-atmosphere {
 .library-path-row input {
   width: 100%;
   min-width: 0;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.88rem;
 }
 
 .library-path-row .btn-path-remove {
@@ -1849,8 +1866,10 @@ html[data-theme="alldebrid"] .history-item-detail {
 
 .history-item-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .history-empty {

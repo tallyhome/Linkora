@@ -3079,7 +3079,7 @@
           const short =
             folders.length > 80 ? `${folders.slice(0, 77)}…` : folders;
           return `
-        <li class="history-item" data-id="${item.id}">
+        <li class="history-item" data-id="${item.id}" data-kind="${escapeHtml(item.kind || "scan")}">
           <div class="history-item-row">
             <button type="button" class="history-item-main" data-action="open">
               <p class="history-item-title">${escapeHtml(kind)} — ${escapeHtml(item.title || "")}</p>
@@ -3090,6 +3090,7 @@
             </button>
             <div class="history-item-actions">
               <button type="button" class="btn btn-ghost" data-action="open" style="padding:0.45rem 0.75rem;font-size:0.85rem">Ouvrir</button>
+              <button type="button" class="btn btn-primary btn-xs" data-action="rescan" title="Relancer le scan (le cache accélère les fichiers inchangés)">Relancer</button>
               <button type="button" class="btn btn-danger" data-action="delete">Supprimer</button>
             </div>
           </div>
@@ -3124,6 +3125,69 @@
         if (res.ok) loadLibraryHistory();
       } catch {
         showToast("Suppression impossible.");
+      }
+      return;
+    }
+    if (btn.dataset.action === "rescan") {
+      try {
+        // light=1 : pas besoin du gros JSON résultat, juste les dossiers
+        const res = await fetch(`/api/library/history/${id}?light=1`);
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || "Entrée introuvable.");
+          return;
+        }
+        if (data.kind === "diff") {
+          let foldersA = data.folders_a || [];
+          let foldersB = data.folders_b || [];
+          // Anciennes entrées : dossiers fusionnés sans split a/b
+          if ((!foldersA.length || !foldersB.length) && (data.folders || []).length >= 2) {
+            const mid = Math.ceil(data.folders.length / 2);
+            foldersA = data.folders.slice(0, mid);
+            foldersB = data.folders.slice(mid);
+          }
+          if (!foldersA.length || !foldersB.length) {
+            // Fallback : charger le résultat complet
+            const fullRes = await fetch(`/api/library/history/${id}`);
+            const full = await fullRes.json();
+            foldersA = full.result?.folders_a || [];
+            foldersB = full.result?.folders_b || [];
+            if (libraryDiffRecursive && full.result) {
+              libraryDiffRecursive.checked = full.result.recursive !== false;
+            }
+          }
+          if (!foldersA.length || !foldersB.length) {
+            showToast("Impossible de relancer : dossiers manquants.");
+            return;
+          }
+          fillLibraryPathList(libraryDiffPcList, foldersA, "D:\\Media");
+          fillLibraryPathList(libraryDiffNasList, foldersB, "\\\\NAS\\Media");
+          if (libraryDiffRecursive) {
+            libraryDiffRecursive.checked = data.recursive !== false;
+          }
+          showToast("Relance du diff…");
+          document.getElementById("btn-library-diff")?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          await startLibraryDiff();
+        } else {
+          const folder =
+            (data.folders && data.folders[0]) || data.title || "";
+          if (!folder) {
+            showToast("Impossible de relancer : dossier manquant.");
+            return;
+          }
+          if (libraryFolder) libraryFolder.value = folder;
+          if (libraryRecursive) {
+            libraryRecursive.checked = data.recursive !== false;
+          }
+          showToast("Relance du scan (cache si fichiers inchangés)…");
+          libraryFolder?.scrollIntoView({ behavior: "smooth", block: "center" });
+          await startLibraryScan();
+        }
+      } catch {
+        showToast("Relance impossible.");
       }
       return;
     }
@@ -3334,8 +3398,7 @@
     enrichLibraryPosters({ force: true });
   });
 
-  libraryForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  async function startLibraryScan() {
     const folder = (libraryFolder?.value || "").trim();
     if (!folder) {
       showLibraryError("Indiquez un dossier.");
@@ -3398,7 +3461,15 @@
         if (state?.result) {
           setProg(100, "Scan terminé.");
           renderLibrary(state.result);
-          showToast(`${state.result.count || 0} média(s) inventorié(s).`);
+          const cache = state.result.cache || {};
+          const reused = cache.reused || 0;
+          const parsed = cache.parsed || 0;
+          showToast(
+            reused || parsed
+              ? `${state.result.count || 0} média(s) · cache ${reused}/${reused + parsed}`
+              : `${state.result.count || 0} média(s) inventorié(s).`
+          );
+          loadLibraryHistory();
           setTimeout(hideProg, 800);
         } else {
           showLibraryError("Résultat vide.");
@@ -3430,6 +3501,11 @@
       hideProg();
       setLibraryLoading(false);
     }
+  }
+
+  libraryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await startLibraryScan();
   });
 
   document.getElementById("btn-library-copy")?.addEventListener("click", async () => {
@@ -3566,6 +3642,17 @@
     return row;
   }
 
+  function fillLibraryPathList(listEl, paths, placeholder = "") {
+    if (!listEl) return;
+    listEl.innerHTML = "";
+    const list = (paths || []).map((p) => String(p || "").trim()).filter(Boolean);
+    if (!list.length) {
+      addLibraryPathRow(listEl, "", placeholder);
+      return;
+    }
+    list.forEach((path) => addLibraryPathRow(listEl, path, placeholder));
+  }
+
   function collectLibraryPaths(listEl) {
     if (!listEl) return [];
     const paths = [];
@@ -3692,7 +3779,7 @@
     });
   });
 
-  btnLibraryDiff?.addEventListener("click", async () => {
+  async function startLibraryDiff() {
     const foldersA = collectLibraryPaths(libraryDiffPcList);
     const foldersB = collectLibraryPaths(libraryDiffNasList);
     if (!foldersA.length || !foldersB.length) {
@@ -3765,6 +3852,10 @@
       hideLibraryDiffProgress();
       setLibraryDiffLoading(false);
     }
+  }
+
+  btnLibraryDiff?.addEventListener("click", () => {
+    startLibraryDiff();
   });
 
   document.getElementById("btn-library-diff-copy")?.addEventListener("click", async () => {

@@ -685,7 +685,8 @@ def api_library_history():
 
 @app.get("/api/library/history/<int:item_id>")
 def api_library_history_item(item_id: int):
-    item = storage.get_library_history_item(item_id)
+    light = str(request.args.get("light") or "").lower() in ("1", "true", "yes")
+    item = storage.get_library_history_item(item_id, include_result=not light)
     if not item:
         return jsonify({"error": "Entrée introuvable."}), 404
     return jsonify(item)
@@ -1080,7 +1081,7 @@ def api_library_scan():
                 storage.save_library_history(
                     kind="scan",
                     title=folder,
-                    folders=[folder],
+                    folders={"path": folder, "recursive": recursive},
                     summary=(
                         f"{result.get('count') or 0} média(s) · "
                         f"{cache_info.get('reused', 0)} cache · "
@@ -1434,7 +1435,11 @@ def api_library_diff():
                 storage.save_library_history(
                     kind="diff",
                     title=f"{label_a} ↔ {label_b}",
-                    folders=list(folders_a) + list(folders_b),
+                    folders={
+                        "a": list(folders_a),
+                        "b": list(folders_b),
+                        "recursive": recursive,
+                    },
                     summary=(
                         f"{result.get('missing_on_b_count') or 0} manquants NAS · "
                         f"{result.get('missing_on_a_count') or 0} manquants PC · "

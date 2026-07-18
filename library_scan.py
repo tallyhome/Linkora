@@ -12,11 +12,17 @@ import smart_naming
 ARCHIVE_EXTS = {".zip", ".rar", ".7z"}
 
 _IDENTITY_RE = re.compile(r"[^a-z0-9]+")
+_YEAR_IN_TITLE_RE = re.compile(
+    r"[\s._\-]*[\(\[]?(19\d{2}|20\d{2})[\)\]]?\s*$"
+)
 # Saison seule dans un nom d’archive : S03, Saison 3, Season 03
 _SEASON_ONLY_RE = re.compile(
     r"(?:^|[\s._\-\[(])(?:Saison|Season|S)[\s._\-]*(\d{1,2})(?![\s._\-]*E\d)",
     re.IGNORECASE,
 )
+
+# Invalide les anciens caches dont l’identité TV n’incluait pas l’année (reboots)
+SCAN_CACHE_VERSION = 3
 
 
 def _strip_accents(text: str) -> str:
@@ -24,9 +30,42 @@ def _strip_accents(text: str) -> str:
     return "".join(c for c in normalized if not unicodedata.combining(c))
 
 
+def title_year_parts(
+    title: str, year: int | None = None
+) -> tuple[str, int | None]:
+    """
+    Sépare « Les 4400 (2021) » → (« Les 4400 », 2021).
+    L’année passée en argument prime si déjà connue (dossier parent).
+    """
+    text = str(title or "").strip()
+    y = year
+    m = re.search(r"[\(\[](19\d{2}|20\d{2})[\)\]]\s*$", text)
+    if m:
+        if y is None:
+            try:
+                y = int(m.group(1))
+            except ValueError:
+                pass
+        text = text[: m.start()].rstrip(" ._-\t")
+    elif y is None:
+        m2 = _YEAR_IN_TITLE_RE.search(text)
+        if m2:
+            try:
+                y = int(m2.group(1))
+            except ValueError:
+                pass
+            text = text[: m2.start()].rstrip(" ._-\t")
+    try:
+        y_i = int(y) if y is not None else None
+    except (TypeError, ValueError):
+        y_i = None
+    return text, y_i
+
+
 def normalize_title(title: str) -> str:
     """Titre comparable : minuscules, sans accents, alphanum uniquement."""
-    raw = _strip_accents(str(title or "").lower().strip())
+    cleaned, _ = title_year_parts(title)
+    raw = _strip_accents(cleaned.lower().strip())
     raw = _IDENTITY_RE.sub("", raw)
     return raw or "inconnu"
 
@@ -38,7 +77,7 @@ def soft_series_key(title: str, year: int | None = None) -> str:
     - normalise fautes fréquentes (tous/tout, double lettres finales)
     - sépare les reboot via l'année si connue
     """
-    text = str(title or "")
+    text, y = title_year_parts(title, year)
     text = re.sub(r"^\d{1,3}\s*[-–.]?\s*", "", text).strip()
     key = normalize_title(text)
     # Variantes FR fréquentes
@@ -53,41 +92,48 @@ def soft_series_key(title: str, year: int | None = None) -> str:
         key = key.replace(a, b)
     # Double lettre finale typo (risquess → risques)
     key = re.sub(r"([a-z])\1+$", r"\1", key)
-    if year is not None:
-        try:
-            return f"{key}|y{int(year)}"
-        except (TypeError, ValueError):
-            pass
+    if y is not None:
+        return f"{key}|y{int(y)}"
     return key or "inconnu"
 
 
 def media_identity(info: dict[str, Any]) -> str:
     """
     Clé stable pour doublons / diff (phases 3–4).
-    Ex. defiance|s03e01  ou  inception|y2010  ou  defiance|s03|pack
+    Ex. defiance|y2013|s03e01  ou  inception|y2010  ou  defiance|s03|pack
+    L’année sépare les reboots (ex. Les 4400 2004 vs 2021).
     """
     media = info.get("type") or "other"
-    title_key = normalize_title(info.get("title") or "")
+    raw_year = info.get("year")
+    try:
+        year_hint = int(raw_year) if raw_year is not None else None
+    except (TypeError, ValueError):
+        year_hint = None
+    clean_title, year = title_year_parts(info.get("title") or "", year_hint)
+    title_key = normalize_title(clean_title)
+
+    def _with_year(core: str) -> str:
+        if year is not None and media in ("tv", "anime", "archive"):
+            return f"{title_key}|y{int(year)}|{core}" if core else f"{title_key}|y{int(year)}"
+        if year is not None and media == "movie":
+            return f"{title_key}|y{int(year)}"
+        return f"{title_key}|{core}" if core else title_key
 
     if media == "archive":
         season = info.get("season")
         episode = info.get("episode")
         if season is not None and episode is not None:
             try:
-                return f"{title_key}|s{int(season):02d}e{int(episode):02d}|archive"
+                return _with_year(f"s{int(season):02d}e{int(episode):02d}|archive")
             except (TypeError, ValueError):
                 pass
         if season is not None:
             try:
-                return f"{title_key}|s{int(season):02d}|pack"
+                return _with_year(f"s{int(season):02d}|pack")
             except (TypeError, ValueError):
                 pass
-        year = info.get("year")
         if year is not None:
-            try:
-                return f"{title_key}|y{int(year)}|archive"
-            except (TypeError, ValueError):
-                pass
+            return f"{title_key}|y{int(year)}|archive"
         original = Path(str(info.get("original") or "")).stem
         return f"{title_key}|archive|{normalize_title(original)[:40]}"
 
@@ -96,23 +142,27 @@ def media_identity(info: dict[str, Any]) -> str:
         episode = info.get("episode")
         if season is not None and episode is not None:
             try:
-                return f"{title_key}|s{int(season):02d}e{int(episode):02d}"
+                core = f"s{int(season):02d}e{int(episode):02d}"
+                if year is not None:
+                    return f"{title_key}|y{int(year)}|{core}"
+                return f"{title_key}|{core}"
             except (TypeError, ValueError):
                 pass
         if episode is not None:
             try:
-                return f"{title_key}|e{int(episode):03d}"
+                core = f"e{int(episode):03d}"
+                if year is not None:
+                    return f"{title_key}|y{int(year)}|{core}"
+                return f"{title_key}|{core}"
             except (TypeError, ValueError):
                 pass
+        if year is not None:
+            return f"{title_key}|y{int(year)}|{media}"
         return f"{title_key}|{media}"
 
     if media == "movie":
-        year = info.get("year")
         if year is not None:
-            try:
-                return f"{title_key}|y{int(year)}"
-            except (TypeError, ValueError):
-                pass
+            return f"{title_key}|y{int(year)}"
         return f"{title_key}|movie"
 
     original = Path(str(info.get("original") or "")).stem
@@ -260,7 +310,18 @@ def scan_library(
             and abs(float(prev.get("mtime") or 0) - mtime) < 0.01
             and prev.get("identity")
         ):
-            items.append(prev)
+            # Recalcule identité / année (ex. reboots) sans reparser le fichier
+            refreshed = dict(prev)
+            clean_t, y = title_year_parts(
+                refreshed.get("title") or "", refreshed.get("year")
+            )
+            if y is not None and refreshed.get("year") is None:
+                refreshed["year"] = y
+            if clean_t and refreshed.get("title"):
+                # garde le titre d’affichage, année à part
+                pass
+            refreshed["identity"] = media_identity(refreshed)
+            items.append(refreshed)
             reused += 1
             continue
         pending.append((path_str, name, ext, size, mtime))
@@ -279,6 +340,10 @@ def scan_library(
                 path_hint=path_str,
                 root_hint=root_str,
             )
+        # Année dossier / titre → sépare les reboots
+        _clean, y = title_year_parts(info.get("title") or "", info.get("year"))
+        if y is not None:
+            info["year"] = y
         identity = media_identity(info)
         return {
             "path": path_str,
@@ -492,23 +557,26 @@ def _load_scan_cache(folder: str, recursive: bool) -> dict[str, Any] | None:
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        if isinstance(data, dict) and isinstance(data.get("items"), list):
-            return data
-    except (OSError, json.JSONDecodeError):
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            return None
+        if int(data.get("version") or 0) != SCAN_CACHE_VERSION:
+            return None
+        return data
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
     return None
 
 
 def _save_scan_cache(folder: str, recursive: bool, result: dict[str, Any]) -> None:
     import json
-    import time as _time
+    import time
 
     path = _cache_dir() / f"{_cache_key(folder, recursive)}.json"
     payload = {
-        "folder": folder,
+        "version": SCAN_CACHE_VERSION,
+        "folder": result.get("folder") or folder,
         "recursive": recursive,
-        "saved_at": int(_time.time()),
-        "count": result.get("count"),
+        "saved_at": int(time.time()),
         "items": result.get("items") or [],
     }
     try:
@@ -524,7 +592,8 @@ def _series_key(item: dict[str, Any]) -> str:
         year_i = int(year) if year is not None else None
     except (TypeError, ValueError):
         year_i = None
-    return soft_series_key(item.get("title") or "", year_i)
+    clean, y = title_year_parts(item.get("title") or "", year_i)
+    return soft_series_key(clean, y)
 
 
 def _merge_similar_series(
@@ -556,10 +625,15 @@ def _merge_similar_series(
     for i, a in enumerate(keys):
         for b in keys[i + 1 :]:
             ya, yb = year_of(a), year_of(b)
+            # Reboots : années différentes → jamais fusionner
             if ya is not None and yb is not None and ya != yb:
                 continue
             ba, bb = base_of(a), base_of(b)
             if not ba or not bb:
+                continue
+            # Même titre, une seule année connue → ne pas fusionner
+            # (évite de mélanger un reboot non daté avec l’original)
+            if ba == bb and (ya is None) != (yb is None):
                 continue
             if abs(len(ba) - len(bb)) > max(4, len(ba) // 3):
                 continue
