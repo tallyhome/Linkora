@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.2.2] — 2026-07-18
+
+### Corrigé — Vues bibliothèque
+- **Vue arbre / liste plate / doublons** : le CSS `display:flex` masquait l’attribut `hidden` → les 3 vues se superposaient
+- **Doublons** : groupes repliables avec titre + SxxExx + taille + chemin de chaque copie
+
+---
+
 ## [2.2.1] — 2026-07-18
 
 ### Amélioré — Perf scan NAS + TMDB

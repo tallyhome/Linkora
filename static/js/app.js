@@ -2887,6 +2887,21 @@
       : `<p class="library-empty">Aucun résultat pour ce filtre / recherche.</p>`;
   }
 
+  function formatDupeLabel(g) {
+    const season = g.season ?? g.files?.[0]?.season;
+    const episode = g.episode ?? g.files?.[0]?.episode;
+    const year = g.year ?? g.files?.[0]?.year;
+    const type = g.type || g.files?.[0]?.type;
+    if (season != null && episode != null) {
+      return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+    }
+    if (season != null && type === "archive") {
+      return `S${String(season).padStart(2, "0")} (pack)`;
+    }
+    if (year != null) return String(year);
+    return "";
+  }
+
   function renderLibraryDupes() {
     if (!libraryDupes) return;
     const data = libraryDupesData || { groups: [], group_count: 0 };
@@ -2901,6 +2916,7 @@
       const blob = [
         g.title,
         g.identity,
+        formatDupeLabel(g),
         ...(g.files || []).map((f) => `${f.filename} ${f.path}`),
       ]
         .join(" ")
@@ -2917,57 +2933,64 @@
       return;
     }
 
+    const fileTotal = groups.reduce((n, g) => n + (g.count || 0), 0);
     libraryDupes.innerHTML = `
-      <p class="results-summary">${groups.length} groupe(s) · ${groups.reduce((n, g) => n + (g.count || 0), 0)} fichier(s)</p>
+      <div class="library-dupes-intro">
+        <p class="results-summary"><strong>${groups.length}</strong> groupe(s) · <strong>${fileTotal}</strong> fichier(s)</p>
+        <p class="field-hint">Chaque groupe = même série/épisode (ou film) trouvé plusieurs fois, avec des noms ou chemins différents. Ouvrez un groupe pour voir les copies.</p>
+      </div>
       ${groups
-        .map((g) => {
+        .map((g, gi) => {
           const files = g.files || [];
+          const se = formatDupeLabel(g);
           return `
-        <article class="library-dupe-group ${g.ambiguous ? "is-ambiguous" : ""}">
-          <header class="library-dupe-head">
-            <div>
+        <details class="library-dupe-group ${g.ambiguous ? "is-ambiguous" : ""}">
+          <summary class="library-dupe-head">
+            <div class="library-dupe-title">
               <strong>${escapeHtml(g.title || "Sans titre")}</strong>
-              <span class="library-item-meta"> · ${escapeHtml(typeLabel(g.type, files[0]))} · <code class="identity-key">${escapeHtml(g.identity || "")}</code></span>
+              ${se ? `<span class="library-dupe-se">${escapeHtml(se)}</span>` : ""}
+              <span class="library-item-meta">${escapeHtml(typeLabel(g.type, files[0]))}</span>
               ${g.ambiguous ? `<span class="library-dupe-badge" title="Parsing incertain — vérifiez manuellement">À vérifier</span>` : ""}
             </div>
-            <span class="library-series-meta">${g.count} fichiers</span>
-          </header>
+            <span class="library-dupe-count">${g.count} copie(s)</span>
+          </summary>
           <ul class="library-dupe-list">
             ${files
               .map(
-                (f) => `
+                (f, fi) => `
               <li>
                 <span class="library-dupe-size">${escapeHtml(f.size_label || "—")}</span>
                 <div>
-                  <div>${escapeHtml(f.filename || "")}${f.ambiguous ? " · <em>ambigu</em>" : ""}</div>
-                  <div class="library-dupe-path">${escapeHtml(f.path || "")}</div>
+                  <div class="library-dupe-file">
+                    <span class="library-dupe-index">#${fi + 1}</span>
+                    ${escapeHtml(f.filename || "")}${f.ambiguous ? " · <em>ambigu</em>" : ""}
+                  </div>
+                  <div class="library-dupe-path" title="${escapeHtml(f.path || "")}">${escapeHtml(f.path || "")}</div>
                 </div>
               </li>`
               )
               .join("")}
           </ul>
-        </article>`;
+        </details>`;
         })
         .join("")}`;
   }
 
   function refreshLibraryView() {
-    if (libraryView === "tree") {
-      if (libraryTree) libraryTree.hidden = false;
-      if (libraryDupes) libraryDupes.hidden = true;
-      if (libraryFlatWrap) libraryFlatWrap.hidden = true;
-      renderLibraryTree();
-    } else if (libraryView === "dupes") {
-      if (libraryTree) libraryTree.hidden = true;
-      if (libraryDupes) libraryDupes.hidden = false;
-      if (libraryFlatWrap) libraryFlatWrap.hidden = true;
-      renderLibraryDupes();
-    } else {
-      if (libraryTree) libraryTree.hidden = true;
-      if (libraryDupes) libraryDupes.hidden = true;
-      if (libraryFlatWrap) libraryFlatWrap.hidden = false;
-      renderLibraryFlat();
-    }
+    const isTree = libraryView === "tree";
+    const isDupes = libraryView === "dupes";
+    if (libraryTree) libraryTree.hidden = !isTree;
+    if (libraryDupes) libraryDupes.hidden = !isDupes;
+    if (libraryFlatWrap) libraryFlatWrap.hidden = isTree || isDupes;
+
+    const expandBtn = document.getElementById("btn-library-expand");
+    const collapseBtn = document.getElementById("btn-library-collapse");
+    if (expandBtn) expandBtn.hidden = !isTree;
+    if (collapseBtn) collapseBtn.hidden = !isTree;
+
+    if (isTree) renderLibraryTree();
+    else if (isDupes) renderLibraryDupes();
+    else renderLibraryFlat();
   }
 
   function renderLibrary(data) {
@@ -2990,6 +3013,11 @@
         ` · ${data.folder || ""}`;
     }
     if (libraryResults) libraryResults.hidden = false;
+    const dupesBtn = document.querySelector('.library-view[data-lib-view="dupes"]');
+    if (dupesBtn) {
+      const n = libraryDupesData?.group_count || 0;
+      dupesBtn.textContent = n ? `Doublons (${n})` : "Doublons";
+    }
     refreshLibraryView();
     if (postersEnabled()) {
       enrichLibraryPosters();
