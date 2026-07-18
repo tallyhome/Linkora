@@ -4,6 +4,15 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [1.8.0] — 2026-07-18
+
+### Ajouté — Bibliothèque (phase 4 / 5) + Changelog in-app
+- **Diff PC ↔ NAS** : compare deux dossiers par identité (manquants NAS / PC / communs)
+- Copie des listes de diff
+- **Changelog** dans Aide (charge `CHANGELOG.md` via `/api/changelog`)
+
+---
+
 ## [1.7.0] — 2026-07-18
 
 ### Ajouté — Bibliothèque (phase 3 / 5)

@@ -2317,6 +2317,7 @@
       panel.hidden = !active;
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+    if (name === "help") loadChangelog();
   }
 
   tabButtons.forEach((btn) => {
@@ -2326,6 +2327,25 @@
   document.getElementById("btn-help")?.addEventListener("click", () => {
     switchTab("help");
   });
+
+  let changelogLoaded = false;
+  async function loadChangelog(force = false) {
+    const box = document.getElementById("changelog-content");
+    if (!box) return;
+    if (changelogLoaded && !force) return;
+    try {
+      const res = await fetch("/api/changelog");
+      const data = await res.json();
+      if (!res.ok || !data.html) {
+        box.innerHTML = `<p class="library-empty">${escapeHtml(data.error || "Changelog indisponible.")}</p>`;
+        return;
+      }
+      box.innerHTML = data.html;
+      changelogLoaded = true;
+    } catch {
+      box.innerHTML = `<p class="library-empty">Impossible de charger le changelog.</p>`;
+    }
+  }
 
   document.querySelectorAll('.help-toc a[href^="#"]').forEach((a) => {
     a.addEventListener("click", (event) => {
@@ -2762,6 +2782,183 @@
     try {
       await navigator.clipboard.writeText(text);
       showToast("Liste copiée.");
+    } catch {
+      showToast("Copie impossible.");
+    }
+  });
+
+  // ─── Diff PC ↔ NAS (phase 4) ─────────────────────────────────────────────
+  const btnLibraryDiff = document.getElementById("btn-library-diff");
+  const libraryFolderPc = document.getElementById("library-folder-pc");
+  const libraryFolderNas = document.getElementById("library-folder-nas");
+  const libraryDiffRecursive = document.getElementById("library-diff-recursive");
+  const libraryDiffError = document.getElementById("library-diff-error");
+  const libraryDiffResults = document.getElementById("library-diff-results");
+  const libraryDiffSummary = document.getElementById("library-diff-summary");
+  const libraryDiffBody = document.getElementById("library-diff-body");
+  let libraryDiffData = null;
+  let libraryDiffTab = "missing_b";
+
+  function showLibraryDiffError(message) {
+    if (!libraryDiffError) return;
+    if (!message) {
+      libraryDiffError.hidden = true;
+      libraryDiffError.textContent = "";
+      return;
+    }
+    libraryDiffError.hidden = false;
+    libraryDiffError.textContent = message;
+  }
+
+  function setLibraryDiffLoading(loading) {
+    if (!btnLibraryDiff) return;
+    btnLibraryDiff.disabled = loading;
+    const spinner = btnLibraryDiff.querySelector(".btn-spinner");
+    const label = btnLibraryDiff.querySelector(".btn-label");
+    if (spinner) spinner.hidden = !loading;
+    if (label) label.textContent = loading ? "Comparaison…" : "Comparer";
+  }
+
+  function formatDiffLabel(item) {
+    const se = formatSe(item);
+    const bits = [item.title || item.filename || "—"];
+    if (se !== "—") bits.push(se);
+    if (item.year != null) bits.push(String(item.year));
+    return bits.join(" · ");
+  }
+
+  function currentDiffList() {
+    if (!libraryDiffData) return [];
+    if (libraryDiffTab === "missing_a") return libraryDiffData.missing_on_a || [];
+    if (libraryDiffTab === "common") return libraryDiffData.common || [];
+    return libraryDiffData.missing_on_b || [];
+  }
+
+  function renderLibraryDiff() {
+    if (!libraryDiffBody || !libraryDiffData) return;
+    const labelA = libraryDiffData.label_a || "PC";
+    const labelB = libraryDiffData.label_b || "NAS";
+    const list = currentDiffList();
+
+    if (libraryDiffTab === "common") {
+      libraryDiffBody.innerHTML = list.length
+        ? list
+            .map((row) => {
+              const a = row.a || {};
+              const b = row.b || {};
+              return `
+            <div class="library-diff-row">
+              <span class="library-dupe-size">OK</span>
+              <div>
+                <strong>${escapeHtml(row.title || row.identity || "")}</strong>
+                <div class="diff-meta">${escapeHtml(labelA)}: ${escapeHtml(a.filename || "")}</div>
+                <div class="diff-meta">${escapeHtml(labelB)}: ${escapeHtml(b.filename || "")}</div>
+                <div class="diff-meta"><code class="identity-key">${escapeHtml(row.identity || "")}</code></div>
+              </div>
+            </div>`;
+            })
+            .join("")
+        : `<p class="library-empty">Aucun élément commun.</p>`;
+      return;
+    }
+
+    const sideLabel = libraryDiffTab === "missing_a" ? labelB : labelA;
+    libraryDiffBody.innerHTML = list.length
+      ? list
+          .map(
+            (item) => `
+          <div class="library-diff-row" title="${escapeHtml(item.path || "")}">
+            <span class="library-dupe-size">${escapeHtml(item.size_label || "—")}</span>
+            <div>
+              <strong>${escapeHtml(formatDiffLabel(item))}</strong>
+              <div class="diff-meta">${escapeHtml(typeLabel(item.type, item))} · ${escapeHtml(sideLabel)}</div>
+              <div class="diff-meta">${escapeHtml(item.path || "")}</div>
+              <div class="diff-meta"><code class="identity-key">${escapeHtml(item.identity || "")}</code></div>
+            </div>
+          </div>`
+          )
+          .join("")
+      : `<p class="library-empty">Aucun élément dans cette liste.</p>`;
+  }
+
+  document.querySelectorAll(".library-diff-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      libraryDiffTab = btn.dataset.diffTab || "missing_b";
+      document.querySelectorAll(".library-diff-tab").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      renderLibraryDiff();
+    });
+  });
+
+  btnLibraryDiff?.addEventListener("click", async () => {
+    const folderA = (libraryFolderPc?.value || "").trim();
+    const folderB = (libraryFolderNas?.value || "").trim();
+    if (!folderA || !folderB) {
+      showLibraryDiffError("Indiquez le dossier PC et le dossier NAS.");
+      return;
+    }
+    showLibraryDiffError("");
+    setLibraryDiffLoading(true);
+    try {
+      const res = await fetch("/api/library/diff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder_a: folderA,
+          folder_b: folderB,
+          recursive: !!libraryDiffRecursive?.checked,
+          label_a: "PC",
+          label_b: "NAS",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showLibraryDiffError(data.error || "Comparaison impossible.");
+        if (libraryDiffResults) libraryDiffResults.hidden = true;
+        return;
+      }
+      libraryDiffData = data;
+      if (libraryDiffSummary) {
+        libraryDiffSummary.textContent =
+          `${data.identities_a || 0} identité(s) PC · ${data.identities_b || 0} NAS · ` +
+          `${data.missing_on_b_count || 0} manquant(s) sur NAS · ` +
+          `${data.missing_on_a_count || 0} manquant(s) sur PC · ` +
+          `${data.common_count || 0} commun(s)`;
+      }
+      if (libraryDiffResults) libraryDiffResults.hidden = false;
+      renderLibraryDiff();
+      showToast("Comparaison terminée.");
+    } catch {
+      showLibraryDiffError("Erreur réseau.");
+    } finally {
+      setLibraryDiffLoading(false);
+    }
+  });
+
+  document.getElementById("btn-library-diff-copy")?.addEventListener("click", async () => {
+    const list = currentDiffList();
+    if (!list.length) {
+      showToast("Rien à copier.");
+      return;
+    }
+    let text = "";
+    if (libraryDiffTab === "common") {
+      text = list
+        .map((row) => {
+          const a = row.a || {};
+          const b = row.b || {};
+          return `${row.title || ""}\t${row.identity || ""}\t${a.path || ""}\t${b.path || ""}`;
+        })
+        .join("\n");
+    } else {
+      text = list
+        .map((item) => `${formatDiffLabel(item)}\t${item.identity || ""}\t${item.path || ""}`)
+        .join("\n");
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Liste diff copiée.");
     } catch {
       showToast("Copie impossible.");
     }

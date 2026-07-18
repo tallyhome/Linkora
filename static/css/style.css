@@ -631,6 +631,89 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   word-break: break-all;
 }
 
+.library-diff-form {
+  margin-top: 1.25rem;
+}
+
+.library-diff-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+@media (max-width: 800px) {
+  .library-diff-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.library-diff-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.25rem 0 1rem;
+}
+
+.library-diff-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.35rem 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.library-diff-row .diff-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.changelog-content {
+  max-height: 28rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.changelog-content h2,
+.changelog-content h3,
+.changelog-content h4 {
+  margin: 1rem 0 0.4rem;
+}
+
+.changelog-content h3:first-child,
+.changelog-content h2:first-child {
+  margin-top: 0;
+}
+
+.changelog-content ul {
+  margin: 0.35rem 0 0.75rem 1.1rem;
+  padding: 0;
+}
+
+.changelog-content li {
+  margin: 0.2rem 0;
+}
+
+.changelog-content hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1rem 0;
+}
+
+.library-diff-tab.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .rename-table .col-check input {
   width: 1.05rem;
   height: 1.05rem;

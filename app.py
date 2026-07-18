@@ -100,6 +100,91 @@ def _parse_hosts(data: dict) -> list[str]:
     return out
 
 
+@app.get("/api/changelog")
+def api_changelog():
+    """Changelog embarqué (Aide) — lecture seule."""
+    from paths import ROOT, resource_root
+
+    text = ""
+    for base in (resource_root(), ROOT):
+        path = base / "CHANGELOG.md"
+        if path.is_file():
+            try:
+                text = path.read_text(encoding="utf-8")
+                break
+            except OSError:
+                continue
+    if not text:
+        return jsonify({"error": "Changelog introuvable.", "markdown": "", "html": ""})
+    return jsonify(
+        {
+            "version": updater.read_version(),
+            "markdown": text,
+            "html": _changelog_to_html(text),
+        }
+    )
+
+
+def _format_inline_md(text: str) -> str:
+    """Échappe le texte et applique **gras** / `code` simples."""
+    import re
+
+    parts: list[str] = []
+    for tok in re.split(r"(\*\*[^*]+\*\*|`[^`]+`)", text or ""):
+        if tok.startswith("**") and tok.endswith("**") and len(tok) >= 4:
+            parts.append(f"<strong>{_esc(tok[2:-2])}</strong>")
+        elif tok.startswith("`") and tok.endswith("`") and len(tok) >= 2:
+            parts.append(f"<code>{_esc(tok[1:-1])}</code>")
+        else:
+            parts.append(_esc(tok))
+    return "".join(parts)
+
+
+def _changelog_to_html(md: str) -> str:
+    """Conversion légère Markdown → HTML (titres, listes, hr)."""
+    lines = (md or "").splitlines()
+    out: list[str] = []
+    in_list = False
+
+    def close_list() -> None:
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+
+    for raw in lines:
+        line = raw.rstrip()
+        if not line.strip():
+            close_list()
+            continue
+        if line.strip() == "---":
+            close_list()
+            out.append("<hr>")
+            continue
+        if line.startswith("## "):
+            close_list()
+            out.append(f"<h3>{_esc(line[3:].strip())}</h3>")
+            continue
+        if line.startswith("### "):
+            close_list()
+            out.append(f"<h4>{_esc(line[4:].strip())}</h4>")
+            continue
+        if line.startswith("# "):
+            close_list()
+            out.append(f"<h2>{_esc(line[2:].strip())}</h2>")
+            continue
+        if line.lstrip().startswith("- "):
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{_format_inline_md(line.lstrip()[2:].strip())}</li>")
+            continue
+        close_list()
+        out.append(f"<p>{_format_inline_md(line)}</p>")
+    close_list()
+    return "\n".join(out)
+
+
 @app.get("/api/version")
 def api_version():
     return jsonify(
@@ -821,6 +906,36 @@ def api_library_scan():
         return jsonify({"error": str(exc)}), 404
     except Exception as exc:
         return jsonify({"error": f"Scan impossible : {exc}"}), 400
+    return jsonify(result)
+
+
+@app.post("/api/library/diff")
+def api_library_diff():
+    """Phase 4 — compare deux dossiers (PC ↔ NAS) par identité."""
+    import library_scan
+
+    data = request.get_json(silent=True) or {}
+    folder_a = (data.get("folder_a") or data.get("folder_pc") or "").strip()
+    folder_b = (data.get("folder_b") or data.get("folder_nas") or "").strip()
+    recursive = bool(data.get("recursive", True))
+    label_a = (data.get("label_a") or "PC").strip() or "PC"
+    label_b = (data.get("label_b") or "NAS").strip() or "NAS"
+    template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
+    if not folder_a or not folder_b:
+        return jsonify({"error": "Indiquez les deux dossiers (PC et NAS)."}), 400
+    try:
+        result = library_scan.diff_libraries(
+            folder_a,
+            folder_b,
+            recursive=recursive,
+            template_id=template_id,
+            label_a=label_a,
+            label_b=label_b,
+        )
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"Comparaison impossible : {exc}"}), 400
     return jsonify(result)
 
 

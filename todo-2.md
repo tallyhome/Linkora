@@ -12,7 +12,7 @@ doublons, diff PC ↔ NAS, optionnellement affiches (TMDB).
 | **1** | Scan & inventaire | Scanner un dossier, lister films/séries/archives avec identité intelligente | ✅ faite | **1.5.0** |
 | **2** | Vue bibliothèque | Arborescence Série → Saison → Épisodes + liste Films | ✅ faite | **1.6.0** |
 | **3** | Doublons | Détecter le même film / épisode malgré des noms de fichiers différents | ✅ faite | **1.7.0** |
-| **4** | Diff PC ↔ NAS | Comparer deux racines : manquants des deux côtés | ⏳ | 1.8.0 |
+| **4** | Diff PC ↔ NAS | Comparer deux racines : manquants des deux côtés | ✅ faite | **1.8.0** |
 | **5** | Affiches (option) | Enrichir avec TMDB (posters) + cache local | ⏳ | **2.0.0** |
 
 ---
@@ -104,9 +104,9 @@ Comparer **deux racines** (ex. `D:\Media` et `\\NAS\Media` ou `Z:\`) :
 - Sync bidirectionnelle temps réel
 
 ### Critères d’acceptation
-- [ ] Un épisode seulement sur le PC apparaît dans « Manquant sur NAS »
-- [ ] Un épisode seulement sur le NAS apparaît dans « Manquant sur PC »
-- [ ] Même épisode, noms différents → considéré comme **présent des deux côtés**
+- [x] Un épisode seulement sur le PC apparaît dans « Manquant sur NAS »
+- [x] Un épisode seulement sur le NAS apparaît dans « Manquant sur PC »
+- [x] Même épisode, noms différents → considéré comme **présent des deux côtés**
 
 ---
 
@@ -144,12 +144,12 @@ Enrichir la vue bibliothèque avec posters / infos (esprit Plex / Jellyfin lége
 - [x] Phase 1 — Scan & inventaire
 - [x] Phase 2 — Vue bibliothèque
 - [x] Phase 3 — Doublons
-- [ ] Phase 4 — Diff PC ↔ NAS
+- [x] Phase 4 — Diff PC ↔ NAS
 - [ ] Phase 5 — Affiches TMDB
 
-### Fichiers phases 1–3
+### Fichiers phases 1–4
 - `todo-2.md` — cahier des charges
-- `library_scan.py` — inventaire, archives, arbre, `find_duplicates`
-- `smart_naming.py` — `S03.E01` / `Titre S03 S01E001`
-- `app.py` — `POST /api/library/scan`
-- UI : onglet Bibliothèque (arbre / liste / doublons)
+- `library_scan.py` — inventaire, arbre, doublons, `diff_libraries`
+- `app.py` — `/api/library/scan`, `/api/library/diff`, `/api/changelog`
+- UI : Bibliothèque + **Changelog** dans Aide
+- `CHANGELOG.md` embarqué dans le build Windows

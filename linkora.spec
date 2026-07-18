@@ -11,6 +11,7 @@ datas = [
     ("VERSION", "."),
     ("LICENSE", "."),
     ("README.md", "."),
+    ("CHANGELOG.md", "."),
 ]
 
 hiddenimports = [

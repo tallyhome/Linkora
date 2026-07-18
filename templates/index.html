@@ -389,6 +389,53 @@
         <p id="library-error" class="form-error" role="alert" hidden></p>
       </section>
 
+      <section class="extract-form rename-form library-diff-form">
+        <h2 class="library-section-title" style="margin-top:0">Diff PC ↔ NAS</h2>
+        <p class="field-hint" style="margin-top:0">
+          Compare deux dossiers par <strong>identité</strong> (pas le nom de fichier brut).
+          Ex. présent sur le PC mais pas sur le NAS, et inversement.
+        </p>
+        <div class="library-diff-fields">
+          <label class="field">
+            <span class="field-label">Dossier PC (A)</span>
+            <input type="text" id="library-folder-pc" placeholder="D:\Media" spellcheck="false">
+          </label>
+          <label class="field">
+            <span class="field-label">Dossier NAS (B)</span>
+            <input type="text" id="library-folder-nas" placeholder="\\NAS\Media  ou  Z:\Media" spellcheck="false">
+          </label>
+        </div>
+        <div class="rename-options">
+          <label class="check-field">
+            <input type="checkbox" id="library-diff-recursive" checked>
+            <span>Inclure les sous-dossiers</span>
+          </label>
+          <button type="button" class="btn btn-primary" id="btn-library-diff">
+            <span class="btn-label">Comparer</span>
+            <span class="btn-spinner" hidden aria-hidden="true"></span>
+          </button>
+        </div>
+        <p id="library-diff-error" class="form-error" role="alert" hidden></p>
+      </section>
+
+      <section id="library-diff-results" class="rename-results" hidden>
+        <div class="results-toolbar">
+          <div class="results-meta">
+            <h2>Résultat du diff</h2>
+            <p id="library-diff-summary" class="results-summary"></p>
+          </div>
+        </div>
+        <div class="library-toolbar rename-actions-bar">
+          <div class="library-filters" role="group" aria-label="Listes diff">
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab is-active" data-diff-tab="missing_b">Manquants sur NAS</button>
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="missing_a">Manquants sur PC</button>
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="common">Communs</button>
+          </div>
+          <button type="button" class="btn btn-ghost" id="btn-library-diff-copy">Copier la liste</button>
+        </div>
+        <div id="library-diff-body" class="library-diff-body"></div>
+      </section>
+
       <section id="library-results" class="rename-results" hidden>
         <div class="results-toolbar">
           <div class="results-meta">
@@ -453,6 +500,7 @@
           <a href="#help-filters">Filtres &amp; sélection</a>
           <a href="#help-rename">Renommage</a>
           <a href="#help-library">Bibliothèque</a>
+          <a href="#help-changelog">Changelog</a>
           <a href="#help-settings">Paramètres</a>
           <a href="#help-backup">Backup</a>
           <a href="#help-update">Mises à jour</a>
@@ -566,8 +614,16 @@
             <li>Après scan : <strong>vue arbre</strong>, liste plate, ou <strong>Doublons</strong> (même identité, noms différents).</li>
             <li>Filtres Tout / Séries / Films / Archives + recherche.</li>
             <li>Archives <code>.zip</code> / <code>.rar</code> / <code>.7z</code> détectées (packs saison).</li>
-            <li>À venir : comparaison NAS, affiches TMDB.</li>
+            <li>À venir : affiches TMDB.</li>
           </ul>
+        </section>
+
+        <section id="help-changelog" class="help-section">
+          <h2>Changelog</h2>
+          <p class="field-hint">Historique des versions (contenu de <code>CHANGELOG.md</code>).</p>
+          <div id="changelog-content" class="changelog-content">
+            <p class="library-empty">Chargement…</p>
+          </div>
         </section>
 
         <section id="help-settings" class="help-section">

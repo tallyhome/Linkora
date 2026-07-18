@@ -411,3 +411,101 @@ def find_duplicates(items: list[dict[str, Any]]) -> dict[str, Any]:
         "file_count": sum(g["count"] for g in groups),
         "groups": groups,
     }
+
+
+def _identity_map(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Une entrée représentative par identité (préfère vidéo aux archives)."""
+    rank = {"tv": 0, "anime": 0, "movie": 1, "archive": 3, "other": 2}
+    out: dict[str, dict[str, Any]] = {}
+    for item in items:
+        key = str(item.get("identity") or "").strip()
+        if not key:
+            continue
+        prev = out.get(key)
+        if prev is None:
+            out[key] = item
+            continue
+        r_new = rank.get(item.get("type") or "other", 9)
+        r_old = rank.get(prev.get("type") or "other", 9)
+        if r_new < r_old:
+            out[key] = item
+        elif r_new == r_old and (item.get("size") or 0) > (prev.get("size") or 0):
+            out[key] = item
+    return out
+
+
+def _diff_entry(item: dict[str, Any], *, side: str) -> dict[str, Any]:
+    return {
+        "identity": item.get("identity") or "",
+        "title": item.get("title") or "",
+        "type": item.get("type") or "other",
+        "season": item.get("season"),
+        "episode": item.get("episode"),
+        "year": item.get("year"),
+        "filename": item.get("filename") or "",
+        "path": item.get("path") or "",
+        "size": item.get("size") or 0,
+        "size_label": _format_size(int(item.get("size") or 0)),
+        "side": side,
+        "season_pack": bool(item.get("season_pack")),
+        "archive_format": item.get("archive_format") or "",
+    }
+
+
+def diff_libraries(
+    folder_a: str,
+    folder_b: str,
+    *,
+    recursive: bool = True,
+    template_id: str = "simple",
+    label_a: str = "PC",
+    label_b: str = "NAS",
+) -> dict[str, Any]:
+    """
+    Phase 4 — compare deux racines par identité média.
+    missing_on_b = présent sur A (PC), absent sur B (NAS)
+    missing_on_a = présent sur B (NAS), absent sur A (PC)
+    """
+    scan_a = scan_library(folder_a, recursive=recursive, template_id=template_id)
+    scan_b = scan_library(folder_b, recursive=recursive, template_id=template_id)
+    map_a = _identity_map(scan_a["items"])
+    map_b = _identity_map(scan_b["items"])
+    keys_a = set(map_a)
+    keys_b = set(map_b)
+
+    missing_on_b = [
+        _diff_entry(map_a[k], side="a")
+        for k in sorted(keys_a - keys_b, key=lambda x: (map_a[x].get("title") or "").lower())
+    ]
+    missing_on_a = [
+        _diff_entry(map_b[k], side="b")
+        for k in sorted(keys_b - keys_a, key=lambda x: (map_b[x].get("title") or "").lower())
+    ]
+    common = []
+    for k in sorted(keys_a & keys_b, key=lambda x: (map_a[x].get("title") or "").lower()):
+        common.append(
+            {
+                "identity": k,
+                "title": map_a[k].get("title") or map_b[k].get("title") or "",
+                "type": map_a[k].get("type") or map_b[k].get("type") or "other",
+                "a": _diff_entry(map_a[k], side="a"),
+                "b": _diff_entry(map_b[k], side="b"),
+            }
+        )
+
+    return {
+        "label_a": label_a,
+        "label_b": label_b,
+        "folder_a": scan_a["folder"],
+        "folder_b": scan_b["folder"],
+        "count_a": scan_a["count"],
+        "count_b": scan_b["count"],
+        "identities_a": len(map_a),
+        "identities_b": len(map_b),
+        "missing_on_b": missing_on_b,
+        "missing_on_a": missing_on_a,
+        "common": common,
+        "missing_on_b_count": len(missing_on_b),
+        "missing_on_a_count": len(missing_on_a),
+        "common_count": len(common),
+    }
