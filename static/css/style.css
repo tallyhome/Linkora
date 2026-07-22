@@ -321,6 +321,16 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   transform: translateY(-1px);
 }
 
+.btn-help-round.is-spinning svg {
+  animation: linkora-reload-spin 0.7s linear infinite;
+}
+
+@keyframes linkora-reload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .help-panel {
   max-width: 820px;
   margin: 0 auto;
@@ -1212,6 +1222,16 @@ main {
   flex-direction: column;
   gap: 0.45rem;
   min-width: 0;
+}
+
+.hosts-all-check {
+  margin: 0.1rem 0 0;
+  font-size: 0.92rem;
+}
+
+.hosts-list-disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .hosts-list {

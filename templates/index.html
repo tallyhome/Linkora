@@ -50,6 +50,12 @@
         <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème Ambre">Ambre</button>
         <button type="button" class="theme-btn" data-theme-set="nocturne" title="Thème Pro sombre">Pro</button>
       </div>
+      <button type="button" class="btn-help-round" id="btn-reload" title="Actualiser Linkora (comme un redémarrage)" aria-label="Actualiser Linkora">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-2.6-6.4"/>
+          <polyline points="21 3 21 9 15 9"/>
+        </svg>
+      </button>
       <button type="button" class="btn-help-round" id="btn-help" title="Aide & infos" aria-label="Aide et informations">
         <span aria-hidden="true">?</span>
       </button>
@@ -138,25 +144,44 @@
                       name="host"
                       data-host-input
                       list="host-suggestions"
-                      placeholder="rapidgator, nitroflare, vidoza…"
+                      placeholder="rapidgator, mega, mixdrop…"
                       spellcheck="false"
                     >
                   </div>
                 </label>
               </div>
             </div>
+            <label class="check-field hosts-all-check" title="Utilise tous les hébergeurs connus du système présents sur la page">
+              <input type="checkbox" id="use-all-hosts" name="use_all_hosts">
+              <span>Tous les hébergeurs disponibles</span>
+            </label>
             <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)">
               + Ajouter un hébergeur
             </button>
             <datalist id="host-suggestions">
               <option value="rapidgator">
               <option value="nitroflare">
+              <option value="1fichier">
+              <option value="turbobit">
+              <option value="uptobox">
+              <option value="mega">
+              <option value="mixdrop">
+              <option value="gofile">
+              <option value="pixeldrain">
+              <option value="workupload">
+              <option value="vikingfile">
+              <option value="uploadrar">
+              <option value="send.now">
+              <option value="mirrored.to">
+              <option value="megaup">
+              <option value="hxfile">
+              <option value="cloudfam">
+              <option value="bowfile">
+              <option value="uploady">
+              <option value="dailyuploads">
               <option value="vidoza">
               <option value="mystream">
               <option value="vidlox">
-              <option value="1fichier">
-              <option value="uptobox">
-              <option value="turbobit">
             </datalist>
           </div>
 
@@ -586,8 +611,10 @@
             <dd>Une adresse par ligne. Linkora ouvre chaque page et extrait les liens de l’hébergeur choisi.</dd>
             <dt>Hébergeur</dt>
             <dd>
-              Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>1fichier</code>).
+              Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>mega</code>, <code>mixdrop</code>).
               Optionnel : <strong>+ Ajouter un hébergeur</strong> pour en cumuler jusqu’à 6 sur la même page.
+              Case <strong>Tous les hébergeurs disponibles</strong> : Linkora utilise tous les hébergeurs connus du système
+              et récupère ceux présents sur la page (sans limite de 6).
               Après résolution, le 1er hébergeur est prioritaire ; si un lien est mort, Linkora bascule sur un miroir valide.
               Le bloc principal garde <strong>un lien par épisode</strong> (prêt pour le téléchargement) ; les doublons/miroirs sont listés à part.
             </dd>
@@ -701,6 +728,8 @@
             <dd>Alerte système quand une résolution / file est terminée.</dd>
             <dt>Auto-update</dt>
             <dd>Vérifie les releases GitHub (ou une URL <code>latest.json</code> perso).</dd>
+            <dt>Bouton ↻ (en-tête)</dt>
+            <dd>Actualise Linkora comme un redémarrage soft : recharge l’interface sans fermer la fenêtre.</dd>
           </dl>
         </section>
 

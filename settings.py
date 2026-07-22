@@ -149,11 +149,13 @@ def _normalize_profile(raw: dict | None) -> dict | None:
         hosts.append(value)
         if len(hosts) >= 6:
             break
+    use_all = bool(raw.get("use_all_hosts"))
     return {
         "id": pid,
         "name": name[:80],
-        "host": (hosts[0] if hosts else "")[:120],
-        "hosts": hosts,
+        "host": ("Tous les hébergeurs" if use_all else (hosts[0] if hosts else ""))[:120],
+        "hosts": [] if use_all else hosts,
+        "use_all_hosts": use_all,
         "active_provider": provider,
         "max_retries": _clamp_int(raw.get("max_retries"), 3, 1, 8),
         "resolve_concurrency": _clamp_int(raw.get("resolve_concurrency"), 6, 1, 12),

@@ -21,7 +21,7 @@ import smart_naming
 import storage
 import updater
 from paths import DATA_DIR, resource_root
-from scraper import scrape
+from scraper import SUPPORTED_HOSTS, scrape
 
 app = Flask(
     __name__,
@@ -158,8 +158,22 @@ def _page_title(url: str) -> str:
     return urlparse(url).netloc or "Extraction"
 
 
-def _parse_hosts(data: dict) -> list[str]:
-    """Accepte hosts[] et/ou host (rétrocompat). Max 3, dédupliqués."""
+def _truthy(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
+def _parse_hosts(data: dict) -> tuple[list[str], bool]:
+    """Accepte hosts[] et/ou host (rétrocompat). Max 6, sauf mode « tous »."""
+    use_all = _truthy(data.get("use_all_hosts")) or _truthy(data.get("all_hosts"))
+    if use_all:
+        return list(SUPPORTED_HOSTS), True
+
     candidates: list[str] = []
     raw_hosts = data.get("hosts")
     if isinstance(raw_hosts, list):
@@ -188,7 +202,7 @@ def _parse_hosts(data: dict) -> list[str]:
         out.append(value)
         if len(out) >= 6:
             break
-    return out
+    return out, False
 
 
 @app.get("/api/changelog")
@@ -450,11 +464,18 @@ def api_settings_test():
         return jsonify({"ok": False, "error": str(exc)}), 502
 
 
+@app.get("/api/hosts")
+def api_hosts():
+    """Liste des hébergeurs connus du système (suggestions + mode « tous »)."""
+    return jsonify({"hosts": list(SUPPORTED_HOSTS)})
+
+
 @app.post("/api/extract")
 def api_extract():
     data = request.get_json(silent=True) or {}
-    hosts = _parse_hosts(data)
-    host_label = " + ".join(hosts)
+    hosts, use_all_hosts = _parse_hosts(data)
+    host_label = "Tous les hébergeurs" if use_all_hosts else " + ".join(hosts)
+    scrape_max = None if use_all_hosts else 6
 
     # Une URL ou une liste / texte multi-lignes
     urls_raw = data.get("urls")
@@ -490,7 +511,7 @@ def api_extract():
     for u in urls:
         title = _page_title(u)
         try:
-            links = scrape(u, hosts)
+            links = scrape(u, hosts, max_hosts=scrape_max)
             enriched = [
                 smart_naming.enrich_link(
                     {**link, "page_url": u, "page_title": title}
@@ -503,6 +524,7 @@ def api_extract():
                     "title": title,
                     "host": host_label,
                     "hosts": hosts,
+                    "use_all_hosts": use_all_hosts,
                     "count": len(enriched),
                     "links": enriched,
                 }
@@ -515,6 +537,7 @@ def api_extract():
                     "title": title,
                     "host": host_label,
                     "hosts": hosts,
+                    "use_all_hosts": use_all_hosts,
                     "count": 0,
                     "links": [],
                     "error": str(exc),
@@ -529,6 +552,7 @@ def api_extract():
         {
             "host": host_label,
             "hosts": hosts,
+            "use_all_hosts": use_all_hosts,
             "batches": batches,
             "source_url": batches[0]["source_url"] if batches else "",
             "source_urls": [b["source_url"] for b in batches],

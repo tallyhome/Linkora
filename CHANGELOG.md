@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.4.0] — 2026-07-22
+
+### Ajouté
+- **Hébergeurs** : MEGA, WorkUpload, VikingFile, UploadRAR, Send.now, PixelDrain, MixDrop,
+  Mirrored.to, MegaUp, HXFile, GoFile, CloudFam, BowFile, Uploady, DailyUploads (+ suggestions UI)
+- Case **Tous les hébergeurs disponibles** : utilise tous les hosters connus du système présents sur la page
+- Bouton **Actualiser** (en-tête) : recharge Linkora comme un redémarrage soft
+
+### Amélioré
+- Matching hébergeurs plus fiable (`mega` vs `megaup`, alias `send.now` / `mirrored.to`…)
+- Mode multi-hébergeurs sans plafond artificiel de 6 en mode « tous »
+
+---
+
 ## [2.3.0] — 2026-07-18
 
 ### Ajouté

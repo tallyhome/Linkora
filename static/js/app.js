@@ -92,12 +92,45 @@
   };
 
   const MAX_HOSTS = 6;
+  const useAllHostsInput = document.getElementById("use-all-hosts");
+  let supportedHosts = [
+    "rapidgator",
+    "nitroflare",
+    "1fichier",
+    "turbobit",
+    "uptobox",
+    "mega",
+    "mixdrop",
+    "gofile",
+    "pixeldrain",
+    "workupload",
+    "vikingfile",
+    "uploadrar",
+    "send.now",
+    "mirrored.to",
+    "megaup",
+    "hxfile",
+    "cloudfam",
+    "bowfile",
+    "uploady",
+    "dailyuploads",
+    "vidoza",
+    "mystream",
+    "vidlox",
+  ];
+
+  function isUseAllHosts() {
+    return !!useAllHostsInput?.checked;
+  }
 
   function getHostInputs() {
     return [...document.querySelectorAll("[data-host-input]")];
   }
 
   function getHosts() {
+    if (isUseAllHosts()) {
+      return supportedHosts.slice();
+    }
     const out = [];
     const seen = new Set();
     for (const input of getHostInputs()) {
@@ -113,7 +146,10 @@
   }
 
   function hostsLabel(hosts) {
+    if (hosts == null && isUseAllHosts()) return "Tous les hébergeurs";
     const list = hosts || getHosts();
+    if (!list.length) return "";
+    if (list.length > MAX_HOSTS) return "Tous les hébergeurs";
     return list.join(" + ");
   }
 
@@ -123,6 +159,9 @@
     }
     const text = String(value || "").trim();
     if (!text) return [];
+    if (text.toLowerCase() === "tous les hébergeurs") {
+      return supportedHosts.slice();
+    }
     if (text.includes(" + ")) {
       return text
         .split(" + ")
@@ -133,10 +172,60 @@
     return [text];
   }
 
+  function syncHostsUiState() {
+    const all = isUseAllHosts();
+    getHostInputs().forEach((input) => {
+      input.disabled = all;
+    });
+    if (hostsList) {
+      hostsList.querySelectorAll("[data-remove-host]").forEach((btn) => {
+        btn.disabled = all;
+      });
+      hostsList.classList.toggle("hosts-list-disabled", all);
+    }
+    if (btnAddHost) {
+      btnAddHost.hidden = all || hostsList.querySelectorAll("[data-host-row]").length >= MAX_HOSTS;
+      btnAddHost.disabled = all;
+    }
+  }
+
   function syncAddHostButton() {
     if (!btnAddHost || !hostsList) return;
+    if (isUseAllHosts()) {
+      btnAddHost.hidden = true;
+      btnAddHost.disabled = true;
+      return;
+    }
     const count = hostsList.querySelectorAll("[data-host-row]").length;
     btnAddHost.hidden = count >= MAX_HOSTS;
+    btnAddHost.disabled = false;
+  }
+
+  function setUseAllHosts(enabled) {
+    if (useAllHostsInput) useAllHostsInput.checked = !!enabled;
+    syncHostsUiState();
+    syncAddHostButton();
+  }
+
+  function fillHostSuggestions(hosts) {
+    const list = document.getElementById("host-suggestions");
+    if (!list || !Array.isArray(hosts) || !hosts.length) return;
+    list.innerHTML = hosts
+      .map((h) => `<option value="${escapeHtml(String(h))}">`)
+      .join("");
+  }
+
+  async function loadSupportedHosts() {
+    try {
+      const res = await fetch("/api/hosts");
+      const data = await res.json();
+      if (Array.isArray(data.hosts) && data.hosts.length) {
+        supportedHosts = data.hosts.map((h) => String(h || "").trim()).filter(Boolean);
+        fillHostSuggestions(supportedHosts);
+      }
+    } catch {
+      /* garde la liste embarquée */
+    }
   }
 
   function addHostRow(value = "") {
@@ -181,6 +270,7 @@
   }
 
   function currentHostsList() {
+    if (current?.use_all_hosts) return supportedHosts.slice();
     if (current?.hosts?.length) return current.hosts;
     return parseHostsValue(current?.host || getHosts());
   }
@@ -306,7 +396,7 @@
     let done = 0;
     let rounds = 0;
 
-    while (!resolveAbort && rounds < MAX_HOSTS + 1) {
+    while (!resolveAbort && rounds < currentHostsList().length + 1) {
       rounds += 1;
       assignMultiHostRoles();
       const jobs = [];
@@ -850,6 +940,7 @@
 
   function renderResults(data, { scroll = true } = {}) {
     current = normalizeCurrent(data);
+    if (data?.use_all_hosts) current.use_all_hosts = true;
     if (data?.hosts?.length) current.hosts = data.hosts;
     else if (!current.hosts?.length) current.hosts = parseHostsValue(current.host);
     assignMultiHostRoles();
@@ -1530,6 +1621,7 @@
           urls: urlsInput.value,
           hosts,
           host: hosts[0] || "",
+          use_all_hosts: isUseAllHosts(),
         }),
       });
       const data = await res.json();
@@ -2423,7 +2515,12 @@
         return;
       }
       urlsInput.value = data.source_url || "";
-      setHosts(data.hosts || data.host || "");
+      const allHosts =
+        !!data.use_all_hosts ||
+        String(data.host || "").toLowerCase() === "tous les hébergeurs" ||
+        (Array.isArray(data.hosts) && data.hosts.length > MAX_HOSTS);
+      setUseAllHosts(allHosts);
+      if (!allHosts) setHosts(data.hosts || data.host || "");
       renderHistoryInline(item, data);
       showToast("Ouvert sous l’historique.");
     }
@@ -2460,6 +2557,16 @@
 
   document.getElementById("btn-help")?.addEventListener("click", () => {
     switchTab("help");
+  });
+
+  document.getElementById("btn-reload")?.addEventListener("click", () => {
+    const btn = document.getElementById("btn-reload");
+    btn?.classList.add("is-spinning");
+    showToast("Actualisation de Linkora…");
+    // Recharge complète de l’UI (même effet qu’un redémarrage soft)
+    setTimeout(() => {
+      window.location.reload();
+    }, 280);
   });
 
   let changelogLoaded = false;
@@ -4370,6 +4477,10 @@
   });
 
   btnAddHost?.addEventListener("click", () => addHostRow(""));
+  useAllHostsInput?.addEventListener("change", () => {
+    syncHostsUiState();
+    syncAddHostButton();
+  });
   hostsList?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-remove-host]");
     if (!btn) return;
@@ -4413,8 +4524,11 @@
       }
       settings = data.settings;
       const prof = data.profile;
-      if (prof?.hosts?.length) setHosts(prof.hosts);
-      else if (prof?.host) setHosts(prof.host);
+      setUseAllHosts(!!prof?.use_all_hosts);
+      if (!prof?.use_all_hosts) {
+        if (prof?.hosts?.length) setHosts(prof.hosts);
+        else if (prof?.host) setHosts(prof.host);
+      }
       if (activeProviderSelect) {
         activeProviderSelect.value = settings.active_provider || "alldebrid";
       }
@@ -4457,8 +4571,9 @@
     const payloadProfile = {
       id: existingId || undefined,
       name: trimmed,
-      host: hosts[0] || "",
-      hosts,
+      host: isUseAllHosts() ? "Tous les hébergeurs" : hosts[0] || "",
+      hosts: isUseAllHosts() ? [] : hosts,
+      use_all_hosts: isUseAllHosts(),
       active_provider: settings?.active_provider || activeProviderSelect?.value || "alldebrid",
       max_retries: Number(settings?.max_retries || maxRetriesInput?.value || 3),
       resolve_concurrency: Number(
@@ -4561,11 +4676,19 @@
       showToast("Indiquez au moins un hébergeur.");
       return;
     }
-    const host = hostsLabel(hosts);
+    const useAll = isUseAllHosts();
+    const host = useAll ? "Tous les hébergeurs" : hostsLabel(hosts);
     let added = 0;
     for (const url of lines) {
       if (workQueue.some((q) => q.url === url && q.host === host)) continue;
-      workQueue.push({ url, host, hosts, status: "pending", error: "" });
+      workQueue.push({
+        url,
+        host,
+        hosts: useAll ? [] : hosts,
+        use_all_hosts: useAll,
+        status: "pending",
+        error: "",
+      });
       added += 1;
     }
     renderQueue();
@@ -4638,9 +4761,12 @@
         renderQueue();
         showToast(`File ${i + 1}/${workQueue.length} — extraction…`);
         try {
-          const itemHosts = item.hosts?.length
-            ? item.hosts
-            : parseHostsValue(item.host || hosts);
+          const itemUseAll = !!item.use_all_hosts;
+          const itemHosts = itemUseAll
+            ? supportedHosts.slice()
+            : item.hosts?.length
+              ? item.hosts
+              : parseHostsValue(item.host || hosts);
           const res = await fetch("/api/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4648,6 +4774,7 @@
               urls: item.url,
               hosts: itemHosts,
               host: itemHosts[0] || "",
+              use_all_hosts: itemUseAll,
             }),
           });
           const data = await res.json();
@@ -4669,8 +4796,9 @@
           current = normalizeCurrent({
             ...data,
             batches: allBatches,
-            host: data.host || hostsLabel(itemHosts),
+            host: data.host || (itemUseAll ? "Tous les hébergeurs" : hostsLabel(itemHosts)),
             hosts: itemHosts,
+            use_all_hosts: itemUseAll || !!data.use_all_hosts,
           });
           syncFlatLinks();
           renderResults(current, { scroll: i === 0 });
@@ -4754,6 +4882,10 @@
     }
   });
 
+  loadSupportedHosts().then(() => {
+    syncHostsUiState();
+    syncAddHostButton();
+  });
   loadSettings().catch(() => {});
   loadHistory();
   renderQueue();

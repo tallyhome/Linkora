@@ -15,6 +15,42 @@ HEADERS = {
     )
 }
 
+# Hébergeurs connus du système (filtre providers* + suggestions UI).
+# L’ordre compte en mode « tous » : priorité multi-hébergeurs / fallback.
+SUPPORTED_HOSTS: list[str] = [
+    "rapidgator",
+    "nitroflare",
+    "1fichier",
+    "turbobit",
+    "uptobox",
+    "mega",
+    "mixdrop",
+    "gofile",
+    "pixeldrain",
+    "workupload",
+    "vikingfile",
+    "uploadrar",
+    "send.now",
+    "mirrored.to",
+    "megaup",
+    "hxfile",
+    "cloudfam",
+    "bowfile",
+    "uploady",
+    "dailyuploads",
+    "vidoza",
+    "mystream",
+    "vidlox",
+]
+
+# Variantes de matching (classes providers* / titres sur les pages source).
+_HOST_ALIASES: dict[str, tuple[str, ...]] = {
+    "send.now": ("send.now", "sendnow"),
+    "mirrored.to": ("mirrored.to", "mirrored"),
+    "1fichier": ("1fichier", "1ficher"),
+    "dailyuploads": ("dailyuploads", "dailyupload"),
+}
+
 
 def _ssl_ignore_enabled() -> bool:
     try:
@@ -40,7 +76,11 @@ def fetch_html(url: str) -> str:
     return resp.text
 
 
-def _normalize_hosts(host: str | list[str] | None) -> list[str]:
+def _normalize_hosts(
+    host: str | list[str] | None,
+    *,
+    max_hosts: int | None = 6,
+) -> list[str]:
     if host is None:
         return []
     if isinstance(host, str):
@@ -58,12 +98,34 @@ def _normalize_hosts(host: str | list[str] | None) -> list[str]:
             continue
         seen.add(key)
         out.append(value)
-        if len(out) >= 6:
+        if max_hosts is not None and len(out) >= max_hosts:
             break
     return out
 
 
-def _anchor_matches_host(a, provider_span, host_lower: str) -> bool:
+def _host_match_keys(host: str) -> list[str]:
+    """Clés de sous-chaîne à chercher dans providers* / titres."""
+    base = (host or "").strip().lower()
+    if not base:
+        return []
+    aliases = _HOST_ALIASES.get(base)
+    if aliases:
+        return list(aliases)
+    keys = [base]
+    nodot = base.replace(".", "")
+    if nodot != base:
+        keys.append(nodot)
+    return keys
+
+
+def _text_matches_host(haystack: str, host: str) -> bool:
+    text = (haystack or "").lower()
+    if not text:
+        return False
+    return any(key in text for key in _host_match_keys(host))
+
+
+def _anchor_matches_host(a, provider_span, host: str) -> bool:
     if not provider_span:
         title_attrs = " ".join(
             filter(
@@ -74,20 +136,18 @@ def _anchor_matches_host(a, provider_span, host_lower: str) -> bool:
                     a.get_text(" ", strip=True),
                 ],
             )
-        ).lower()
-        return host_lower in title_attrs
+        )
+        return _text_matches_host(title_attrs, host)
 
-    classes = provider_span.get("class", [])
-    matches_class = any(host_lower in c.lower() for c in classes)
-    title = (provider_span.get("title") or "").lower()
-    matches_title = host_lower in title
-    return matches_class or matches_title
+    classes = " ".join(str(c) for c in (provider_span.get("class") or []))
+    title = provider_span.get("title") or ""
+    return _text_matches_host(classes, host) or _text_matches_host(title, host)
 
 
-def extract_links(html: str, host: str | list[str]) -> list[dict]:
+def extract_links(html: str, host: str | list[str], *, max_hosts: int | None = 6) -> list[dict]:
     """Extrait les liens dont le provider correspond à un ou plusieurs hébergeurs."""
     soup = BeautifulSoup(html, "html.parser")
-    hosts = _normalize_hosts(host)
+    hosts = _normalize_hosts(host, max_hosts=max_hosts)
     if not hosts:
         return []
 
@@ -97,10 +157,15 @@ def extract_links(html: str, host: str | list[str]) -> list[dict]:
     for a in soup.find_all("a", href=True):
         provider_span = a.find("span", class_=re.compile(r"^providers", re.I))
         matched_host = ""
+        matched_score = -1
         for candidate in hosts:
-            if _anchor_matches_host(a, provider_span, candidate.lower()):
+            if not _anchor_matches_host(a, provider_span, candidate):
+                continue
+            # Préfère le nom le plus long (megaup > mega, uploadrar > upload…)
+            score = max((len(k) for k in _host_match_keys(candidate)), default=0)
+            if score > matched_score:
+                matched_score = score
                 matched_host = candidate
-                break
         if not matched_host:
             continue
 
@@ -131,6 +196,6 @@ def extract_links(html: str, host: str | list[str]) -> list[dict]:
     return results
 
 
-def scrape(url: str, host: str | list[str]) -> list[dict]:
+def scrape(url: str, host: str | list[str], *, max_hosts: int | None = 6) -> list[dict]:
     html = fetch_html(url)
-    return extract_links(html, host)
+    return extract_links(html, host, max_hosts=max_hosts)
