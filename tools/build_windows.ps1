@@ -73,4 +73,14 @@ if ($Iscc) {
     Write-Host "Installez via : winget install JRSoftware.InnoSetup" -ForegroundColor Yellow
 }
 
-Write-Host "Publiez zip (+ Setup.exe) comme assets de la release GitHub v$Version"
+# Alias stables pour le README (/releases/latest/download/…)
+$StableZip = Join-Path $Root "dist\Linkora-windows.zip"
+$StableSetup = Join-Path $Root "dist\Linkora-Setup.exe"
+Copy-Item -Force $ZipPath $StableZip
+Write-Host "OK -> $StableZip (alias README)" -ForegroundColor Green
+if (Test-Path $SetupPath) {
+    Copy-Item -Force $SetupPath $StableSetup
+    Write-Host "OK -> $StableSetup (alias README)" -ForegroundColor Green
+}
+
+Write-Host "Publiez zip (+ Setup.exe) + alias stables comme assets de la release GitHub v$Version"

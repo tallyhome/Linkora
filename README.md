@@ -11,14 +11,14 @@
 
 <p align="center">
   <a href="https://github.com/tallyhome/Linkora/releases/latest"><img src="https://img.shields.io/github/v/release/tallyhome/Linkora?label=version&color=0f766e" alt="Release"></a>
-  <a href="https://github.com/tallyhome/Linkora/releases/latest"><img src="https://img.shields.io/github/downloads/tallyhome/Linkora/total?label=téléchargements&color=3b82f6" alt="Downloads"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest"><img src="https://img.shields.io/github/downloads/tallyhome/Linkora/total?label=downloads&color=3b82f6" alt="Downloads"></a>
   <a href="https://github.com/tallyhome/Linkora"><img src="https://img.shields.io/github/license/tallyhome/Linkora?label=license" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v2.3.0.exe"><img src="https://img.shields.io/badge/⬇_Installateur_Windows-Setup.exe-0f766e?style=for-the-badge" alt="Télécharger l'installateur"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup.exe"><img src="https://img.shields.io/badge/Installateur_Windows-Setup.exe-0f766e?style=for-the-badge&logo=windows&logoColor=white" alt="Telecharger l'installateur"></a>
   &nbsp;
-  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v2.3.0.zip"><img src="https://img.shields.io/badge/⬇_Version_portable-ZIP-3b82f6?style=for-the-badge" alt="Télécharger le portable"></a>
+  <a href="https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows.zip"><img src="https://img.shields.io/badge/Version_portable-ZIP-3b82f6?style=for-the-badge&logo=github&logoColor=white" alt="Telecharger le portable"></a>
 </p>
 
 <p align="center">
@@ -31,10 +31,10 @@
 
 | | Fichier | Pour qui ? |
 |---|--------|--------|
-| **Installateur** (recommandé) | [**Linkora-Setup-v2.3.0.exe**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup-v2.3.0.exe) | Installation classique : menu Démarrer, raccourci Bureau, désinstallation |
-| **Portable** | [**Linkora-windows-v2.3.0.zip**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows-v2.3.0.zip) | Sans install : dézipper → lancer `Linkora.exe` (clé USB, etc.) |
+| **Installateur** (recommandé) | [**Linkora-Setup.exe**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-Setup.exe) | Installation classique : menu Démarrer, raccourci Bureau, désinstallation |
+| **Portable** | [**Linkora-windows.zip**](https://github.com/tallyhome/Linkora/releases/latest/download/Linkora-windows.zip) | Sans install : dézipper → lancer `Linkora.exe` (clé USB, etc.) |
 
-> Les liens ci-dessus pointent vers la **dernière release**. Page complète : [Releases](https://github.com/tallyhome/Linkora/releases/latest).
+> Les liens ci-dessus pointent toujours vers la **dernière release**. Page complète : [Releases](https://github.com/tallyhome/Linkora/releases/latest).
 
 ### Démarrage rapide
 
