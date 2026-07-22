@@ -22,6 +22,8 @@ DEFAULTS = {
     "ssl_ignore_errors": False,
     "custom_accent": "",
     "custom_logo": False,
+    "extract_mode": "smart",
+    "extract_extensions": ".zip,.rar,.7z,.exe,.iso,.tar,.gz,.apk",
     "profiles": [],
     "active_profile_id": "",
     "network_shares": [],
@@ -34,6 +36,7 @@ DEFAULTS = {
 }
 
 RENAME_TEMPLATES = ("simple", "plex", "jellyfin", "dotted")
+EXTRACT_MODES = ("providers", "domains", "extensions", "smart")
 CUSTOM_LOGO_NAME = "custom_logo"
 
 
@@ -223,6 +226,14 @@ def _ensure() -> dict:
         merged["tmdb_api_key"] = str(data.get("tmdb_api_key") or "")
     if "library_show_posters" in data:
         merged["library_show_posters"] = bool(data.get("library_show_posters"))
+    mode = str(data.get("extract_mode") or DEFAULTS["extract_mode"]).strip().lower()
+    merged["extract_mode"] = mode if mode in EXTRACT_MODES else DEFAULTS["extract_mode"]
+    if "extract_extensions" in data:
+        from scraper import normalize_extensions
+
+        merged["extract_extensions"] = ",".join(
+            normalize_extensions(data.get("extract_extensions"))
+        )
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
         merged["active_profile_id"] = active_pid
@@ -320,6 +331,15 @@ def update_settings(payload: dict) -> dict:
             current["tmdb_api_key"] = str(key or "").strip()
     if "library_show_posters" in payload:
         current["library_show_posters"] = bool(payload.get("library_show_posters"))
+    if "extract_mode" in payload:
+        mode = str(payload.get("extract_mode") or "smart").strip().lower()
+        current["extract_mode"] = mode if mode in EXTRACT_MODES else "smart"
+    if "extract_extensions" in payload:
+        from scraper import normalize_extensions
+
+        current["extract_extensions"] = ",".join(
+            normalize_extensions(payload.get("extract_extensions"))
+        )
     if "active_profile_id" in payload:
         pid = str(payload.get("active_profile_id") or "")
         if pid and any(p["id"] == pid for p in current["profiles"]):
@@ -405,6 +425,13 @@ def public_settings() -> dict:
         "tmdb_api_key_masked": _mask(data["tmdb_api_key"]) if data.get("tmdb_api_key") else "",
         "tmdb_configured": bool(str(data.get("tmdb_api_key") or "").strip()),
         "library_show_posters": bool(data.get("library_show_posters", True)),
+        "extract_mode": (
+            data.get("extract_mode")
+            if data.get("extract_mode") in EXTRACT_MODES
+            else "smart"
+        ),
+        "extract_extensions": data.get("extract_extensions")
+        or DEFAULTS["extract_extensions"],
         "providers": {},
     }
     for name, conf in data["providers"].items():

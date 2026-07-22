@@ -48,6 +48,11 @@
   const concurrencyInput = document.getElementById("resolve-concurrency");
   const notifyOnResolveInput = document.getElementById("notify-on-resolve");
   const sslIgnoreErrorsInput = document.getElementById("ssl-ignore-errors");
+  const extractModeSelect = document.getElementById("extract-mode");
+  const extractModePageSelect = document.getElementById("extract-mode-page");
+  const extractExtensionsInput = document.getElementById("extract-extensions");
+  const settingsLead = document.getElementById("settings-lead");
+  const settingsTitle = document.getElementById("settings-title");
   const nasHostInput = document.getElementById("nas-host");
   const nasShareInput = document.getElementById("nas-share");
   const nasUsernameInput = document.getElementById("nas-username");
@@ -121,6 +126,20 @@
 
   function isUseAllHosts() {
     return !!useAllHostsInput?.checked;
+  }
+
+  function getExtractMode() {
+    const fromPage = (extractModePageSelect?.value || "").trim();
+    if (fromPage) return fromPage;
+    const fromSettings = (extractModeSelect?.value || "").trim();
+    if (fromSettings) return fromSettings;
+    return settings?.extract_mode || "smart";
+  }
+
+  function syncExtractModeUi(mode) {
+    const value = mode || "smart";
+    if (extractModeSelect) extractModeSelect.value = value;
+    if (extractModePageSelect) extractModePageSelect.value = value;
   }
 
   function getHostInputs() {
@@ -1290,6 +1309,11 @@
     if (renameTemplateSelect) {
       renameTemplateSelect.value = settings.rename_template || "simple";
     }
+    syncExtractModeUi(settings.extract_mode || "smart");
+    if (extractExtensionsInput) {
+      extractExtensionsInput.value =
+        settings.extract_extensions || ".zip,.rar,.7z,.exe,.iso,.tar,.gz,.apk";
+    }
     if (maxRetriesInput) maxRetriesInput.value = String(settings.max_retries || 3);
     if (concurrencyInput) {
       concurrencyInput.value = String(settings.resolve_concurrency || 6);
@@ -1313,9 +1337,66 @@
     settingsMessage.hidden = true;
     keyAlldebrid.value = "";
     keyRealdebrid.value = "";
+    switchSettingsSection("account");
     settingsModal.hidden = false;
     loadSettings().catch(() => showToast("Impossible de charger les paramètres."));
   }
+
+  const SETTINGS_SECTION_META = {
+    account: {
+      title: "Paramètres",
+      lead: "Compte débrideur et clés API (stockées localement).",
+    },
+    appearance: {
+      title: "Apparence",
+      lead: "Thème, accent et notifications.",
+    },
+    extract: {
+      title: "Récupération",
+      lead: "Mode d’extraction, retries et renommage.",
+    },
+    library: {
+      title: "Bibliothèque",
+      lead: "TMDB, affiches et accès NAS.",
+    },
+    updates: {
+      title: "MAJ & backup",
+      lead: "Mises à jour et sauvegarde des données.",
+    },
+  };
+
+  function switchSettingsSection(name) {
+    const key = SETTINGS_SECTION_META[name] ? name : "account";
+    document.querySelectorAll("[data-settings-section]").forEach((btn) => {
+      const active = btn.getAttribute("data-settings-section") === key;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    document.querySelectorAll("[data-settings-panel]").forEach((panel) => {
+      const active = panel.getAttribute("data-settings-panel") === key;
+      panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
+    });
+    const meta = SETTINGS_SECTION_META[key];
+    if (settingsTitle) settingsTitle.textContent = meta.title;
+    if (settingsLead) settingsLead.textContent = meta.lead;
+  }
+
+  document.querySelectorAll("[data-settings-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchSettingsSection(btn.getAttribute("data-settings-section") || "account");
+    });
+  });
+
+  extractModePageSelect?.addEventListener("change", () => {
+    const mode = extractModePageSelect.value || "smart";
+    if (extractModeSelect) extractModeSelect.value = mode;
+  });
+
+  extractModeSelect?.addEventListener("change", () => {
+    const mode = extractModeSelect.value || "smart";
+    if (extractModePageSelect) extractModePageSelect.value = mode;
+  });
 
   function closeSettings() {
     settingsModal.hidden = true;
@@ -1606,8 +1687,9 @@
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     showError("");
+    const mode = getExtractMode();
     const hosts = getHosts();
-    if (!hosts.length) {
+    if (mode !== "extensions" && !hosts.length) {
       showError("Veuillez indiquer au moins un hébergeur.");
       return;
     }
@@ -1622,6 +1704,8 @@
           hosts,
           host: hosts[0] || "",
           use_all_hosts: isUseAllHosts(),
+          extract_mode: mode,
+          extract_extensions: extractExtensionsInput?.value?.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -2190,6 +2274,10 @@
           : settings?.custom_accent || "",
       update_manifest_url: updateManifestInput?.value?.trim() || "",
       rename_template: renameTemplateSelect?.value || "simple",
+      extract_mode: extractModeSelect?.value || extractModePageSelect?.value || "smart",
+      extract_extensions:
+        extractExtensionsInput?.value?.trim() ||
+        ".zip,.rar,.7z,.exe,.iso,.tar,.gz,.apk",
       profiles: settings?.profiles || [],
       active_profile_id: settings?.active_profile_id || "",
       providers: {
@@ -2275,6 +2363,7 @@
         : "Aucune clé enregistrée.";
       keyAlldebrid.value = "";
       keyRealdebrid.value = "";
+      syncExtractModeUi(data.extract_mode || "smart");
       settingsModal.hidden = false;
       showSettingsMessage("Paramètres enregistrés.", true);
       showToast("Paramètres enregistrés.");
@@ -4672,20 +4761,27 @@
       return;
     }
     const hosts = getHosts();
-    if (!hosts.length) {
+    const mode = getExtractMode();
+    if (mode !== "extensions" && !hosts.length) {
       showToast("Indiquez au moins un hébergeur.");
       return;
     }
     const useAll = isUseAllHosts();
-    const host = useAll ? "Tous les hébergeurs" : hostsLabel(hosts);
+    const host =
+      mode === "extensions"
+        ? "Extensions"
+        : useAll
+          ? "Tous les hébergeurs"
+          : hostsLabel(hosts);
     let added = 0;
     for (const url of lines) {
       if (workQueue.some((q) => q.url === url && q.host === host)) continue;
       workQueue.push({
         url,
         host,
-        hosts: useAll ? [] : hosts,
+        hosts: useAll || mode === "extensions" ? [] : hosts,
         use_all_hosts: useAll,
+        extract_mode: mode,
         status: "pending",
         error: "",
       });
@@ -4741,7 +4837,12 @@
       return;
     }
     const hosts = getHosts();
-    if (!hosts.length && workQueue.some((q) => !(q.hosts?.length || q.host))) {
+    const mode = getExtractMode();
+    if (
+      mode !== "extensions" &&
+      !hosts.length &&
+      workQueue.some((q) => !(q.hosts?.length || q.host || q.use_all_hosts))
+    ) {
       showToast("Indiquez au moins un hébergeur.");
       return;
     }
@@ -4762,6 +4863,7 @@
         showToast(`File ${i + 1}/${workQueue.length} — extraction…`);
         try {
           const itemUseAll = !!item.use_all_hosts;
+          const itemMode = item.extract_mode || mode || getExtractMode();
           const itemHosts = itemUseAll
             ? supportedHosts.slice()
             : item.hosts?.length
@@ -4775,6 +4877,8 @@
               hosts: itemHosts,
               host: itemHosts[0] || "",
               use_all_hosts: itemUseAll,
+              extract_mode: itemMode,
+              extract_extensions: extractExtensionsInput?.value?.trim() || undefined,
             }),
           });
           const data = await res.json();

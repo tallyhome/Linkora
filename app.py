@@ -21,7 +21,7 @@ import smart_naming
 import storage
 import updater
 from paths import DATA_DIR, resource_root
-from scraper import SUPPORTED_HOSTS, scrape
+from scraper import SUPPORTED_HOSTS, normalize_extract_mode, scrape
 
 app = Flask(
     __name__,
@@ -473,9 +473,23 @@ def api_hosts():
 @app.post("/api/extract")
 def api_extract():
     data = request.get_json(silent=True) or {}
+    conf = app_settings.load_settings()
+    extract_mode = normalize_extract_mode(
+        data.get("extract_mode") or conf.get("extract_mode")
+    )
+    extensions = data.get("extract_extensions")
+    if extensions is None:
+        extensions = conf.get("extract_extensions")
+
     hosts, use_all_hosts = _parse_hosts(data)
+    # Mode extensions : pas besoin d’hébergeur nommé
+    if extract_mode == "extensions" and not hosts:
+        hosts = list(SUPPORTED_HOSTS)
+        use_all_hosts = True
     host_label = "Tous les hébergeurs" if use_all_hosts else " + ".join(hosts)
-    scrape_max = None if use_all_hosts else 6
+    if extract_mode == "extensions":
+        host_label = "Extensions"
+    scrape_max = None if use_all_hosts or extract_mode == "extensions" else 6
 
     # Une URL ou une liste / texte multi-lignes
     urls_raw = data.get("urls")
@@ -497,7 +511,7 @@ def api_extract():
 
     if not urls:
         return jsonify({"error": "Veuillez indiquer au moins une URL de page."}), 400
-    if not hosts:
+    if extract_mode != "extensions" and not hosts:
         return jsonify({"error": "Veuillez indiquer au moins un hébergeur."}), 400
     for u in urls:
         if not u.startswith(("http://", "https://")):
@@ -511,7 +525,13 @@ def api_extract():
     for u in urls:
         title = _page_title(u)
         try:
-            links = scrape(u, hosts, max_hosts=scrape_max)
+            links = scrape(
+                u,
+                hosts,
+                max_hosts=scrape_max,
+                mode=extract_mode,
+                extensions=extensions,
+            )
             enriched = [
                 smart_naming.enrich_link(
                     {**link, "page_url": u, "page_title": title}
@@ -525,6 +545,7 @@ def api_extract():
                     "host": host_label,
                     "hosts": hosts,
                     "use_all_hosts": use_all_hosts,
+                    "extract_mode": extract_mode,
                     "count": len(enriched),
                     "links": enriched,
                 }
@@ -538,6 +559,7 @@ def api_extract():
                     "host": host_label,
                     "hosts": hosts,
                     "use_all_hosts": use_all_hosts,
+                    "extract_mode": extract_mode,
                     "count": 0,
                     "links": [],
                     "error": str(exc),
@@ -553,6 +575,7 @@ def api_extract():
             "host": host_label,
             "hosts": hosts,
             "use_all_hosts": use_all_hosts,
+            "extract_mode": extract_mode,
             "batches": batches,
             "source_url": batches[0]["source_url"] if batches else "",
             "source_urls": [b["source_url"] for b in batches],

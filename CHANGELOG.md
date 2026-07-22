@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.5.0] — 2026-07-22
+
+### Ajouté
+- **Paramètres** redesignés : navigation latérale (Compte, Apparence, Récupération, Bibliothèque, MAJ & backup)
+- **Modes d’extraction** : Smart (défaut), Providers, Domaines, Extensions
+- Mapping **domaines hosters** (mega.nz, workupload, mixdrop.top, gofile.io…) pour pages type Codelist
+- Extraction d’URLs en **texte brut** (mode Smart)
+
+### Amélioré
+- Page Récupération : sélecteur de mode à côté des hébergeurs
+- Aide mise à jour (annuaires vs scripts / archives)
+
+---
+
 ## [2.4.0] — 2026-07-22
 
 ### Ajouté

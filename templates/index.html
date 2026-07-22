@@ -155,6 +155,15 @@
               <input type="checkbox" id="use-all-hosts" name="use_all_hosts">
               <span>Tous les hébergeurs disponibles</span>
             </label>
+            <label class="field field-extract-mode">
+              <span class="field-label">Mode d’extraction</span>
+              <select id="extract-mode-page" aria-label="Mode d’extraction">
+                <option value="smart">Smart (recommandé)</option>
+                <option value="providers">Providers (annuaire)</option>
+                <option value="domains">Domaines hosters</option>
+                <option value="extensions">Extensions (.zip…)</option>
+              </select>
+            </label>
             <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)">
               + Ajouter un hébergeur
             </button>
@@ -611,12 +620,15 @@
             <dd>Une adresse par ligne. Linkora ouvre chaque page et extrait les liens de l’hébergeur choisi.</dd>
             <dt>Hébergeur</dt>
             <dd>
-              Mot-clé filtré dans les liens trouvés (ex. <code>rapidgator</code>, <code>mega</code>, <code>mixdrop</code>).
-              Optionnel : <strong>+ Ajouter un hébergeur</strong> pour en cumuler jusqu’à 6 sur la même page.
-              Case <strong>Tous les hébergeurs disponibles</strong> : Linkora utilise tous les hébergeurs connus du système
-              et récupère ceux présents sur la page (sans limite de 6).
-              Après résolution, le 1er hébergeur est prioritaire ; si un lien est mort, Linkora bascule sur un miroir valide.
-              Le bloc principal garde <strong>un lien par épisode</strong> (prêt pour le téléchargement) ; les doublons/miroirs sont listés à part.
+              Mot-clé filtré (ex. <code>rapidgator</code>, <code>mega</code>).
+              Case <strong>Tous les hébergeurs disponibles</strong> : tous les hosters connus présents sur la page.
+              <strong>Mode d’extraction</strong> :
+              <em>Smart</em> (défaut) combine providers + domaines + URLs texte — annuaires films/séries
+              et pages scripts (Codelist, etc.) ;
+              <em>Providers</em> = spans annuaire ;
+              <em>Domaines</em> = liens vers hébergeurs ;
+              <em>Extensions</em> = .zip / .rar / .7z…
+              Après résolution, le 1er hébergeur est prioritaire ; miroirs en fallback.
             </dd>
             <dt>Récupérer</dt>
             <dd>Extrait les liens sans encore passer par le débrideur. Les résultats apparaissent par page (un bloc = une URL).</dd>
@@ -723,7 +735,9 @@
           <h2>Paramètres</h2>
           <dl class="help-dl">
             <dt>Thème</dt>
-            <dd>Linkora (défaut clair), Ambre (sombre bleu/jaune) ou Pro (sombre dense : en-tête compact fixe, panneaux à liseré, tableaux serrés). Couleur d’accent optionnelle dans Paramètres. Le logo Linkora n’est pas modifiable.</dd>
+            <dd>Linkora (défaut clair), Ambre (sombre bleu/jaune) ou Pro (sombre dense). Couleur d’accent optionnelle. Le logo Linkora n’est pas modifiable.</dd>
+            <dt>Sections Paramètres</dt>
+            <dd>Compte (clés), Apparence, Récupération (mode d’extraction), Bibliothèque (TMDB / NAS), MAJ &amp; backup.</dd>
             <dt>Notifications</dt>
             <dd>Alerte système quand une résolution / file est terminée.</dd>
             <dt>Auto-update</dt>
@@ -766,191 +780,235 @@
 
   <div id="settings-modal" class="modal" hidden>
     <div class="modal-backdrop" data-close-settings></div>
-    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-panel modal-panel-settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="modal-head">
-        <h2 id="settings-title">Paramètres débrideurs</h2>
+        <div>
+          <h2 id="settings-title">Paramètres</h2>
+          <p class="modal-lead settings-lead" id="settings-lead">Compte débrideur et clés API.</p>
+        </div>
         <button type="button" class="btn btn-close" data-close-settings aria-label="Fermer">×</button>
       </div>
-      <p class="modal-lead">
-        Ajoutez vos clés API officielles. Elles restent stockées localement sur cet appareil.
-      </p>
 
-      <form id="settings-form" class="settings-form" autocomplete="off" onsubmit="return false;">
-        <label class="field">
-          <span class="field-label">Thème d’interface</span>
-          <select id="ui-theme" name="theme">
-            <option value="linkora">Linkora (défaut)</option>
-            <option value="alldebrid">Ambre (jaune / rouge)</option>
-            <option value="nocturne">Pro (sombre, dense)</option>
-          </select>
-        </label>
+      <form id="settings-form" class="settings-form settings-shell" autocomplete="off" onsubmit="return false;">
+        <nav class="settings-nav" role="tablist" aria-label="Sections paramètres">
+          <button type="button" class="settings-nav-btn is-active" data-settings-section="account" role="tab" aria-selected="true">Compte</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="appearance" role="tab" aria-selected="false">Apparence</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="extract" role="tab" aria-selected="false">Récupération</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="library" role="tab" aria-selected="false">Bibliothèque</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="updates" role="tab" aria-selected="false">MAJ &amp; backup</button>
+        </nav>
 
-        <label class="check-field settings-check">
-          <input type="checkbox" id="auto-update" name="auto_update" checked>
-          <span>Mise à jour automatique</span>
-        </label>
-        <label class="check-field settings-check">
-          <input type="checkbox" id="notify-on-resolve" name="notify_on_resolve" checked>
-          <span>Notification Windows à la fin d’une résolution</span>
-        </label>
-        <label class="check-field settings-check">
-          <input type="checkbox" id="ssl-ignore-errors" name="ssl_ignore_errors">
-          <span>Ignorer les erreurs SSL des pages (déconseillé — uniquement si un site refuse de charger)</span>
-        </label>
-        <label class="field">
-          <span class="field-label">URL manifeste MAJ (optionnel)</span>
-          <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
-          <span class="field-hint">Sinon : releases GitHub. Format : {"version":"1.1.0","url":"https://.../Linkora-windows-v1.1.0.zip"}</span>
-        </label>
-        <label class="field">
-          <span class="field-label">Template de renommage</span>
-          <select id="rename-template" name="rename_template">
-            <option value="simple">Simple — Titre S03E01</option>
-            <option value="plex">Plex — Titre - S03E01</option>
-            <option value="jellyfin">Jellyfin — Titre S03E01</option>
-            <option value="dotted">Points — Titre.S03E01</option>
-          </select>
-        </label>
-        <p class="field-hint" id="update-status-hint">Version locale : —</p>
-        <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">
-          <button type="button" class="btn btn-ghost" id="btn-check-update">Vérifier les mises à jour</button>
-          <button type="button" class="btn btn-secondary" id="btn-force-update" hidden>Installer la MAJ</button>
+        <div class="settings-body">
+          <section class="settings-section is-active" data-settings-panel="account" role="tabpanel">
+            <label class="field">
+              <span class="field-label">Fournisseur actif</span>
+              <select id="active-provider" name="active_provider">
+                <option value="alldebrid">AllDebrid</option>
+                <option value="realdebrid">Real-Debrid</option>
+              </select>
+            </label>
+
+            <fieldset class="provider-block">
+              <legend>AllDebrid</legend>
+              <label class="field">
+                <span class="field-label">Clé(s) API — une par ligne</span>
+                <textarea
+                  id="key-alldebrid"
+                  name="alldebrid"
+                  rows="2"
+                  placeholder="Coller une ou plusieurs clés (vide = conserver)"
+                  spellcheck="false"
+                ></textarea>
+                <span class="field-hint" id="hint-alldebrid"></span>
+              </label>
+              <button type="button" class="btn btn-ghost" data-test-provider="alldebrid">Tester</button>
+            </fieldset>
+
+            <fieldset class="provider-block">
+              <legend>Real-Debrid</legend>
+              <label class="field">
+                <span class="field-label">Clé(s) / token — une par ligne</span>
+                <textarea
+                  id="key-realdebrid"
+                  name="realdebrid"
+                  rows="2"
+                  placeholder="Coller une ou plusieurs clés (vide = conserver)"
+                  spellcheck="false"
+                ></textarea>
+                <span class="field-hint" id="hint-realdebrid"></span>
+              </label>
+              <button type="button" class="btn btn-ghost" data-test-provider="realdebrid">Tester</button>
+            </fieldset>
+          </section>
+
+          <section class="settings-section" data-settings-panel="appearance" role="tabpanel" hidden>
+            <label class="field">
+              <span class="field-label">Thème d’interface</span>
+              <select id="ui-theme" name="theme">
+                <option value="linkora">Linkora (défaut)</option>
+                <option value="alldebrid">Ambre (jaune / rouge)</option>
+                <option value="nocturne">Pro (sombre, dense)</option>
+              </select>
+            </label>
+
+            <fieldset class="provider-block">
+              <legend>Couleur d’accent</legend>
+              <label class="field">
+                <span class="field-label">Accent (optionnel)</span>
+                <input type="color" id="custom-accent" value="#2a6df4" title="Accent">
+                <span class="field-hint">Personnalise la couleur des boutons.</span>
+              </label>
+              <div class="modal-actions" style="justify-content:flex-start;margin:0.35rem 0 0">
+                <button type="button" class="btn btn-ghost btn-xs" id="btn-reset-accent">Accent par défaut</button>
+              </div>
+            </fieldset>
+
+            <label class="check-field settings-check">
+              <input type="checkbox" id="notify-on-resolve" name="notify_on_resolve" checked>
+              <span>Notification Windows à la fin d’une résolution</span>
+            </label>
+          </section>
+
+          <section class="settings-section" data-settings-panel="extract" role="tabpanel" hidden>
+            <label class="field">
+              <span class="field-label">Mode d’extraction</span>
+              <select id="extract-mode" name="extract_mode">
+                <option value="smart">Smart — providers + domaines + URLs texte</option>
+                <option value="providers">Providers — pages type annuaire (spans)</option>
+                <option value="domains">Domaines — liens vers hébergeurs connus</option>
+                <option value="extensions">Extensions — .zip / .rar / .7z / .exe…</option>
+              </select>
+              <span class="field-hint">Smart convient aux annuaires films/séries et aux pages scripts (Codelist, etc.).</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Extensions (mode Extensions)</span>
+              <input
+                type="text"
+                id="extract-extensions"
+                name="extract_extensions"
+                placeholder=".zip,.rar,.7z,.exe"
+                spellcheck="false"
+              >
+              <span class="field-hint">Séparées par des virgules.</span>
+            </label>
+
+            <div class="settings-grid">
+              <label class="field">
+                <span class="field-label">Re-vérifications si dead</span>
+                <input type="number" id="max-retries" name="max_retries" min="1" max="8" step="1" value="3">
+                <span class="field-hint">Essais avant de marquer mort (1–8).</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Résolutions en parallèle</span>
+                <input type="number" id="resolve-concurrency" name="resolve_concurrency" min="1" max="12" step="1" value="6">
+                <span class="field-hint">1–12 · 6 est un bon équilibre.</span>
+              </label>
+            </div>
+
+            <label class="field">
+              <span class="field-label">Template de renommage</span>
+              <select id="rename-template" name="rename_template">
+                <option value="simple">Simple — Titre S03E01</option>
+                <option value="plex">Plex — Titre - S03E01</option>
+                <option value="jellyfin">Jellyfin — Titre S03E01</option>
+                <option value="dotted">Points — Titre.S03E01</option>
+              </select>
+            </label>
+
+            <label class="check-field settings-check">
+              <input type="checkbox" id="ssl-ignore-errors" name="ssl_ignore_errors">
+              <span>Ignorer les erreurs SSL des pages (déconseillé)</span>
+            </label>
+          </section>
+
+          <section class="settings-section" data-settings-panel="library" role="tabpanel" hidden>
+            <fieldset class="provider-block">
+              <legend>TMDB (affiches bibliothèque)</legend>
+              <p class="field-hint">
+                Optionnel. Clé gratuite sur
+                <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>.
+              </p>
+              <label class="field">
+                <span class="field-label">Clé API TMDB</span>
+                <input type="password" id="tmdb-api-key" placeholder="vide = conserver" autocomplete="new-password" spellcheck="false">
+                <span class="field-hint" id="hint-tmdb">Aucune clé enregistrée.</span>
+              </label>
+              <label class="check-field settings-check">
+                <input type="checkbox" id="library-show-posters" checked>
+                <span>Charger les affiches après un scan (si clé présente)</span>
+              </label>
+              <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+                <button type="button" class="btn btn-ghost" id="btn-tmdb-test">Tester TMDB</button>
+              </div>
+            </fieldset>
+
+            <fieldset class="provider-block">
+              <legend>Accès NAS (partages Windows)</legend>
+              <p class="field-hint">
+                Pour les chemins <code>\\NAS\partage\…</code>. Mot de passe vide = conserver l’actuel.
+              </p>
+              <div class="settings-grid">
+                <label class="field">
+                  <span class="field-label">Hôte / IP</span>
+                  <input type="text" id="nas-host" placeholder="NAS ou 192.168.1.50" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span class="field-label">Partage (pour test)</span>
+                  <input type="text" id="nas-share" placeholder="volume1  ou  Media" spellcheck="false" autocomplete="off">
+                </label>
+              </div>
+              <div class="settings-grid">
+                <label class="field">
+                  <span class="field-label">Utilisateur</span>
+                  <input type="text" id="nas-username" placeholder="admin" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span class="field-label">Mot de passe</span>
+                  <input type="password" id="nas-password" placeholder="vide = conserver" autocomplete="new-password">
+                </label>
+              </div>
+              <span class="field-hint" id="hint-nas">Aucun identifiant NAS enregistré.</span>
+              <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+                <button type="button" class="btn btn-ghost" id="btn-nas-test">Tester la connexion</button>
+                <button type="button" class="btn btn-ghost btn-xs" id="btn-nas-clear">Effacer les identifiants</button>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="settings-section" data-settings-panel="updates" role="tabpanel" hidden>
+            <label class="check-field settings-check">
+              <input type="checkbox" id="auto-update" name="auto_update" checked>
+              <span>Mise à jour automatique</span>
+            </label>
+            <label class="field">
+              <span class="field-label">URL manifeste MAJ (optionnel)</span>
+              <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
+              <span class="field-hint">Sinon : releases GitHub.</span>
+            </label>
+            <p class="field-hint" id="update-status-hint">Version locale : —</p>
+            <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">
+              <button type="button" class="btn btn-ghost" id="btn-check-update">Vérifier les mises à jour</button>
+              <button type="button" class="btn btn-secondary" id="btn-force-update" hidden>Installer la MAJ</button>
+            </div>
+
+            <fieldset class="provider-block">
+              <legend>Sauvegarde des données</legend>
+              <p class="field-hint">Exportez ou restaurez <code>data/</code> (historique + réglages). Le zip contient vos clés API.</p>
+              <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
+                <button type="button" class="btn btn-secondary" id="btn-backup-export">Exporter backup</button>
+                <label class="btn btn-ghost" style="cursor:pointer;margin:0">
+                  Importer backup
+                  <input type="file" id="backup-import-file" accept=".zip,application/zip" hidden>
+                </label>
+              </div>
+            </fieldset>
+          </section>
         </div>
-
-        <fieldset class="provider-block">
-          <legend>Sauvegarde des données</legend>
-          <p class="field-hint">Exportez ou restaurez historique + réglages (`data/`) pour changer de PC. Le zip contient vos clés API : ne le partagez pas.</p>
-          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
-            <button type="button" class="btn btn-secondary" id="btn-backup-export">Exporter backup</button>
-            <label class="btn btn-ghost" style="cursor:pointer;margin:0">
-              Importer backup
-              <input type="file" id="backup-import-file" accept=".zip,application/zip" hidden>
-            </label>
-          </div>
-        </fieldset>
-
-        <div class="settings-grid">
-          <label class="field">
-            <span class="field-label">Re-vérifications si dead</span>
-            <input type="number" id="max-retries" name="max_retries" min="1" max="8" step="1" value="3">
-            <span class="field-hint">Nombre d’essais AllDebrid avant de marquer mort (1–8).</span>
-          </label>
-          <label class="field">
-            <span class="field-label">Résolutions en parallèle</span>
-            <input type="number" id="resolve-concurrency" name="resolve_concurrency" min="1" max="12" step="1" value="6">
-            <span class="field-hint">Plus élevé = plus rapide (1–12). 6 est un bon équilibre.</span>
-          </label>
-        </div>
-
-        <fieldset class="provider-block">
-          <legend>Couleur d’accent</legend>
-          <label class="field">
-            <span class="field-label">Accent (optionnel)</span>
-            <input type="color" id="custom-accent" value="#2a6df4" title="Accent">
-            <span class="field-hint">Personnalise la couleur des boutons. Remise : bouton ci-dessous.</span>
-          </label>
-          <div class="modal-actions" style="justify-content:flex-start;margin:0.35rem 0 0">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-reset-accent">Accent par défaut</button>
-          </div>
-        </fieldset>
-
-        <label class="field">
-          <span class="field-label">Fournisseur actif</span>
-          <select id="active-provider" name="active_provider">
-            <option value="alldebrid">AllDebrid</option>
-            <option value="realdebrid">Real-Debrid</option>
-          </select>
-        </label>
-
-        <fieldset class="provider-block">
-          <legend>Accès NAS (partages Windows)</legend>
-          <p class="field-hint">
-            Pour les chemins <code>\\NAS\partage\…</code> qui demandent un login.
-            Laissez le mot de passe vide à l’enregistrement pour conserver l’actuel.
-          </p>
-          <div class="settings-grid">
-            <label class="field">
-              <span class="field-label">Hôte / IP</span>
-              <input type="text" id="nas-host" placeholder="NAS ou 192.168.1.50" spellcheck="false" autocomplete="off">
-            </label>
-            <label class="field">
-              <span class="field-label">Partage (pour test)</span>
-              <input type="text" id="nas-share" placeholder="volume1  ou  Media" spellcheck="false" autocomplete="off">
-            </label>
-          </div>
-          <div class="settings-grid">
-            <label class="field">
-              <span class="field-label">Utilisateur</span>
-              <input type="text" id="nas-username" placeholder="admin" spellcheck="false" autocomplete="off">
-            </label>
-            <label class="field">
-              <span class="field-label">Mot de passe</span>
-              <input type="password" id="nas-password" placeholder="vide = conserver" autocomplete="new-password">
-            </label>
-          </div>
-          <span class="field-hint" id="hint-nas">Aucun identifiant NAS enregistré.</span>
-          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
-            <button type="button" class="btn btn-ghost" id="btn-nas-test">Tester la connexion</button>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-nas-clear">Effacer les identifiants</button>
-          </div>
-        </fieldset>
-
-        <fieldset class="provider-block">
-          <legend>TMDB (affiches bibliothèque)</legend>
-          <p class="field-hint">
-            Optionnel. Créez une clé gratuite sur
-            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>
-            — rien n’est envoyé sans clé.
-          </p>
-          <label class="field">
-            <span class="field-label">Clé API TMDB</span>
-            <input type="password" id="tmdb-api-key" placeholder="vide = conserver" autocomplete="new-password" spellcheck="false">
-            <span class="field-hint" id="hint-tmdb">Aucune clé enregistrée.</span>
-          </label>
-          <label class="check-field settings-check">
-            <input type="checkbox" id="library-show-posters" checked>
-            <span>Charger les affiches après un scan (si clé présente)</span>
-          </label>
-          <div class="modal-actions" style="justify-content:flex-start;margin:0.5rem 0 0">
-            <button type="button" class="btn btn-ghost" id="btn-tmdb-test">Tester TMDB</button>
-          </div>
-        </fieldset>
-
-        <fieldset class="provider-block">
-          <legend>AllDebrid</legend>
-          <label class="field">
-            <span class="field-label">Clé(s) API — une par ligne</span>
-            <textarea
-              id="key-alldebrid"
-              name="alldebrid"
-              rows="2"
-              placeholder="Coller une ou plusieurs clés (vide = conserver)"
-              spellcheck="false"
-            ></textarea>
-            <span class="field-hint" id="hint-alldebrid"></span>
-          </label>
-          <button type="button" class="btn btn-ghost" data-test-provider="alldebrid">Tester</button>
-        </fieldset>
-
-        <fieldset class="provider-block">
-          <legend>Real-Debrid</legend>
-          <label class="field">
-            <span class="field-label">Clé(s) / token — une par ligne</span>
-            <textarea
-              id="key-realdebrid"
-              name="realdebrid"
-              rows="2"
-              placeholder="Coller une ou plusieurs clés (vide = conserver)"
-              spellcheck="false"
-            ></textarea>
-            <span class="field-hint" id="hint-realdebrid"></span>
-          </label>
-          <button type="button" class="btn btn-ghost" data-test-provider="realdebrid">Tester</button>
-        </fieldset>
 
         <p id="settings-message" class="settings-message" hidden></p>
 
-        <div class="modal-actions">
+        <div class="modal-actions settings-footer">
           <button type="button" class="btn btn-ghost" data-close-settings>Annuler</button>
           <button type="button" class="btn btn-primary" id="btn-settings-save">Enregistrer</button>
         </div>
