@@ -310,6 +310,16 @@
       </button>
       <div class="history-body" id="history-body" hidden>
         <p class="history-lead">Une entrée par page — cliquez sur Ouvrir pour revoir les liens.</p>
+        <div class="history-bulk-bar" id="history-bulk-bar" hidden>
+          <label class="check-field history-bulk-check">
+            <input type="checkbox" id="history-select-all" aria-label="Tout sélectionner">
+            <span>Tout sélectionner</span>
+          </label>
+          <button type="button" class="btn btn-danger btn-xs" id="btn-history-delete-selected" disabled>
+            Supprimer la sélection
+          </button>
+          <span class="history-bulk-count" id="history-bulk-count" hidden></span>
+        </div>
         <ul id="history-list" class="history-list">
           <li class="history-empty">Aucune sauvegarde pour le moment.</li>
         </ul>
@@ -623,8 +633,8 @@
               Mot-clé filtré (ex. <code>rapidgator</code>, <code>mega</code>).
               Case <strong>Tous les hébergeurs disponibles</strong> : tous les hosters connus présents sur la page.
               <strong>Mode d’extraction</strong> :
-              <em>Smart</em> (défaut) combine providers + domaines + URLs texte — annuaires films/séries
-              et pages scripts (Codelist, etc.) ;
+              <em>Smart</em> (défaut) s’adapte : providers + domaines + protecteurs (dl-protect) avec hébergeur détecté à côté
+              — annuaires films/séries, zone-annuaire, pages scripts (Codelist) ;
               <em>Providers</em> = spans annuaire ;
               <em>Domaines</em> = liens vers hébergeurs ;
               <em>Extensions</em> = .zip / .rar / .7z…
@@ -873,12 +883,12 @@
             <label class="field">
               <span class="field-label">Mode d’extraction</span>
               <select id="extract-mode" name="extract_mode">
-                <option value="smart">Smart — providers + domaines + URLs texte</option>
+                <option value="smart">Smart — adaptatif (providers, domaines, protecteurs)</option>
                 <option value="providers">Providers — pages type annuaire (spans)</option>
                 <option value="domains">Domaines — liens vers hébergeurs connus</option>
                 <option value="extensions">Extensions — .zip / .rar / .7z / .exe…</option>
               </select>
-              <span class="field-hint">Smart convient aux annuaires films/séries et aux pages scripts (Codelist, etc.).</span>
+              <span class="field-hint">Smart : annuaires (providers), pages scripts (domaines), et sites type zone-annuaire (liens dl-protect + hébergeur voisin).</span>
             </label>
 
             <label class="field">

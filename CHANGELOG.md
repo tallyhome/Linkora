@@ -4,6 +4,19 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.6.0] — 2026-07-22
+
+### Ajouté
+- Historique : cases à cocher + **suppression multiple** (tout sélectionner)
+- Mode **Smart** : détection des protecteurs (`dl-protect.link`) et hébergeur voisin
+  (pages type zone-annuaire / annuaires similaires)
+
+### Amélioré
+- Extraction adaptative multi-sites (providers + domaines + protecteurs contextualisés)
+- Aide / libellés du mode Smart mis à jour
+
+---
+
 ## [2.5.0] — 2026-07-22
 
 ### Ajouté

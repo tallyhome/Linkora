@@ -725,6 +725,16 @@ def api_history_delete(extraction_id: int):
     return jsonify({"ok": True})
 
 
+@app.post("/api/history/delete")
+def api_history_delete_bulk():
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get("ids")
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({"error": "Aucun élément sélectionné."}), 400
+    deleted = storage.delete_extractions(raw_ids)
+    return jsonify({"ok": True, "deleted": deleted})
+
+
 @app.get("/api/library/history")
 def api_library_history():
     return jsonify(storage.list_library_history())

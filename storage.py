@@ -160,6 +160,33 @@ def delete_extraction(extraction_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def delete_extractions(ids: list[int]) -> int:
+    """Supprime plusieurs extractions. Retourne le nombre réellement effacé."""
+    clean: list[int] = []
+    seen: set[int] = set()
+    for raw in ids or []:
+        try:
+            n = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if n <= 0 or n in seen:
+            continue
+        seen.add(n)
+        clean.append(n)
+        if len(clean) >= 500:
+            break
+    if not clean:
+        return 0
+    with _connect() as conn:
+        placeholders = ",".join("?" * len(clean))
+        cur = conn.execute(
+            f"DELETE FROM extractions WHERE id IN ({placeholders})",
+            clean,
+        )
+        conn.commit()
+        return cur.rowcount
+
+
 def init_library_history() -> None:
     with _connect() as conn:
         conn.execute(

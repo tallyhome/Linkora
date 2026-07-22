@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import re
 import warnings
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -84,6 +85,20 @@ _HOST_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 _URL_RE = re.compile(r"https?://[^\s<>\"'\]]+", re.I)
+_EPISODE_LABEL_RE = re.compile(r"(?i)^\s*episode\s*\d+")
+
+# Protecteurs de liens (débridables via AllDebrid / Real-Debrid).
+PROTECTOR_DOMAINS: tuple[str, ...] = (
+    "dl-protect.link",
+    "dl-protect.com",
+    "dlprotect.info",
+    "protect-lien.com",
+    "linkprotect.cyp",
+    "safelinking.net",
+    "ouo.io",
+    "linkvertise.com",
+)
+
 _DOMAIN_TO_HOST: dict[str, str] = {}
 for _host, _domains in HOST_DOMAINS.items():
     for _d in _domains:
@@ -249,6 +264,84 @@ def _host_for_url(url: str, allowed_hosts: list[str] | None = None) -> str:
     return matched
 
 
+def _is_protector_url(url: str) -> bool:
+    host = _url_host(url)
+    if not host:
+        return False
+    return any(host == d or host.endswith("." + d) for d in PROTECTOR_DOMAINS)
+
+
+def _match_host_in_text(text: str, hosts: list[str]) -> str:
+    """Retourne l’hébergeur dont le nom apparaît dans un libellé court."""
+    raw = (text or "").strip()
+    if not raw or len(raw) > 80:
+        return ""
+    t = raw.lower()
+    if _EPISODE_LABEL_RE.match(t):
+        return ""
+    best = ""
+    best_score = -1
+    for host in hosts:
+        for key in _host_match_keys(host):
+            if len(key) < 3:
+                continue
+            hit = False
+            if t == key or t.replace(" ", "") == key.replace(" ", ""):
+                hit = True
+            elif re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", t):
+                hit = True
+            if hit and len(key) > best_score:
+                best_score = len(key)
+                best = host
+    return best
+
+
+def _infer_host_near_anchor(a, hosts: list[str]) -> str:
+    """
+    Sur les pages type zone-annuaire : le nom d’hébergeur précède les Episode N
+    (Uploady / Rapidgator / Turbobit…) alors que le href est un protecteur.
+
+    On s’arrête au premier libellé d’hébergeur connu (catalogue système),
+    même s’il n’est pas dans le filtre — sinon on remonte trop loin
+    (ex. section Turbobit qui « voit » Rapidgator plus haut).
+    """
+    if not a or not hosts:
+        return ""
+    catalog = list(SUPPORTED_HOSTS)
+    allowed = {h.lower() for h in hosts}
+    for el in a.find_all_previous(True, limit=50):
+        if getattr(el, "name", None) in ("script", "style", "noscript"):
+            continue
+        if el.name == "img":
+            own = (el.get("alt") or el.get("title") or "").strip()
+        else:
+            own = el.get_text(" ", strip=True)
+        if not own or len(own) > 60:
+            continue
+        matched = _match_host_in_text(own, catalog)
+        if not matched:
+            continue
+        if matched.lower() in allowed:
+            return matched
+        return ""
+    return ""
+
+
+def _label_from_protect_url(url: str) -> str:
+    """Décode le paramètre fn= (base64) souvent présent sur dl-protect."""
+    try:
+        qs = parse_qs(urlparse(url).query)
+        fn = (qs.get("fn") or [""])[0]
+        if not fn:
+            return ""
+        pad = "=" * ((4 - len(fn) % 4) % 4)
+        raw = base64.b64decode(fn + pad).decode("utf-8", errors="ignore").strip()
+        # ex. "Lucky - Saison 1 Episode 1 -[VF]"
+        return raw[:140]
+    except Exception:
+        return ""
+
+
 def _url_has_extension(url: str, extensions: list[str]) -> bool:
     try:
         path = unquote(urlparse(url).path or "").lower()
@@ -386,6 +479,67 @@ def _extract_plaintext_urls(
         _append_result(results, seen, url=href, matched_host=matched)
 
 
+def _extract_protectors(
+    soup: BeautifulSoup,
+    hosts: list[str],
+    results: list[dict],
+    seen: set[str],
+    *,
+    include_unknown: bool = False,
+) -> None:
+    """
+    Liens protecteurs (dl-protect…) : associe l’hébergeur au libellé voisin.
+    Couvre zone-annuaire / annuaires similaires sans spans providers*.
+    """
+    allowed = hosts or list(SUPPORTED_HOSTS)
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if not _is_protector_url(href):
+            continue
+        inferred = _infer_host_near_anchor(a, allowed)
+        if not inferred:
+            if not include_unknown:
+                continue
+            inferred = "protect"
+        elif hosts and inferred.lower() not in {h.lower() for h in hosts}:
+            continue
+
+        label, size = _anchor_meta(a)
+        if not label or label.lower().startswith("http"):
+            label = _label_from_protect_url(href) or label
+        _append_result(
+            results,
+            seen,
+            url=href,
+            matched_host=inferred,
+            label=label,
+            size=size,
+        )
+
+
+def _extract_adaptive(
+    soup: BeautifulSoup,
+    html: str,
+    hosts: list[str],
+    results: list[dict],
+    seen: set[str],
+) -> None:
+    """
+    Mode adaptatif : providers + domaines hosters + protecteurs contextualisés
+    + URLs texte. Sert de base « multi-sites » sans LLM.
+    """
+    _extract_providers(soup, hosts, results, seen)
+    _extract_domains(soup, hosts, results, seen)
+    _extract_protectors(
+        soup,
+        hosts,
+        results,
+        seen,
+        include_unknown=len(hosts) >= len(SUPPORTED_HOSTS) - 2,
+    )
+    _extract_plaintext_urls(html, hosts, results, seen)
+
+
 def extract_links(
     html: str,
     host: str | list[str],
@@ -411,12 +565,11 @@ def extract_links(
         _extract_providers(soup, hosts, results, seen)
     elif extract_mode == "domains":
         _extract_domains(soup, hosts, results, seen)
+        _extract_protectors(soup, hosts, results, seen, include_unknown=False)
     elif extract_mode == "extensions":
         _extract_extensions(soup, exts, results, seen)
-    else:  # smart
-        _extract_providers(soup, hosts, results, seen)
-        _extract_domains(soup, hosts, results, seen)
-        _extract_plaintext_urls(html, hosts, results, seen)
+    else:  # smart — adaptatif multi-sites
+        _extract_adaptive(soup, html, hosts, results, seen)
 
     return results
 

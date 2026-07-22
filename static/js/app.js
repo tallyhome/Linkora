@@ -1435,14 +1435,21 @@
     try {
       const res = await fetch("/api/history");
       const items = await res.json();
+      const bulkBar = document.getElementById("history-bulk-bar");
+      const selectAll = document.getElementById("history-select-all");
       if (!Array.isArray(items) || !items.length) {
         updateHistoryCount(0);
+        if (bulkBar) bulkBar.hidden = true;
+        if (selectAll) selectAll.checked = false;
         historyList.innerHTML =
           '<li class="history-empty">Aucune sauvegarde pour le moment.</li>';
+        syncHistoryBulkUi();
         return;
       }
 
       updateHistoryCount(items.length);
+      if (bulkBar) bulkBar.hidden = false;
+      if (selectAll) selectAll.checked = false;
       historyList.innerHTML = items
         .map((item) => {
           const url = item.source_url || "";
@@ -1451,6 +1458,9 @@
           return `
         <li class="history-item" data-id="${item.id}">
           <div class="history-item-row">
+            <label class="history-item-check" title="Sélectionner">
+              <input type="checkbox" data-history-select value="${item.id}" aria-label="Sélectionner cette entrée">
+            </label>
             <button type="button" class="history-item-main" data-action="open">
               <p class="history-item-title">${escapeHtml(item.title || item.host)}</p>
               <p class="history-item-meta">
@@ -1467,10 +1477,49 @@
         </li>`;
         })
         .join("");
+      syncHistoryBulkUi();
     } catch {
       updateHistoryCount(0);
+      const bulkBar = document.getElementById("history-bulk-bar");
+      if (bulkBar) bulkBar.hidden = true;
       historyList.innerHTML =
         '<li class="history-empty">Impossible de charger l’historique.</li>';
+      syncHistoryBulkUi();
+    }
+  }
+
+  function getSelectedHistoryIds() {
+    return [...document.querySelectorAll("[data-history-select]:checked")].map(
+      (el) => Number(el.value)
+    ).filter((id) => id > 0);
+  }
+
+  function syncHistoryBulkUi() {
+    const btn = document.getElementById("btn-history-delete-selected");
+    const countEl = document.getElementById("history-bulk-count");
+    const selectAll = document.getElementById("history-select-all");
+    const boxes = [...document.querySelectorAll("[data-history-select]")];
+    const selected = getSelectedHistoryIds();
+    if (btn) btn.disabled = selected.length === 0;
+    if (countEl) {
+      if (selected.length) {
+        countEl.hidden = false;
+        countEl.textContent =
+          selected.length === 1
+            ? "1 sélectionnée"
+            : `${selected.length} sélectionnées`;
+      } else {
+        countEl.hidden = true;
+        countEl.textContent = "";
+      }
+    }
+    if (selectAll && boxes.length) {
+      selectAll.checked = selected.length === boxes.length;
+      selectAll.indeterminate =
+        selected.length > 0 && selected.length < boxes.length;
+    } else if (selectAll) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
     }
   }
 
@@ -2562,6 +2611,11 @@
     const item = event.target.closest(".history-item");
     if (!item) return;
 
+    // Cases à cocher : ne pas ouvrir l’entrée
+    if (event.target.closest(".history-item-check")) {
+      return;
+    }
+
     // Actions dans le détail (résoudre, copier…) — délégué plus bas
     if (event.target.closest(".history-item-detail") && actionBtn?.dataset.action !== "close-detail") {
       return;
@@ -2612,6 +2666,52 @@
       if (!allHosts) setHosts(data.hosts || data.host || "");
       renderHistoryInline(item, data);
       showToast("Ouvert sous l’historique.");
+    }
+  });
+
+  historyList.addEventListener("change", (event) => {
+    if (!event.target.matches("[data-history-select]")) return;
+    syncHistoryBulkUi();
+  });
+
+  document.getElementById("history-select-all")?.addEventListener("change", (event) => {
+    const checked = !!event.target.checked;
+    document.querySelectorAll("[data-history-select]").forEach((box) => {
+      box.checked = checked;
+    });
+    syncHistoryBulkUi();
+  });
+
+  document.getElementById("btn-history-delete-selected")?.addEventListener("click", async () => {
+    const ids = getSelectedHistoryIds();
+    if (!ids.length) {
+      showToast("Aucune entrée sélectionnée.");
+      return;
+    }
+    const ok = await askConfirm(
+      ids.length === 1
+        ? "Supprimer cette extraction ?"
+        : `Supprimer ${ids.length} extractions ?`,
+      "Cette action est définitive.",
+      { confirmText: "Supprimer", icon: "warning" }
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch("/api/history/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || "Suppression impossible.");
+        return;
+      }
+      const n = Number(data.deleted) || ids.length;
+      showToast(n === 1 ? "1 entrée supprimée." : `${n} entrées supprimées.`);
+      await loadHistory();
+    } catch {
+      showToast("Suppression impossible.");
     }
   });
 
