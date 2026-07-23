@@ -2,26 +2,30 @@
 
 ## Pourquoi ?
 
-Sans signature, Windows SmartScreen affiche souvent :
+Sans signature, Windows SmartScreen et certains antivirus signalent plus facilement les `.exe` peu connus (surtout PyInstaller).
 
-> « Windows a protégé votre PC »
+Un certificat **Authenticode** de confiance (CA ou SignPath Foundation) réduit fortement ces alertes.
 
-Un certificat **Authenticode** (OV/EV Code Signing) réduit fortement ces alertes après un peu de réputation de téléchargement.
+## Ce que Linkora fait déjà (sans certificat)
 
-## Ce que Linkora prévoit
+- Build **Release** (pas de console debug)
+- **Pas d’UPX** / packers (`linkora.spec`)
+- **Métadonnées PE** : éditeur **Tallyhome**, description, version (`tools/gen_version_info.py`)
+- Installateur **Inno Setup** avec VersionInfo éditeur Tallyhome
+- Staging MAJ sous `{install}/updates/` (pas `%TEMP%`)
+- Distribution HTTPS via [GitHub Releases](https://github.com/tallyhome/Linkora/releases)
 
-- Script : [`tools/sign_windows.ps1`](../tools/sign_windows.ps1)
-- Intégré au build si `LINKORA_CERT` est défini : [`tools/build_windows.ps1`](../tools/build_windows.ps1)
+## Voie recommandée (gratuit) : SignPath Foundation
 
-## Obtenir un certificat
+Voir la procédure complète : [`docs/SIGNPATH.md`](SIGNPATH.md)  
+Politique publique (obligatoire SignPath) : [`CODE_SIGNING_POLICY.md`](../CODE_SIGNING_POLICY.md)
 
-1. Acheter un **Code Signing** chez un CA (DigiCert, Sectigo, SSL.com…)
-2. Depuis ~2023 : souvent livré sur **token USB** / HSM (pas seulement un `.pfx` fichier)
-3. Exporter / utiliser selon les instructions du fournisseur
+Après acceptation, la CI signe les artefacts via SignPath (pas de token USB chez toi).
 
-Coût indicatif : **200–500 € / an** (OV) ; EV plus cher, meilleure confiance initiale.
+## Certificat PFX local (payant / perso)
 
-## Utilisation
+Script : [`tools/sign_windows.ps1`](../tools/sign_windows.ps1)  
+Branché dans [`tools/build_windows.ps1`](../tools/build_windows.ps1) si `LINKORA_CERT` est défini.
 
 ```powershell
 $env:LINKORA_CERT = "C:\certs\linkora.pfx"
@@ -29,19 +33,17 @@ $env:LINKORA_CERT_PASS = "********"
 .\tools\build_windows.ps1
 ```
 
-Ou signature seule :
-
-```powershell
-.\tools\sign_windows.ps1 -Target .\dist\Linkora\Linkora.exe
-```
-
 Prérequis : **Windows SDK** (`signtool.exe`).
 
-## Sans certificat
+> Un certificat **auto-signé** ne rassure ni Windows ni VirusTotal : inutile pour la confiance publique.
 
-Le `.exe` fonctionne quand même. L’utilisateur clique « Informations complémentaires » → « Exécuter quand même ».
+## Faux positifs VirusTotal
 
-## Alternative
+1. Rebuild **sans UPX** + métadonnées, resoumettre zip **et** `Linkora.exe`
+2. Signaler les moteurs concernés (ex. Bkav, SentinelOne) avec le hash SHA-256 + lien GitHub
+3. Une fois SignPath actif, republier une release signée
 
-- Notarisation / Softener : publier longtemps les mêmes builds signés
-- Distribution via Microsoft Store (autre flux, hors scope actuel)
+Liens utiles :
+
+- [Microsoft (Defender) submission](https://www.microsoft.com/en-us/wdsi/filesubmission)
+- [VirusTotal](https://www.virustotal.com/) → reanalyse après nouvelle build

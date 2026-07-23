@@ -12,6 +12,10 @@ Write-Host "=== Linkora build v$Version ===" -ForegroundColor Cyan
 python -m pip install -q -r requirements.txt pyinstaller
 if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 
+Write-Host "Metadonnees PE (Tallyhome / version)..." -ForegroundColor Cyan
+python "$Root\tools\gen_version_info.py"
+if ($LASTEXITCODE -ne 0) { throw "gen_version_info failed" }
+
 # Préserver data/ (historique + réglages) entre deux builds
 $DataBackup = Join-Path $env:TEMP "linkora-data-backup-$(Get-Random)"
 $DistData = "$Root\dist\Linkora\data"
@@ -37,10 +41,10 @@ if (Test-Path $DataBackup) {
     Write-Host "data/ restaure apres build." -ForegroundColor Green
 }
 
-# Signature optionnelle
+# Signature optionnelle (PFX local — voir docs/CODE_SIGNING.md ; SignPath en CI)
 $SignScript = Join-Path $PSScriptRoot "sign_windows.ps1"
 if ($env:LINKORA_CERT -and (Test-Path $SignScript)) {
-    Write-Host "Signature Authenticode..." -ForegroundColor Yellow
+    Write-Host "Signature Authenticode (Linkora.exe)..." -ForegroundColor Yellow
     & $SignScript -Target "$Root\dist\Linkora\Linkora.exe"
 }
 
@@ -68,6 +72,10 @@ if ($Iscc) {
     & $Iscc "/DMyAppVersion=$Version" "$Root\tools\linkora.iss"
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup (ISCC) failed" }
     Write-Host "OK -> $SetupPath" -ForegroundColor Green
+    if ($env:LINKORA_CERT -and (Test-Path $SignScript) -and (Test-Path $SetupPath)) {
+        Write-Host "Signature Authenticode (Setup)..." -ForegroundColor Yellow
+        & $SignScript -Target $SetupPath
+    }
 } else {
     Write-Host "Inno Setup non trouve : zip portable uniquement." -ForegroundColor Yellow
     Write-Host "Installez via : winget install JRSoftware.InnoSetup" -ForegroundColor Yellow

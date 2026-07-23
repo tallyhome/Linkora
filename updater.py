@@ -17,7 +17,7 @@ from typing import Any
 
 import requests
 
-from paths import ROOT, VERSION_FILE, DATA_DIR
+from paths import ROOT, VERSION_FILE, DATA_DIR, UPDATES_DIR
 
 GITHUB_REPO = "tallyhome/Linkora"
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}"
@@ -356,14 +356,14 @@ def _extract_zip_bytes(raw: bytes) -> None:
     _extract_zip_to(
         raw,
         ROOT,
-        preserve_top={"data", ".git", ".venv", "venv", "__pycache__", "logs"},
+        preserve_top={"data", "updates", ".git", ".venv", "venv", "__pycache__", "logs"},
     )
 
 
 def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     """
-    Lance le helper depuis l’exe du staging (TEMP), pas depuis l’install.
-    Sinon Linkora.exe / _internal restent verrouillés → copie impossible.
+    Lance le helper depuis l’exe du staging ({install}/updates/…),
+    pas depuis l’install. Sinon Linkora.exe / _internal restent verrouillés.
     """
     helper_exe = staging / "Linkora.exe"
     if not helper_exe.is_file():
@@ -399,8 +399,26 @@ def _schedule_frozen_replace(staging: Path, target_version: str) -> None:
     threading.Thread(target=_exit_soon, daemon=True, name="linkora-exit-after-update").start()
 
 
+def _make_update_staging() -> Path:
+    """Crée un dossier de staging sous {install}/updates/ (pas %TEMP%)."""
+    UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="linkora-upd-", dir=str(UPDATES_DIR)))
+
+
+def cleanup_stale_update_dirs() -> None:
+    """Supprime d’anciens linkora-upd-* laissés après une MAJ (verrou Windows)."""
+    try:
+        if not UPDATES_DIR.is_dir():
+            return
+        for path in UPDATES_DIR.glob("linkora-upd-*"):
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+    except Exception:
+        pass
+
+
 def _apply_frozen_zip(raw: bytes, target_version: str) -> None:
-    staging = Path(tempfile.mkdtemp(prefix="linkora-upd-"))
+    staging = _make_update_staging()
     try:
         _set_progress("extract", 72, "Extraction de la mise à jour…")
         _extract_zip_to(raw, staging, preserve_top=set())

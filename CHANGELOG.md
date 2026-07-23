@@ -4,6 +4,21 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.7.0] — 2026-07-23
+
+### Ajouté
+- Métadonnées Windows PE (éditeur **Tallyhome**, description, version) sur `Linkora.exe` et l’installateur
+- Politique de signature + docs SignPath Foundation (signature OSS gratuite)
+- Workflow CI Windows (`.github/workflows/windows-release.yml`) prêt pour SignPath
+- Staging des mises à jour dans `{install}/updates/` (plus `%TEMP%`)
+
+### Amélioré
+- Build **sans UPX** pour réduire les faux positifs antivirus
+- Éditeur Inno Setup aligné sur Tallyhome
+- Aide : emplacement du dossier `updates/`
+
+---
+
 ## [2.6.0] — 2026-07-22
 
 ### Ajouté

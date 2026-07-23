@@ -107,7 +107,7 @@ winget install JRSoftware.InnoSetup   # une fois, pour l’installateur
 ```
 
 Sortie : `dist/Linkora/`, zip portable, et `Linkora-Setup-vX.Y.Z.exe`.  
-Signature (optionnel) : [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
+Signature / antivirus : [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md) · [Politique de signature](CODE_SIGNING_POLICY.md) · [SignPath](docs/SIGNPATH.md).
 
 ## Structure
 
@@ -130,7 +130,9 @@ Linkora/
 
 - Les clés API restent **uniquement sur votre machine** (`data/settings.json`, non versionné)
 - Linkora est un outil **local** : ne l’exposez pas sur Internet sans protection
+- This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it
+- **Code signing policy** : [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)
 
 ## Licence
 
-Usage personnel. Respectez les conditions d’utilisation d’AllDebrid, Real-Debrid et des sites sources.
+[MIT](LICENSE) — voir aussi les conditions d’utilisation d’AllDebrid, Real-Debrid et des sites sources.

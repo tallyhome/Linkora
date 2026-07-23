@@ -22,4 +22,5 @@ def resource_root() -> Path:
 
 ROOT = app_root()
 DATA_DIR = ROOT / "data"
+UPDATES_DIR = ROOT / "updates"
 VERSION_FILE = ROOT / "VERSION"

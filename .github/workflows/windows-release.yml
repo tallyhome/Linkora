@@ -1,0 +1,92 @@
+# Build Windows Linkora (PyInstaller + Inno) pour releases / SignPath.
+# Déclenchement : tag v* ou manuel (workflow_dispatch).
+#
+# SignPath : après acceptation Foundation, renseigner les secrets
+# SIGNPATH_API_TOKEN + SIGNPATH_ORGANIZATION_ID puis activer l’étape « Sign with SignPath ».
+
+name: Windows release build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Créer / mettre à jour une draft release GitHub"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build
+        shell: pwsh
+        run: |
+          .\tools\build_windows.ps1
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkora-windows-unsigned
+          path: |
+            dist/Linkora-windows-v${{ steps.ver.outputs.version }}.zip
+            dist/Linkora-Setup-v${{ steps.ver.outputs.version }}.exe
+            dist/Linkora-windows.zip
+            dist/Linkora-Setup.exe
+          if-no-files-found: error
+
+      # --- SignPath (activer après acceptation Foundation) ---
+      # Docs : https://about.signpath.io/documentation/github-actions
+      # - name: Sign with SignPath
+      #   uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      #     project-slug: linkora
+      #     signing-policy-slug: release-signing
+      #     github-artifact-name: linkora-windows-unsigned
+      #     wait-for-completion: true
+      #     output-artifact-directory: dist/signed
+
+      - name: Publish draft release assets
+        if: startsWith(github.ref, 'refs/tags/') || inputs.create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/Linkora-windows-v${{ steps.ver.outputs.version }}.zip
+            dist/Linkora-Setup-v${{ steps.ver.outputs.version }}.exe
+            dist/Linkora-windows.zip
+            dist/Linkora-Setup.exe
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

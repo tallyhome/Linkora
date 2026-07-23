@@ -9,7 +9,7 @@
 #endif
 
 #define MyAppName "Linkora"
-#define MyAppPublisher "Linkora"
+#define MyAppPublisher "Tallyhome"
 #define MyAppURL "https://github.com/tallyhome/Linkora"
 #define MyAppExeName "Linkora.exe"
 
@@ -22,6 +22,13 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=Linkora — récupérateur de liens
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoCopyright=Copyright © 2026 Tallyhome
+VersionInfoOriginalFileName=Linkora-Setup.exe
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -52,11 +59,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis :"
 
 [Files]
-; Appli complète — exclure data/ pour préserver historique & clés API
-Source: "..\dist\Linkora\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data\*"
+; Appli complète — exclure data/ et updates/ pour préserver historique & staging MAJ
+Source: "..\dist\Linkora\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data\*,updates\*"
 
 [Dirs]
 Name: "{app}\data"; Flags: uninsneveruninstall
+Name: "{app}\updates"; Flags: uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Récupérateur de liens"

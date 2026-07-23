@@ -1,9 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec — Linkora one-folder (Windows)."""
 
-from PyInstaller.utils.hooks import collect_all
+from pathlib import Path
 
 block_cipher = None
+
+# Métadonnées PE (générées par tools/gen_version_info.py avant le build)
+_version_info = Path("tools/_file_version_info.txt")
+if not _version_info.is_file():
+    raise SystemExit(
+        "tools/_file_version_info.txt manquant — lancez : python tools/gen_version_info.py"
+    )
 
 datas = [
     ("templates", "templates"),
@@ -68,7 +75,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    # Pas d’UPX : packers → faux positifs antivirus (heuristiques).
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -76,6 +84,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon="static/img/logo.ico",
+    version=str(_version_info),
 )
 
 coll = COLLECT(
@@ -84,7 +93,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="Linkora",
 )

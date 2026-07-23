@@ -12,15 +12,31 @@ from pathlib import Path
 
 
 def _cleanup_old_update_scripts() -> None:
-    """Supprime d’anciens helpers .bat/.ps1/.vbs qui ouvraient des fenêtres DOS."""
+    """Nettoie d’anciens helpers TEMP et les staging MAJ orphelins."""
     try:
         tmp = Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".")
-        for pattern in ("linkora-apply-*.bat", "linkora-apply-*.ps1", "linkora-apply-*.vbs"):
+        for pattern in (
+            "linkora-apply-*.bat",
+            "linkora-apply-*.ps1",
+            "linkora-apply-*.vbs",
+            "linkora-upd-*",
+        ):
             for path in tmp.glob(pattern):
                 try:
-                    path.unlink(missing_ok=True)
+                    if path.is_dir():
+                        import shutil
+
+                        shutil.rmtree(path, ignore_errors=True)
+                    else:
+                        path.unlink(missing_ok=True)
                 except OSError:
                     pass
+    except Exception:
+        pass
+    try:
+        import updater
+
+        updater.cleanup_stale_update_dirs()
     except Exception:
         pass
 
