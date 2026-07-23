@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.9.0] — 2026-07-23
+
+### Ajouté
+- **Suites de films** via collections TMDB (ex. Karaté Kid 1–2 → indique 3, 4…)
+- Modal Manques TMDB : onglets **Séries** / **Suites films**
+
+### Corrigé
+- Scroll du modal Manques TMDB (contenu coupé, impossible de tout voir)
+
+### Amélioré
+- Affichage des manques séries : cartes par saison + puces d’épisodes
+
+---
+
 ## [2.8.1] — 2026-07-23
 
 ### Ajouté

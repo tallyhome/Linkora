@@ -3832,6 +3832,8 @@
   });
 
   let libraryGapsLastLabels = [];
+  let libraryGapsTab = "series";
+  let libraryGapsCache = { series: [], movies: [], statusSeries: "", statusMovies: "" };
 
   function seriesPayloadForGaps(s) {
     const rawTitle = (s.title || "").replace(/\s*\(\d{4}\)\s*$/, "").trim() || s.title || "";
@@ -3850,21 +3852,38 @@
     };
   }
 
-  function renderGapsModal(results, { statusText = "" } = {}) {
-    const modal = document.getElementById("library-gaps-modal");
-    const body = document.getElementById("library-gaps-body");
-    const status = document.getElementById("library-gaps-status");
-    if (!modal || !body) return;
-    libraryGapsLastLabels = [];
-    const list = Array.isArray(results) ? results : [results];
-    if (status) status.textContent = statusText;
-    body.innerHTML = list
+  function moviePayloadForCollections(m) {
+    const rawTitle = (m.title || "").replace(/\s*\(\d{4}\)\s*$/, "").trim() || m.title || m.filename || "";
+    const posterId = `movie:${m.identity || m.path || m.title}`;
+    const tmdbId = libraryPosters[posterId]?.tmdb_id || null;
+    return {
+      title: rawTitle,
+      year: m.year ?? null,
+      tmdb_id: tmdbId,
+      identity: m.identity || "",
+    };
+  }
+
+  function gapsEpChips(labels) {
+    const list = labels || [];
+    if (!list.length) return "";
+    const shown = list.slice(0, 80);
+    const more = list.length > shown.length
+      ? `<span class="library-gaps-ep-chip">+${list.length - shown.length}</span>`
+      : "";
+    return `<div class="library-gaps-ep-chips">${shown
+      .map((l) => `<span class="library-gaps-ep-chip">${escapeHtml(l)}</span>`)
+      .join("")}${more}</div>`;
+  }
+
+  function renderSeriesGapsHtml(list) {
+    return list
       .map((r) => {
         if (!r?.found) {
-          return `<article class="library-gaps-series is-incomplete">
+          return `<details class="library-gaps-series is-incomplete" open>
             <summary><strong>${escapeHtml(r?.title || "?")}</strong>
             <span class="library-gaps-badge miss">${escapeHtml(r?.error || "Introuvable")}</span></summary>
-          </article>`;
+          </details>`;
         }
         const gaps = r.gaps || {};
         const miss = gaps.missing_count || 0;
@@ -3876,15 +3895,24 @@
         const open = miss > 0 ? " open" : "";
         const seasonBlocks = [
           ...(gaps.missing_seasons || []).map(
-            (ms) =>
-              `<p><strong>${escapeHtml(ms.label)}</strong> absente (${ms.episode_count} ép.)</p>
-               <ul>${(ms.missing_labels || []).slice(0, 40).map((l) => `<li>${escapeHtml(l)}</li>`).join("")}
-               ${(ms.missing_labels || []).length > 40 ? "<li>…</li>" : ""}</ul>`
+            (ms) => `
+              <div class="library-gaps-season">
+                <div class="library-gaps-season-head">
+                  <strong>${escapeHtml(ms.label || "Saison")}</strong>
+                  <span class="library-gaps-badge miss">absente · ${ms.episode_count || 0} ép.</span>
+                </div>
+                ${gapsEpChips(ms.missing_labels || [])}
+              </div>`
           ),
           ...(gaps.missing_episodes || []).map(
-            (me) =>
-              `<p><strong>Saison ${String(me.season).padStart(2, "0")}</strong> — ${me.have}/${me.expected}
-               <ul>${(me.missing_labels || []).map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`
+            (me) => `
+              <div class="library-gaps-season">
+                <div class="library-gaps-season-head">
+                  <strong>Saison ${String(me.season).padStart(2, "0")}</strong>
+                  <span class="library-gaps-badge miss">${me.have}/${me.expected} · ${(me.missing || []).length} manquant(s)</span>
+                </div>
+                ${gapsEpChips(me.missing_labels || [])}
+              </div>`
           ),
         ].join("");
         return `
@@ -3906,7 +3934,92 @@
           </details>`;
       })
       .join("");
+  }
+
+  function renderMovieCollectionsHtml(list) {
+    if (!list.length) {
+      return `<p class="library-empty">Aucune saga détectée (films hors collection, ou pas assez d’identifications TMDB).</p>`;
+    }
+    return list
+      .map((r) => {
+        if (!r?.found) {
+          return `<details class="library-gaps-series is-incomplete" open>
+            <summary><strong>${escapeHtml(r?.name || "?")}</strong>
+            <span class="library-gaps-badge miss">${escapeHtml(r?.error || "Erreur")}</span></summary>
+          </details>`;
+        }
+        const gaps = r.gaps || {};
+        const miss = gaps.missing_count || 0;
+        const open = miss > 0 ? " open" : "";
+        const present = gaps.present || [];
+        const missing = gaps.missing || [];
+        for (const m of missing) {
+          libraryGapsLastLabels.push(
+            `${r.name || "Saga"}\t${m.title || ""}${m.year != null ? ` (${m.year})` : ""}`
+          );
+        }
+        const rows = [
+          ...present.map(
+            (m) => `<li class="have"><span>${escapeHtml(m.title || "")}${
+              m.year != null ? ` (${escapeHtml(String(m.year))})` : ""
+            }</span><span class="library-gaps-badge have">Possédé</span></li>`
+          ),
+          ...missing.map(
+            (m) => `<li class="miss"><span>${escapeHtml(m.title || "")}${
+              m.year != null ? ` (${escapeHtml(String(m.year))})` : ""
+            }</span><span class="library-gaps-badge miss">Manquant</span></li>`
+          ),
+        ].join("");
+        return `
+          <details class="library-gaps-series ${miss ? "is-incomplete" : "is-complete"}"${open}>
+            <summary>
+              <span><strong>${escapeHtml(r.name || "Saga")}</strong></span>
+              <span class="library-gaps-badge ${miss ? "miss" : "ok"}">
+                ${miss ? `${miss} suite(s)` : "Complet"}
+              </span>
+            </summary>
+            <div class="library-gaps-series-body">
+              <p class="field-hint">${escapeHtml(r.summary || "")}</p>
+              <ul class="library-gaps-movie-list">${rows}</ul>
+            </div>
+          </details>`;
+      })
+      .join("");
+  }
+
+  function setGapsTab(tab) {
+    libraryGapsTab = tab === "movies" ? "movies" : "series";
+    document.querySelectorAll("[data-gaps-tab]").forEach((btn) => {
+      const active = btn.dataset.gapsTab === libraryGapsTab;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    const body = document.getElementById("library-gaps-body");
+    const status = document.getElementById("library-gaps-status");
+    libraryGapsLastLabels = [];
+    if (!body) return;
+    if (libraryGapsTab === "movies") {
+      if (status) status.textContent = libraryGapsCache.statusMovies || "";
+      body.innerHTML = renderMovieCollectionsHtml(libraryGapsCache.movies || []);
+    } else {
+      if (status) status.textContent = libraryGapsCache.statusSeries || "";
+      body.innerHTML = renderSeriesGapsHtml(libraryGapsCache.series || []);
+    }
+    body.scrollTop = 0;
+  }
+
+  function renderGapsModal(results, { statusText = "", tab = "series" } = {}) {
+    const modal = document.getElementById("library-gaps-modal");
+    if (!modal) return;
+    if (tab === "movies") {
+      libraryGapsCache.movies = Array.isArray(results) ? results : [results];
+      libraryGapsCache.statusMovies = statusText || "";
+    } else {
+      libraryGapsCache.series = Array.isArray(results) ? results : [results];
+      libraryGapsCache.statusSeries = statusText || "";
+    }
     modal.hidden = false;
+    setGapsTab(tab);
   }
 
   async function checkSeriesGaps(seriesList, { single = false } = {}) {
@@ -3924,11 +4037,12 @@
     const body = document.getElementById("library-gaps-body");
     if (modal) modal.hidden = false;
     if (body) body.innerHTML = "";
-    if (statusEl) {
-      statusEl.textContent = single
-        ? `Vérification de « ${entries[0].title} »…`
-        : `Vérification de ${entries.length} série(s) sur TMDB…`;
-    }
+    libraryGapsCache.series = [];
+    libraryGapsCache.statusSeries = single
+      ? `Vérification de « ${entries[0].title} »…`
+      : `Vérification de ${entries.length} série(s) sur TMDB…`;
+    setGapsTab("series");
+    if (statusEl) statusEl.textContent = libraryGapsCache.statusSeries;
     try {
       if (single) {
         const res = await fetch("/api/library/gaps", {
@@ -3940,12 +4054,13 @@
         if (!res.ok && !data.found) {
           renderGapsModal(
             [{ found: false, title: entries[0].title, error: data.error || "Échec" }],
-            { statusText: data.error || "" }
+            { statusText: data.error || "", tab: "series" }
           );
           return;
         }
         renderGapsModal([data], {
           statusText: data.summary || "",
+          tab: "series",
         });
       } else {
         const res = await fetch("/api/library/gaps/batch", {
@@ -3961,6 +4076,7 @@
         }
         renderGapsModal(data.results || [], {
           statusText: `${data.incomplete || 0} série(s) incomplète(s) sur ${data.count || 0}`,
+          tab: "series",
         });
       }
     } catch (err) {
@@ -3969,24 +4085,92 @@
     }
   }
 
+  async function checkMovieCollections(movieList) {
+    if (!settings?.tmdb_configured) {
+      showToast("Ajoutez une clé TMDB dans Paramètres.");
+      return;
+    }
+    const movies = (movieList || []).map(moviePayloadForCollections).filter((m) => m.title);
+    if (!movies.length) {
+      libraryGapsCache.movies = [];
+      libraryGapsCache.statusMovies = "Aucun film dans la bibliothèque.";
+      setGapsTab("movies");
+      return;
+    }
+    const modal = document.getElementById("library-gaps-modal");
+    if (modal) modal.hidden = false;
+    libraryGapsCache.movies = [];
+    libraryGapsCache.statusMovies = `Analyse de ${movies.length} film(s) (sagas TMDB)…`;
+    setGapsTab("movies");
+    try {
+      const res = await fetch("/api/library/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ movies }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Vérification suites impossible.");
+        libraryGapsCache.statusMovies = data.error || "Erreur";
+        setGapsTab("movies");
+        return;
+      }
+      renderGapsModal(data.results || [], {
+        statusText:
+          `${data.incomplete || 0} saga(s) incomplète(s) · ${data.collections || 0} collection(s)` +
+          (data.solos ? ` · ${data.solos} film(s) hors saga` : ""),
+        tab: "movies",
+      });
+    } catch (err) {
+      showToast(`Erreur TMDB : ${err?.message || "réseau"}`);
+      libraryGapsCache.statusMovies = "Erreur réseau";
+      setGapsTab("movies");
+    }
+  }
+
   document.getElementById("btn-library-posters")?.addEventListener("click", () => {
     enrichLibraryPosters({ force: true });
   });
 
-  document.getElementById("btn-library-gaps")?.addEventListener("click", () => {
+  document.getElementById("btn-library-gaps")?.addEventListener("click", async () => {
     const series = libraryTreeData?.series || [];
-    if (!series.length) {
+    const movies = libraryTreeData?.movies || [];
+    if (!series.length && !movies.length) {
       showToast("Scannez d’abord une bibliothèque.");
       return;
     }
-    // Limite : séries visibles selon filtre / recherche actuelle
     const q = (librarySearch?.value || "").trim().toLowerCase();
-    const filtered = series.filter((s) => {
+    const filteredSeries = series.filter((s) => {
       if (libraryFilter === "movies" || libraryFilter === "archives") return false;
       if (!q) return true;
       return (s.title || "").toLowerCase().includes(q);
     });
-    checkSeriesGaps(filtered.slice(0, 80));
+    const filteredMovies = movies.filter((m) => {
+      if (libraryFilter === "series" || libraryFilter === "archives") return false;
+      if (!q) return true;
+      return [m.title, m.filename, m.year].join(" ").toLowerCase().includes(q);
+    });
+
+    const modal = document.getElementById("library-gaps-modal");
+    if (modal) modal.hidden = false;
+    libraryGapsCache = { series: [], movies: [], statusSeries: "", statusMovies: "" };
+
+    // Séries d’abord (onglet par défaut), puis suites films en parallèle d’affichage
+    if (filteredSeries.length) {
+      await checkSeriesGaps(filteredSeries.slice(0, 80));
+    } else {
+      libraryGapsCache.statusSeries = "Aucune série à vérifier.";
+      setGapsTab("series");
+    }
+    if (filteredMovies.length) {
+      await checkMovieCollections(filteredMovies.slice(0, 60));
+    } else {
+      libraryGapsCache.statusMovies = "Aucun film à analyser.";
+    }
+  });
+
+  document.querySelectorAll("[data-gaps-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => setGapsTab(btn.dataset.gapsTab || "series"));
   });
 
   document.querySelectorAll("[data-close-library-gaps]").forEach((el) => {

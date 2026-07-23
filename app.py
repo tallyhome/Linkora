@@ -1326,6 +1326,34 @@ def api_library_gaps_batch():
     )
 
 
+@app.post("/api/library/collections")
+def api_library_collections():
+    """Détecte les sagas TMDB et les suites de films manquantes."""
+    import tmdb as tmdb_mod
+
+    data = request.get_json(silent=True) or {}
+    movies = data.get("movies") or []
+    if not isinstance(movies, list) or not movies:
+        return jsonify({"error": "Liste de films requise."}), 400
+    language = (data.get("language") or "fr-FR").strip() or "fr-FR"
+    api_key = app_settings.get_tmdb_api_key()
+    if not api_key:
+        return jsonify({"error": "Ajoutez une clé API TMDB dans Paramètres."}), 400
+    try:
+        result = tmdb_mod.find_movie_collections_gaps(
+            api_key,
+            movies,
+            language=language,
+            force=bool(data.get("force")),
+            max_movies=int(data.get("max_movies") or 60),
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+    if result.get("error") == "no_key":
+        return jsonify({"error": "Clé TMDB manquante."}), 400
+    return jsonify(result)
+
+
 @app.get("/api/library/poster/<key>")
 def api_library_poster(key: str):
     import tmdb as tmdb_mod

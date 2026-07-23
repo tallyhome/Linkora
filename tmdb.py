@@ -946,3 +946,327 @@ def find_series_gaps(
         "gaps": gaps,
         "summary": summary,
     }
+
+
+# ─── Collections films (suites) ─────────────────────────────────────────────
+
+COLLECTION_PATH = POSTERS_DIR / "movie_collections.json"
+
+
+def _load_collection_cache() -> dict[str, Any]:
+    _ensure_dirs()
+    if not COLLECTION_PATH.is_file():
+        return {}
+    try:
+        with open(COLLECTION_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_collection_cache(cache: dict[str, Any]) -> None:
+    _ensure_dirs()
+    lock, _ = _locks()
+    with lock:
+        with open(COLLECTION_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+
+
+def _norm_title_key(value: str) -> str:
+    text = (value or "").lower()
+    text = re.sub(r"\([^)]*\)", " ", text)
+    text = re.sub(r"[^a-z0-9àâäéèêëïîôùûüç]+", "", text)
+    return text.strip()
+
+
+def fetch_movie_collection(
+    api_key: str,
+    *,
+    collection_id: int,
+    language: str = "fr-FR",
+    force: bool = False,
+) -> dict[str, Any]:
+    """Charge une collection TMDB (cache 30 jours)."""
+    key = f"col:{int(collection_id)}"
+    cache = _load_collection_cache()
+    cached = cache.get(key) if isinstance(cache.get(key), dict) else None
+    if cached and not force:
+        age = int(time.time()) - int(cached.get("fetched_at") or 0)
+        if age < 86400 * 30 and cached.get("parts") is not None:
+            return {**cached, "cached": True}
+
+    data = _get(api_key.strip(), f"/collection/{int(collection_id)}", {"language": language})
+    parts_out: list[dict[str, Any]] = []
+    for part in data.get("parts") or []:
+        if not isinstance(part, dict):
+            continue
+        try:
+            pid = int(part.get("id"))
+        except (TypeError, ValueError):
+            continue
+        year_s = (part.get("release_date") or "")[:4]
+        title = (part.get("title") or part.get("original_title") or "").strip()
+        if not title:
+            continue
+        parts_out.append(
+            {
+                "tmdb_id": pid,
+                "title": title,
+                "original_title": (part.get("original_title") or "").strip(),
+                "year": int(year_s) if year_s.isdigit() else None,
+                "release_date": part.get("release_date") or "",
+            }
+        )
+    parts_out.sort(key=lambda p: (p.get("year") is None, p.get("year") or 0, p.get("title") or ""))
+    result = {
+        "found": True,
+        "collection_id": int(collection_id),
+        "name": (data.get("name") or "").strip() or f"Collection {collection_id}",
+        "overview": (data.get("overview") or "")[:400],
+        "parts": parts_out,
+        "part_count": len(parts_out),
+        "fetched_at": int(time.time()),
+    }
+    cache[key] = {k: v for k, v in result.items() if k != "cached"}
+    _save_collection_cache(cache)
+    return result
+
+
+def resolve_movie_collection_id(
+    api_key: str,
+    *,
+    title: str = "",
+    year: int | None = None,
+    tmdb_id: int | None = None,
+    language: str = "fr-FR",
+) -> dict[str, Any]:
+    """Retourne l’id de collection TMDB pour un film (ou found=False)."""
+    tid = int(tmdb_id) if tmdb_id else None
+    if tid is None:
+        hit = search_tmdb(
+            api_key.strip(),
+            title=title,
+            media="movie",
+            year=year,
+            language=language,
+        )
+        if not hit or not hit.get("tmdb_id"):
+            return {"found": False, "error": "Film introuvable sur TMDB.", "title": title}
+        tid = int(hit["tmdb_id"])
+
+    data = _get(api_key.strip(), f"/movie/{tid}", {"language": language})
+    coll = data.get("belongs_to_collection")
+    if not isinstance(coll, dict) or not coll.get("id"):
+        return {
+            "found": False,
+            "solo": True,
+            "tmdb_id": tid,
+            "title": data.get("title") or title,
+            "error": "Pas de saga / collection TMDB.",
+        }
+    return {
+        "found": True,
+        "tmdb_id": tid,
+        "title": data.get("title") or title,
+        "collection_id": int(coll["id"]),
+        "collection_name": (coll.get("name") or "").strip(),
+    }
+
+
+def compare_movie_collection(
+    local_movies: list[dict[str, Any]],
+    parts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare films locaux vs parties d’une collection TMDB."""
+    have_ids: set[int] = set()
+    have_keys: set[tuple[str, int | None]] = set()
+    have_titles: set[str] = set()
+    for raw in local_movies or []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            if raw.get("tmdb_id") is not None and str(raw.get("tmdb_id")).strip() != "":
+                have_ids.add(int(raw["tmdb_id"]))
+        except (TypeError, ValueError):
+            pass
+        title = (raw.get("title") or "").strip()
+        year = raw.get("year")
+        try:
+            year_i = int(year) if year is not None and str(year).strip() != "" else None
+        except (TypeError, ValueError):
+            year_i = None
+        key = _norm_title_key(title)
+        if key:
+            have_titles.add(key)
+            have_keys.add((key, year_i))
+
+    present: list[dict[str, Any]] = []
+    missing: list[dict[str, Any]] = []
+    for part in parts or []:
+        pid = int(part["tmdb_id"])
+        title = part.get("title") or ""
+        year = part.get("year")
+        nkey = _norm_title_key(title)
+        owned = (
+            pid in have_ids
+            or (nkey, year) in have_keys
+            or (nkey in have_titles and year is None)
+            or nkey in have_titles
+        )
+        entry = {
+            "tmdb_id": pid,
+            "title": title,
+            "year": year,
+            "owned": bool(owned),
+        }
+        if owned:
+            present.append(entry)
+        else:
+            missing.append(entry)
+
+    return {
+        "present": present,
+        "missing": missing,
+        "present_count": len(present),
+        "missing_count": len(missing),
+        "part_count": len(parts or []),
+    }
+
+
+def find_movie_collections_gaps(
+    api_key: str,
+    movies: list[dict[str, Any]],
+    *,
+    language: str = "fr-FR",
+    force: bool = False,
+    max_movies: int = 60,
+) -> dict[str, Any]:
+    """
+    Pour une liste de films locaux, détecte les sagas TMDB et les suites manquantes.
+    """
+    if not (api_key or "").strip():
+        return {"found": False, "error": "no_key", "results": []}
+
+    # Index local enrichi (résolution tmdb_id si besoin)
+    locals_enriched: list[dict[str, Any]] = []
+    collection_locals: dict[int, list[dict[str, Any]]] = {}
+    collection_meta: dict[int, str] = {}
+    scanned = 0
+    solos = 0
+    errors = 0
+
+    for raw in (movies or [])[: max(1, min(120, max_movies))]:
+        if not isinstance(raw, dict):
+            continue
+        title = (raw.get("title") or "").strip()
+        if not title:
+            continue
+        scanned += 1
+        year = raw.get("year")
+        try:
+            year_i = int(year) if year is not None and str(year).strip() != "" else None
+        except (TypeError, ValueError):
+            year_i = None
+        tmdb_id = raw.get("tmdb_id")
+        try:
+            tmdb_id_i = (
+                int(tmdb_id) if tmdb_id is not None and str(tmdb_id).strip() != "" else None
+            )
+        except (TypeError, ValueError):
+            tmdb_id_i = None
+
+        try:
+            link = resolve_movie_collection_id(
+                api_key,
+                title=title,
+                year=year_i,
+                tmdb_id=tmdb_id_i,
+                language=language,
+            )
+        except Exception:
+            errors += 1
+            continue
+
+        entry = {
+            "title": title,
+            "year": year_i,
+            "tmdb_id": link.get("tmdb_id") or tmdb_id_i,
+            "identity": raw.get("identity") or "",
+        }
+        locals_enriched.append(entry)
+        if not link.get("found"):
+            if link.get("solo"):
+                solos += 1
+            else:
+                errors += 1
+            continue
+        cid = int(link["collection_id"])
+        collection_locals.setdefault(cid, []).append(entry)
+        if link.get("collection_name"):
+            collection_meta[cid] = str(link["collection_name"])
+
+    results: list[dict[str, Any]] = []
+    incomplete = 0
+    for cid, owned in collection_locals.items():
+        try:
+            coll = fetch_movie_collection(
+                api_key, collection_id=cid, language=language, force=force
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "found": False,
+                    "collection_id": cid,
+                    "name": collection_meta.get(cid) or f"Collection {cid}",
+                    "error": str(exc),
+                }
+            )
+            continue
+        if not coll.get("found"):
+            continue
+        # Inclure tous les films locaux qui matchent n’importe quelle partie
+        # (pas seulement ceux qui ont déclenché la collection)
+        gaps = compare_movie_collection(locals_enriched, coll.get("parts") or [])
+        # Ne garder que les collections où on a au moins 1 film local
+        if gaps["present_count"] <= 0:
+            continue
+        # Ignorer les « collections » d’un seul film
+        if gaps["part_count"] < 2:
+            continue
+        miss = gaps["missing_count"]
+        if miss:
+            incomplete += 1
+            summary = (
+                f"{gaps['present_count']}/{gaps['part_count']} film(s) · "
+                f"{miss} suite(s) manquante(s)"
+            )
+        else:
+            summary = f"Complet · {gaps['part_count']} film(s) dans la saga"
+        results.append(
+            {
+                "found": True,
+                "kind": "collection",
+                "collection_id": cid,
+                "name": coll.get("name") or collection_meta.get(cid) or f"Collection {cid}",
+                "parts": coll.get("parts") or [],
+                "gaps": gaps,
+                "summary": summary,
+            }
+        )
+
+    results.sort(
+        key=lambda r: (
+            0 if (r.get("gaps") or {}).get("missing_count") else 1,
+            (r.get("name") or "").lower(),
+        )
+    )
+    return {
+        "found": True,
+        "scanned": scanned,
+        "collections": len(results),
+        "incomplete": incomplete,
+        "solos": solos,
+        "errors": errors,
+        "results": results,
+    }

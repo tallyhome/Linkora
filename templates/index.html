@@ -567,7 +567,7 @@
             <span>Affiches</span>
           </label>
           <button type="button" class="btn btn-ghost btn-xs" id="btn-library-posters" title="Charger / rafraîchir les affiches TMDB">TMDB</button>
-          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-gaps" title="Comparer aux catalogues TMDB (saisons / épisodes manquants)">Manques TMDB</button>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-library-gaps" title="Comparer aux catalogues TMDB (saisons / épisodes / suites de films)">Manques TMDB</button>
           <button type="button" class="btn btn-ghost" id="btn-library-copy">Copier</button>
         </div>
         <div id="library-enrich-progress" class="resolve-progress" hidden>
@@ -738,7 +738,7 @@
             <li><strong>Diff PC ↔ NAS</strong> — compare deux listes de dossiers par identité (plusieurs disques possibles).</li>
             <li><strong>Historique</strong> — Ouvrir un ancien résultat, ou <strong>Relancer</strong> (cache = plus rapide).</li>
             <li><strong>Affiches TMDB</strong> — jaquettes + bouton pour corriger une mauvaise correspondance.</li>
-            <li><strong>Manques TMDB</strong> — compare chaque série au catalogue officiel (saisons / épisodes absents). Clé API dans Paramètres.</li>
+            <li><strong>Manques TMDB</strong> — séries : saisons / épisodes absents ; films : suites d’une saga (collections TMDB).</li>
             <li><strong>Reboots</strong> — dossiers datés séparés : <code>Série (1990)</code> ≠ <code>Série (2024)</code>.</li>
             <li>Accès NAS UNC : Paramètres → Accès NAS (hôte / partage / login).</li>
           </ul>
@@ -1088,10 +1088,17 @@
         <h2 id="library-gaps-title">Manques TMDB</h2>
         <button type="button" class="btn btn-close" data-close-library-gaps aria-label="Fermer">×</button>
       </div>
-      <p class="modal-lead">
-        Comparaison avec le catalogue officiel TMDB (saisons / épisodes). Les « Specials » (S00) sont ignorés.
+      <p class="modal-lead" id="library-gaps-lead">
+        Séries : saisons / épisodes manquants. Films : suites d’une même saga TMDB.
+        Les « Specials » (S00) sont ignorés.
       </p>
-      <p id="library-gaps-status" class="field-hint"></p>
+      <div class="library-gaps-toolbar">
+        <div class="library-gaps-tabs" role="tablist" aria-label="Type de manques">
+          <button type="button" class="library-gaps-tab is-active" data-gaps-tab="series" role="tab" aria-selected="true">Séries</button>
+          <button type="button" class="library-gaps-tab" data-gaps-tab="movies" role="tab" aria-selected="false">Suites films</button>
+        </div>
+        <p id="library-gaps-status" class="field-hint" style="margin:0"></p>
+      </div>
       <div id="library-gaps-body" class="library-gaps-body"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="btn-library-gaps-copy">Copier la liste</button>
