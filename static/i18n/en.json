@@ -23,7 +23,8 @@
   },
   "provider": {
     "ready": "{label} ready",
-    "missingKey": "{label}: missing key"
+    "missingKey": "{label}: missing key",
+    "tmdbReady": "TMDB ready"
   },
   "tabs": {
     "aria": "Linkora sections",
@@ -351,7 +352,10 @@
     "recheckStart": "Rechecking {n} dead link(s) ({retries} attempts)…",
     "networkError": "Network error.",
     "copied": "Copied.",
-    "copyFail": "Unable to copy."
+    "copyFail": "Unable to copy.",
+    "reloading": "Refreshing Linkora…",
+    "updateCheckDone": "Check complete.",
+    "updateCheckFail": "Could not check for updates."
   },
   "update": {
     "restarting": "Update in progress — Linkora will restart…",

@@ -45,6 +45,7 @@
     </div>
     <div class="header-actions">
       <span id="provider-badge" class="provider-badge" hidden></span>
+      <span id="tmdb-badge" class="provider-badge tmdb-badge" hidden></span>
       <div class="theme-switch" role="group" data-i18n-aria="header.theme" aria-label="Thème">
         <button type="button" class="theme-btn is-active" data-theme-set="linkora" data-i18n="header.themeDefault" data-i18n-title="header.themeDefaultTitle" title="Thème Linkora">Défaut</button>
         <button type="button" class="theme-btn" data-theme-set="alldebrid" data-i18n="header.themeAmber" data-i18n-title="header.themeAmberTitle" title="Thème Ambre">Ambre</button>
@@ -55,7 +56,7 @@
           <span class="lang-flag" aria-hidden="true">🇫🇷</span>
         </button>
         <button type="button" class="lang-btn" data-locale-set="en" data-i18n-title="header.langEnTitle" title="English" aria-label="English">
-          <span class="lang-flag" aria-hidden="true">🇬🇧</span>
+          <span class="lang-flag" aria-hidden="true">🇺🇸</span>
         </button>
       </div>
       <button type="button" class="btn-help-round" id="btn-reload" data-i18n-title="header.reloadTitle" data-i18n-aria="header.reloadAria" title="Actualiser Linkora (comme un redémarrage)" aria-label="Actualiser Linkora">
@@ -1022,8 +1023,11 @@
             </label>
             <p class="field-hint" id="update-status-hint">Version locale : —</p>
             <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">
-              <button type="button" class="btn btn-ghost" id="btn-check-update">Vérifier les mises à jour</button>
-              <button type="button" class="btn btn-secondary" id="btn-force-update" hidden>Installer la MAJ</button>
+              <button type="button" class="btn btn-ghost" id="btn-check-update">
+                <span class="btn-check-label" data-i18n="settings.checkUpdate">Vérifier les mises à jour</span>
+                <span class="btn-spinner" id="btn-check-update-spinner" hidden aria-hidden="true"></span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-force-update" hidden data-i18n="settings.installUpdate">Installer la MAJ</button>
             </div>
 
             <fieldset class="provider-block">

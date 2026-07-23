@@ -25,6 +25,7 @@
   let historyItemsCount = 0;
   const toast = document.getElementById("toast");
   const providerBadge = document.getElementById("provider-badge");
+  const tmdbBadge = document.getElementById("tmdb-badge");
   const settingsModal = document.getElementById("settings-modal");
   const settingsForm = document.getElementById("settings-form");
   const settingsMessage = document.getElementById("settings-message");
@@ -1149,6 +1150,7 @@
   function updateProviderBadge() {
     if (!settings) {
       providerBadge.hidden = true;
+      updateTmdbBadge();
       return;
     }
     const name = settings.active_provider;
@@ -1161,6 +1163,19 @@
     } else {
       providerBadge.classList.add("is-off");
       providerBadge.textContent = t("provider.missingKey", { label });
+    }
+    updateTmdbBadge();
+  }
+
+  function updateTmdbBadge() {
+    if (!tmdbBadge) return;
+    if (settings?.tmdb_configured) {
+      tmdbBadge.hidden = false;
+      tmdbBadge.classList.remove("is-off");
+      tmdbBadge.textContent = t("provider.tmdbReady");
+    } else {
+      tmdbBadge.hidden = true;
+      tmdbBadge.textContent = "";
     }
   }
 
@@ -1302,6 +1317,33 @@
       return state;
     } catch {
       return null;
+    }
+  }
+
+  /** Check GitHub/manifest (timeout court). Pas de toast si déjà à jour. */
+  async function checkForUpdateQuiet({ timeoutMs = 8000 } = {}) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+    try {
+      const res = await fetch("/api/update/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+        signal: ctrl?.signal,
+      });
+      const data = await res.json();
+      if (updateStatusHint) {
+        updateStatusHint.textContent =
+          data.message ||
+          t("settings.versionLocal", { current: data.current || "?" });
+      }
+      if (btnForceUpdate) btnForceUpdate.hidden = !data.update_available;
+      showUpdateBanner(data);
+      return data;
+    } catch {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -2828,8 +2870,12 @@
   document.getElementById("btn-reload")?.addEventListener("click", () => {
     const btn = document.getElementById("btn-reload");
     btn?.classList.add("is-spinning");
-    showToast("Actualisation de Linkora…");
-    // Recharge complète de l’UI (même effet qu’un redémarrage soft)
+    try {
+      sessionStorage.setItem("linkora_check_update_after_reload", "1");
+    } catch {
+      /* ignore */
+    }
+    showToast(t("toast.reloading"));
     setTimeout(() => {
       window.location.reload();
     }, 280);
@@ -5184,6 +5230,18 @@
   setTimeout(() => refreshUpdateStatus(), 2500);
   setTimeout(() => refreshUpdateStatus(), 8000);
 
+  // Après « Actualiser » : check MAJ discret (bannière seulement si MAJ)
+  try {
+    if (sessionStorage.getItem("linkora_check_update_after_reload") === "1") {
+      sessionStorage.removeItem("linkora_check_update_after_reload");
+      setTimeout(() => {
+        checkForUpdateQuiet({ timeoutMs: 8000 });
+      }, 600);
+    }
+  } catch {
+    /* ignore */
+  }
+
   btnUpdateDismiss?.addEventListener("click", () => {
     if (updateBanner) updateBanner.hidden = true;
   });
@@ -5270,7 +5328,10 @@
   });
 
   btnCheckUpdate?.addEventListener("click", async () => {
+    const spinner = document.getElementById("btn-check-update-spinner");
     btnCheckUpdate.disabled = true;
+    btnCheckUpdate.classList.add("is-loading");
+    if (spinner) spinner.hidden = false;
     try {
       const res = await fetch("/api/update/check", { method: "POST" });
       const data = await res.json();
@@ -5279,11 +5340,13 @@
         updateStatusHint.textContent = data.message || `Version : ${data.current}`;
       }
       if (btnForceUpdate) btnForceUpdate.hidden = !data.update_available;
-      showToast(data.message || "Vérification terminée.");
+      showToast(data.message || t("toast.updateCheckDone"));
     } catch {
-      showToast("Vérification impossible.");
+      showToast(t("toast.updateCheckFail"));
     } finally {
       btnCheckUpdate.disabled = false;
+      btnCheckUpdate.classList.remove("is-loading");
+      if (spinner) spinner.hidden = true;
     }
   });
 

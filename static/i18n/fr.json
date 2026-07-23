@@ -23,7 +23,8 @@
   },
   "provider": {
     "ready": "{label} prêt",
-    "missingKey": "{label} : clé manquante"
+    "missingKey": "{label} : clé manquante",
+    "tmdbReady": "TMDB prêt"
   },
   "tabs": {
     "aria": "Sections Linkora",
@@ -351,7 +352,10 @@
     "recheckStart": "Re-vérification de {n} lien(s) morts ({retries} essais)…",
     "networkError": "Erreur réseau.",
     "copied": "Copié.",
-    "copyFail": "Copie impossible."
+    "copyFail": "Copie impossible.",
+    "reloading": "Actualisation de Linkora…",
+    "updateCheckDone": "Vérification terminée.",
+    "updateCheckFail": "Vérification impossible."
   },
   "update": {
     "restarting": "Mise à jour en cours — Linkora va redémarrer…",

@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.8.1] — 2026-07-23
+
+### Ajouté
+- Badge **TMDB prêt** dans l’en-tête (affiché seulement si une clé est configurée)
+- Spinner sur « Vérifier les mises à jour » dans Paramètres
+
+### Amélioré
+- Bouton **Actualiser** : check MAJ discret après reload (bannière si MAJ, pas de toast « à jour »)
+- Drapeau anglais : 🇺🇸 à la place de 🇬🇧
+
+---
+
 ## [2.8.0] — 2026-07-23
 
 ### Ajouté
