@@ -10,9 +10,12 @@ from paths import DATA_DIR
 
 SETTINGS_PATH = DATA_DIR / "settings.json"
 
+UI_LOCALES = ("fr", "en")
+
 DEFAULTS = {
     "active_provider": "alldebrid",
     "theme": "linkora",
+    "ui_locale": "fr",
     "max_retries": 3,
     "resolve_concurrency": 6,
     "auto_update": True,
@@ -192,6 +195,8 @@ def _ensure() -> dict:
     merged = json.loads(json.dumps(DEFAULTS))
     merged["active_provider"] = data.get("active_provider", DEFAULTS["active_provider"])
     merged["theme"] = data.get("theme", DEFAULTS["theme"])
+    loc = str(data.get("ui_locale") or DEFAULTS["ui_locale"]).strip().lower()
+    merged["ui_locale"] = loc if loc in UI_LOCALES else DEFAULTS["ui_locale"]
     merged["max_retries"] = _clamp_int(
         data.get("max_retries", DEFAULTS["max_retries"]), 3, 1, 8
     )
@@ -269,6 +274,10 @@ def update_settings(payload: dict) -> dict:
     if "theme" in payload and payload["theme"] in ("linkora", "lienlab", "alldebrid", "nocturne"):
         theme = payload["theme"]
         current["theme"] = "linkora" if theme == "lienlab" else theme
+    if "ui_locale" in payload:
+        loc = str(payload.get("ui_locale") or "").strip().lower()
+        if loc in UI_LOCALES:
+            current["ui_locale"] = loc
     if "max_retries" in payload:
         current["max_retries"] = _clamp_int(payload["max_retries"], 3, 1, 8)
     if "resolve_concurrency" in payload:
@@ -398,6 +407,11 @@ def public_settings() -> dict:
             "linkora"
             if (data.get("theme") or "linkora") in ("lienlab", "linkora")
             else data.get("theme")
+        ),
+        "ui_locale": (
+            data.get("ui_locale")
+            if data.get("ui_locale") in UI_LOCALES
+            else DEFAULTS["ui_locale"]
         ),
         "max_retries": data.get("max_retries", 3),
         "resolve_concurrency": data.get("resolve_concurrency", 6),

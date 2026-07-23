@@ -1,4 +1,9 @@
 (() => {
+  const t = (key, vars) =>
+    (window.LinkoraI18n && typeof window.LinkoraI18n.t === "function"
+      ? window.LinkoraI18n.t(key, vars)
+      : key);
+
   const form = document.getElementById("extract-form");
   const urlsInput = document.getElementById("urls");
   const hostInput = document.getElementById("host");
@@ -25,6 +30,7 @@
   const settingsMessage = document.getElementById("settings-message");
   const activeProviderSelect = document.getElementById("active-provider");
   const uiThemeSelect = document.getElementById("ui-theme");
+  const uiLocaleSelect = document.getElementById("ui-locale");
   const autoUpdateInput = document.getElementById("auto-update");
   const updateManifestInput = document.getElementById("update-manifest-url");
   const renameTemplateSelect = document.getElementById("rename-template");
@@ -284,7 +290,7 @@
     });
     list.slice(1).forEach((h) => addHostRow(h));
     const firstLabel = hostsList.querySelector("[data-host-row] .field-label");
-    if (firstLabel) firstLabel.textContent = "Hébergeur";
+    if (firstLabel) firstLabel.textContent = t("extract.host");
     syncAddHostButton();
   }
 
@@ -592,13 +598,13 @@
   function setLoading(loading) {
     btnExtract.disabled = loading;
     btnSpinner.hidden = !loading;
-    btnLabel.textContent = loading ? "Analyse…" : "Récupérer";
+    btnLabel.textContent = loading ? t("extract.analyzing") : t("extract.submit");
   }
 
   function setResolving(loading) {
     btnResolve.disabled = loading;
     resolveSpinner.hidden = !loading;
-    resolveLabel.textContent = loading ? "Résolution…" : "Résoudre";
+    resolveLabel.textContent = loading ? t("results.resolving") : t("results.resolve");
     btnStopResolve.hidden = !loading;
     resolveProgress.hidden = !loading;
     if (!loading) {
@@ -1151,22 +1157,26 @@
     providerBadge.hidden = false;
     if (conf?.configured) {
       providerBadge.classList.remove("is-off");
-      providerBadge.textContent = `${label} prêt`;
+      providerBadge.textContent = t("provider.ready", { label });
     } else {
       providerBadge.classList.add("is-off");
-      providerBadge.textContent = `${label} : clé manquante`;
+      providerBadge.textContent = t("provider.missingKey", { label });
     }
   }
 
-  const THEME_LABELS = {
-    linkora: "Linkora",
-    alldebrid: "Ambre",
-    nocturne: "Pro (sombre)",
-  };
+  function themeLabel(theme) {
+    const key = normalizeTheme(theme);
+    const translated = t(`themeNames.${key}`);
+    return translated.startsWith("themeNames.") ? key : translated;
+  }
 
   function normalizeTheme(theme) {
     if (theme === "lienlab") return "linkora";
-    return THEME_LABELS[theme] ? theme : "linkora";
+    return ["linkora", "alldebrid", "nocturne"].includes(theme) ? theme : "linkora";
+  }
+
+  function normalizeLocale(locale) {
+    return locale === "en" ? "en" : "fr";
   }
 
   function applyTheme(theme) {
@@ -1177,6 +1187,31 @@
       btn.classList.toggle("is-active", key === value);
     });
     if (uiThemeSelect) uiThemeSelect.value = value;
+  }
+
+  async function applyLocale(locale, { persistToast = false } = {}) {
+    const value = normalizeLocale(locale);
+    if (window.LinkoraI18n) {
+      await window.LinkoraI18n.setLocale(value);
+    }
+    if (uiLocaleSelect) uiLocaleSelect.value = value;
+    document.title = t("meta.title");
+    updateProviderBadge();
+    if (historyCount) {
+      historyCount.textContent =
+        historyItemsCount === 1
+          ? t("history.countOne")
+          : t("history.count", { n: historyItemsCount });
+    }
+    if (settingsModal && !settingsModal.hidden) {
+      const active = settingsModal.querySelector(".settings-nav-btn.is-active");
+      if (active?.dataset.settingsSection) {
+        switchSettingsSection(active.dataset.settingsSection);
+      }
+    }
+    if (persistToast) {
+      showToast(t("toast.langOn", { name: t(`langNames.${value}`) }));
+    }
   }
 
   async function persistTheme(theme) {
@@ -1191,7 +1226,25 @@
       const data = await res.json();
       if (res.ok) {
         settings = { ...(settings || {}), ...data };
-        showToast(`Thème ${THEME_LABELS[value]} activé.`);
+        showToast(t("toast.themeOn", { name: themeLabel(value) }));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function persistLocale(locale) {
+    const value = normalizeLocale(locale);
+    await applyLocale(value, { persistToast: true });
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ui_locale: value }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        settings = { ...(settings || {}), ...data };
       }
     } catch {
       /* ignore */
@@ -1203,8 +1256,7 @@
     if (state?.restarting) {
       updateBanner.hidden = false;
       updateBannerText.textContent =
-        state.message ||
-        "Mise à jour en cours — Linkora va redémarrer…";
+        state.message || t("update.restarting");
       if (btnUpdateApply) btnUpdateApply.hidden = true;
       return;
     }
@@ -1212,7 +1264,7 @@
       updateBanner.hidden = false;
       updateBannerText.textContent =
         state.message ||
-        `Mise à jour ${state.current || ""} installée — redémarrez Linkora.`;
+        t("update.needsRestart", { version: state.current || "" });
       if (btnUpdateApply) btnUpdateApply.hidden = true;
       return;
     }
@@ -1220,7 +1272,10 @@
       updateBanner.hidden = false;
       updateBannerText.textContent =
         state.message ||
-        `Nouvelle version ${state.latest} disponible (actuelle : ${state.current}).`;
+        t("update.available", {
+          latest: state.latest,
+          current: state.current,
+        });
       if (btnUpdateApply) btnUpdateApply.hidden = false;
       if (btnForceUpdate) btnForceUpdate.hidden = false;
       return;
@@ -1234,8 +1289,11 @@
       const state = await res.json();
       if (updateStatusHint) {
         updateStatusHint.textContent = state.latest
-          ? `Version locale : ${state.current || "?"} · GitHub : ${state.latest}`
-          : `Version locale : ${state.current || "?"}`;
+          ? t("settings.versionBoth", {
+              current: state.current || "?",
+              latest: state.latest,
+            })
+          : t("settings.versionLocal", { current: state.current || "?" });
       }
       if (btnForceUpdate) {
         btnForceUpdate.hidden = !state.update_available;
@@ -1269,6 +1327,9 @@
     if (uiThemeSelect) {
       uiThemeSelect.value = normalizeTheme(settings.theme);
     }
+    if (uiLocaleSelect) {
+      uiLocaleSelect.value = normalizeLocale(settings.ui_locale);
+    }
     if (autoUpdateInput) {
       autoUpdateInput.checked = settings.auto_update !== false;
     }
@@ -1286,8 +1347,8 @@
     nasClearRequested = false;
     if (hintNas) {
       hintNas.textContent = nasEntry?.configured
-        ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
-        : "Aucun identifiant NAS enregistré.";
+        ? t("settings.nasSaved", { user: nasEntry.username })
+        : t("settings.nasNone");
     }
     if (tmdbApiKeyInput) tmdbApiKeyInput.value = "";
     if (libraryShowPostersInput) {
@@ -1295,8 +1356,11 @@
     }
     if (hintTmdb) {
       hintTmdb.textContent = settings.tmdb_configured
-        ? `Clé enregistrée · ${settings.tmdb_api_key_masked || "••••"}`
-        : "Aucune clé enregistrée.";
+        ? t("settings.keysCount", {
+            n: 1,
+            masked: settings.tmdb_api_key_masked || "••••",
+          })
+        : t("settings.noKey");
     }
     const postersToggle = document.getElementById("library-posters-toggle");
     if (postersToggle) {
@@ -1319,15 +1383,22 @@
       concurrencyInput.value = String(settings.resolve_concurrency || 6);
     }
     applyTheme(normalizeTheme(settings.theme));
+    await applyLocale(normalizeLocale(settings.ui_locale));
     applyCustomBranding(settings);
     const adCount = settings.providers?.alldebrid?.key_count || 0;
     const rdCount = settings.providers?.realdebrid?.key_count || 0;
     hintAlldebrid.textContent = settings.providers?.alldebrid?.configured
-      ? `${adCount} clé(s) · ${settings.providers.alldebrid.api_key_masked}`
-      : "Aucune clé enregistrée.";
+      ? t("settings.keysCount", {
+          n: adCount,
+          masked: settings.providers.alldebrid.api_key_masked,
+        })
+      : t("settings.noKey");
     hintRealdebrid.textContent = settings.providers?.realdebrid?.configured
-      ? `${rdCount} clé(s) · ${settings.providers.realdebrid.api_key_masked}`
-      : "Aucune clé enregistrée.";
+      ? t("settings.keysCount", {
+          n: rdCount,
+          masked: settings.providers.realdebrid.api_key_masked,
+        })
+      : t("settings.noKey");
     updateProviderBadge();
     refreshProfileSelect();
     refreshUpdateStatus();
@@ -1339,34 +1410,25 @@
     keyRealdebrid.value = "";
     switchSettingsSection("account");
     settingsModal.hidden = false;
-    loadSettings().catch(() => showToast("Impossible de charger les paramètres."));
+    loadSettings().catch(() => showToast(t("toast.settingsLoadFail")));
   }
 
-  const SETTINGS_SECTION_META = {
-    account: {
-      title: "Paramètres",
-      lead: "Compte débrideur et clés API (stockées localement).",
-    },
-    appearance: {
-      title: "Apparence",
-      lead: "Thème, accent et notifications.",
-    },
-    extract: {
-      title: "Récupération",
-      lead: "Mode d’extraction, retries et renommage.",
-    },
-    library: {
-      title: "Bibliothèque",
-      lead: "TMDB, affiches et accès NAS.",
-    },
-    updates: {
-      title: "MAJ & backup",
-      lead: "Mises à jour et sauvegarde des données.",
-    },
-  };
+  function settingsSectionMeta(id) {
+    const map = {
+      account: { title: "settings.title", lead: "settings.leadAccount" },
+      appearance: { title: "settings.navAppearance", lead: "settings.leadAppearance" },
+      extract: { title: "settings.navExtract", lead: "settings.leadExtract" },
+      library: { title: "settings.navLibrary", lead: "settings.leadLibrary" },
+      updates: { title: "settings.navUpdates", lead: "settings.leadUpdates" },
+    };
+    const keys = map[id] || map.account;
+    return { title: t(keys.title), lead: t(keys.lead) };
+  }
 
   function switchSettingsSection(name) {
-    const key = SETTINGS_SECTION_META[name] ? name : "account";
+    const key = ["account", "appearance", "extract", "library", "updates"].includes(name)
+      ? name
+      : "account";
     document.querySelectorAll("[data-settings-section]").forEach((btn) => {
       const active = btn.getAttribute("data-settings-section") === key;
       btn.classList.toggle("is-active", active);
@@ -1377,7 +1439,7 @@
       panel.classList.toggle("is-active", active);
       panel.hidden = !active;
     });
-    const meta = SETTINGS_SECTION_META[key];
+    const meta = settingsSectionMeta(key);
     if (settingsTitle) settingsTitle.textContent = meta.title;
     if (settingsLead) settingsLead.textContent = meta.lead;
   }
@@ -1412,7 +1474,8 @@
   function updateHistoryCount(n) {
     historyItemsCount = n;
     if (historyCount) {
-      historyCount.textContent = n === 1 ? "1 entrée" : `${n} entrée(s)`;
+      historyCount.textContent =
+        n === 1 ? t("history.countOne") : t("history.count", { n });
     }
   }
 
@@ -2288,6 +2351,9 @@
   document.querySelectorAll("[data-theme-set]").forEach((btn) => {
     btn.addEventListener("click", () => persistTheme(btn.dataset.themeSet));
   });
+  document.querySelectorAll("[data-locale-set]").forEach((btn) => {
+    btn.addEventListener("click", () => persistLocale(btn.dataset.localeSet));
+  });
   settingsModal.querySelectorAll("[data-close-settings]").forEach((el) => {
     el.addEventListener("click", closeSettings);
   });
@@ -2308,6 +2374,7 @@
     const payload = {
       active_provider: activeProviderSelect.value,
       theme: uiThemeSelect?.value || "linkora",
+      ui_locale: normalizeLocale(uiLocaleSelect?.value || settings?.ui_locale || "fr"),
       max_retries: Number(maxRetriesInput?.value || 3),
       resolve_concurrency: Number(concurrencyInput?.value || 6),
       auto_update: autoUpdateInput ? !!autoUpdateInput.checked : true,
@@ -2380,6 +2447,7 @@
       }
       settings = data;
       applyTheme(normalizeTheme(data.theme));
+      await applyLocale(normalizeLocale(data.ui_locale));
       applyCustomBranding(data);
       updateProviderBadge();
       refreshProfileSelect();
@@ -2388,14 +2456,17 @@
       const nasEntry = (data.network_shares || [])[0] || null;
       if (hintNas) {
         hintNas.textContent = nasEntry?.configured
-          ? `Identifiants enregistrés · ${nasEntry.username}${nasEntry.password_masked ? " · " + nasEntry.password_masked : ""}`
-          : "Aucun identifiant NAS enregistré.";
+          ? t("settings.nasSaved", { user: nasEntry.username })
+          : t("settings.nasNone");
       }
       if (tmdbApiKeyInput) tmdbApiKeyInput.value = "";
       if (hintTmdb) {
         hintTmdb.textContent = data.tmdb_configured
-          ? `Clé enregistrée · ${data.tmdb_api_key_masked || "••••"}`
-          : "Aucune clé enregistrée.";
+          ? t("settings.keysCount", {
+              n: 1,
+              masked: data.tmdb_api_key_masked || "••••",
+            })
+          : t("settings.noKey");
       }
       const postersToggle = document.getElementById("library-posters-toggle");
       if (postersToggle) {
@@ -2405,22 +2476,28 @@
       const adCount = data.providers?.alldebrid?.key_count || 0;
       const rdCount = data.providers?.realdebrid?.key_count || 0;
       hintAlldebrid.textContent = data.providers?.alldebrid?.configured
-        ? `${adCount} clé(s) · ${data.providers.alldebrid.api_key_masked}`
-        : "Aucune clé enregistrée.";
+        ? t("settings.keysCount", {
+            n: adCount,
+            masked: data.providers.alldebrid.api_key_masked,
+          })
+        : t("settings.noKey");
       hintRealdebrid.textContent = data.providers?.realdebrid?.configured
-        ? `${rdCount} clé(s) · ${data.providers.realdebrid.api_key_masked}`
-        : "Aucune clé enregistrée.";
+        ? t("settings.keysCount", {
+            n: rdCount,
+            masked: data.providers.realdebrid.api_key_masked,
+          })
+        : t("settings.noKey");
       keyAlldebrid.value = "";
       keyRealdebrid.value = "";
       syncExtractModeUi(data.extract_mode || "smart");
       settingsModal.hidden = false;
-      showSettingsMessage("Paramètres enregistrés.", true);
-      showToast("Paramètres enregistrés.");
+      showSettingsMessage(t("toast.settingsSaved"), true);
+      showToast(t("toast.settingsSaved"));
       if (data.notify_on_resolve && "Notification" in window && Notification.permission === "default") {
         Notification.requestPermission();
       }
     } catch {
-      showSettingsMessage("Erreur réseau.", false);
+      showSettingsMessage(t("toast.networkError"), false);
     }
   }
 
@@ -5090,7 +5167,16 @@
     syncHostsUiState();
     syncAddHostButton();
   });
-  loadSettings().catch(() => {});
+  (async () => {
+    try {
+      if (window.LinkoraI18n) {
+        await window.LinkoraI18n.loadLocale("fr");
+      }
+      await loadSettings();
+    } catch {
+      /* ignore */
+    }
+  })();
   loadHistory();
   renderQueue();
   refreshUpdateStatus();

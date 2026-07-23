@@ -4,6 +4,19 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.8.0] — 2026-07-23
+
+### Ajouté
+- **Multilingue FR / EN** : sélecteur drapeau dans l’en-tête, choix aussi dans Paramètres
+- Langue d’interface mémorisée (`ui_locale`) ; l’installateur Inno initialise selon la langue du wizard
+- Pack d’**animations Signature** sur le thème Ambre (Défaut reste sobre)
+
+### Amélioré
+- Thème **Ambre** : fond clair (meilleure lisibilité), accents jaune / bleu
+- Intro hero : petit encadré glass avec liseré accent
+
+---
+
 ## [2.7.1] — 2026-07-23
 
 ### Ajouté

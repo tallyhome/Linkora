@@ -23,25 +23,26 @@
   --logo-spark: #fde68a;
 }
 
+/* Ambre : clair chaleureux (lisibilité), accents jaune / bleu */
 html[data-theme="alldebrid"] {
-  --ink: #e8eef7;
-  --ink-soft: #c5d0e0;
-  --muted: #9aa8bc;
-  --line: rgba(255, 255, 255, 0.1);
-  --surface: rgba(18, 26, 43, 0.88);
-  --surface-solid: #121a2b;
-  --accent: #3b82f6;
-  --accent-deep: #60a5fa;
-  --accent-soft: rgba(59, 130, 246, 0.18);
-  --danger: #ff4d4f;
-  --ok: #f5c518;
-  --ok-bg: rgba(245, 197, 24, 0.16);
-  --dead: #ff4d4f;
-  --dead-bg: rgba(255, 77, 79, 0.14);
-  --pending: #9aa8bc;
-  --body-bg: #0b1220;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-  --logo-accent: #f5c518;
+  --ink: #1a2332;
+  --ink-soft: #3d4a5c;
+  --muted: #6b7a8d;
+  --line: rgba(26, 35, 50, 0.12);
+  --surface: rgba(255, 252, 245, 0.82);
+  --surface-solid: #fffdf8;
+  --accent: #2563eb;
+  --accent-deep: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --danger: #c62828;
+  --ok: #b45309;
+  --ok-bg: rgba(245, 197, 24, 0.22);
+  --dead: #c62828;
+  --dead-bg: rgba(198, 40, 40, 0.1);
+  --pending: #6b7a8d;
+  --body-bg: #f7f1e6;
+  --shadow: 0 18px 50px rgba(26, 35, 50, 0.08);
+  --logo-accent: #d97706;
   --logo-spark: #f5c518;
 }
 
@@ -102,9 +103,10 @@ body {
 
 html[data-theme="alldebrid"] .bg-atmosphere {
   background:
-    radial-gradient(ellipse 70% 50% at 10% 0%, rgba(59, 130, 246, 0.22), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(245, 197, 24, 0.08), transparent 50%),
-    linear-gradient(165deg, #0b1220 0%, #101828 50%, #0b1220 100%);
+    radial-gradient(ellipse 70% 50% at 10% 0%, rgba(37, 99, 235, 0.12), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 92% 8%, rgba(245, 197, 24, 0.22), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 70% 100%, rgba(217, 119, 6, 0.1), transparent 55%),
+    linear-gradient(165deg, #f3ebe0 0%, #faf6ef 45%, #f0e8d8 100%);
 }
 
 .bg-atmosphere::after {
@@ -1051,6 +1053,51 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   background: var(--surface-solid);
 }
 
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-solid);
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+  padding: 0.28rem 0.55rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lang-btn:hover {
+  background: var(--accent-soft);
+}
+
+.lang-btn.is-active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.25);
+}
+
+html[data-theme="alldebrid"] .lang-btn.is-active {
+  background: rgba(245, 197, 24, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+
+.lang-flag {
+  font-size: 1.05rem;
+  line-height: 1;
+  filter: grayscale(0.15);
+}
+
+.lang-btn.is-active .lang-flag {
+  filter: none;
+}
+
 .theme-btn {
   border: none;
   background: transparent;
@@ -1069,7 +1116,7 @@ html[data-theme="alldebrid"] .bg-atmosphere {
 
 html[data-theme="alldebrid"] .theme-btn.is-active {
   background: #f5c518;
-  color: #0b1220;
+  color: #1a2332;
 }
 
 .provider-badge {
@@ -1203,6 +1250,40 @@ main {
   font-size: 1.05rem;
   line-height: 1.45;
   text-align: right;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.hero-lead::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), var(--logo-accent, var(--accent-deep)));
+  opacity: 0.85;
+}
+
+html[data-theme="alldebrid"] .hero-lead {
+  background: rgba(255, 253, 248, 0.88);
+  border-color: rgba(217, 119, 6, 0.22);
+  box-shadow: 0 14px 36px rgba(26, 35, 50, 0.06);
+}
+
+html[data-theme="alldebrid"] .hero-lead::before {
+  background: linear-gradient(180deg, #2563eb, #f5c518);
+}
+
+html[data-theme="nocturne"] .hero-lead {
+  background: rgba(32, 28, 60, 0.55);
+  border-color: rgba(139, 123, 255, 0.28);
 }
 
 @media (max-width: 720px) {
@@ -1588,7 +1669,7 @@ main {
 }
 
 html[data-theme="alldebrid"] .btn-view {
-  background: #0f172a;
+  background: rgba(245, 197, 24, 0.16);
 }
 
 .resolve-progress {
@@ -1616,7 +1697,7 @@ html[data-theme="alldebrid"] .btn-view {
 }
 
 html[data-theme="alldebrid"] .resolve-progress-bar {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(217, 119, 6, 0.12);
 }
 
 .resolve-progress-fill {
@@ -1751,27 +1832,27 @@ html[data-theme="alldebrid"] .resolve-progress-fill {
 }
 
 html[data-theme="alldebrid"] .links-table th {
-  background: #0f172a;
-  color: #9aa8bc;
+  background: rgba(245, 197, 24, 0.14);
+  color: var(--ink-soft);
 }
 
 html[data-theme="alldebrid"] .links-table .cell-url.ok {
-  color: #f5c518;
-  background: rgba(245, 197, 24, 0.14);
+  color: #92400e;
+  background: rgba(245, 197, 24, 0.18);
 }
 
 html[data-theme="alldebrid"] .links-table .cell-url.dead,
 html[data-theme="alldebrid"] .links-table .cell-url.error {
-  color: #ff6b6b;
-  background: rgba(255, 77, 79, 0.16);
+  color: #b91c1c;
+  background: rgba(198, 40, 40, 0.1);
 }
 
 html[data-theme="alldebrid"] .links-table tr:hover {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(37, 99, 235, 0.06);
 }
 
 html[data-theme="alldebrid"] .results-actions-bar {
-  background: #121a2b;
+  background: rgba(255, 253, 248, 0.92);
 }
 
 .size-pill {
@@ -2616,7 +2697,7 @@ html[data-theme="alldebrid"] .app-tab-btn.is-active {
 }
 
 html[data-theme="alldebrid"] .split-count {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(26, 35, 50, 0.08);
 }
 
 .table-wrap-sm {
@@ -2645,7 +2726,7 @@ html[data-theme="alldebrid"] .split-count {
 }
 
 html[data-theme="alldebrid"] .table-section-title {
-  background: #0f172a;
+  background: rgba(245, 197, 24, 0.12);
 }
 
 .btn-xs {
@@ -2685,7 +2766,7 @@ html[data-theme="alldebrid"] .modal-panel {
 
 html[data-theme="alldebrid"] .field input,
 html[data-theme="alldebrid"] .settings-form select {
-  background: #0f172a;
+  background: #fffdf8;
   color: var(--ink);
   border-color: var(--line);
 }
@@ -2703,12 +2784,12 @@ html[data-theme="alldebrid"] .btn-primary:hover {
 }
 
 html[data-theme="alldebrid"] .btn-secondary {
-  background: rgba(245, 197, 24, 0.14);
-  color: var(--ok);
+  background: rgba(245, 197, 24, 0.22);
+  color: #92400e;
 }
 
 html[data-theme="alldebrid"] .toast {
-  background: #020617;
+  background: #1a2332;
 }
 
 .link-cell {
@@ -3283,3 +3364,236 @@ html[data-theme="nocturne"] .btn-view {
     animation: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   THÈME « AMBRE » — pack Signature (Défaut reste sobre)
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes ambre-drift {
+  0%, 100% { background-position: 0% 40%, 100% 0%, 70% 100%, 0 0; }
+  50% { background-position: 8% 30%, 92% 12%, 65% 95%, 0 0; }
+}
+
+@keyframes ambre-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes ambre-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ambre-shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+@keyframes ambre-bar-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
+@keyframes ambre-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 197, 24, 0); }
+}
+
+html[data-theme="alldebrid"] .bg-atmosphere {
+  background-size: 120% 120%, 110% 110%, 100% 100%, 100% 100%;
+  animation: ambre-drift 28s ease-in-out infinite;
+}
+
+html[data-theme="alldebrid"] .brand-logo,
+html[data-theme="alldebrid"] .hero-logo {
+  animation: ambre-float 5.5s ease-in-out infinite;
+}
+
+html[data-theme="alldebrid"] .hero-brand {
+  animation: ambre-in 0.55s ease both;
+}
+
+html[data-theme="alldebrid"] .hero-lead {
+  animation: ambre-in 0.6s 0.08s ease both;
+  transition: transform 0.22s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+html[data-theme="alldebrid"] .hero-lead:hover {
+  transform: translateY(-2px);
+  border-color: rgba(217, 119, 6, 0.4);
+  box-shadow: 0 16px 40px rgba(217, 119, 6, 0.12);
+}
+
+html[data-theme="alldebrid"] .hero-lead:hover::before {
+  opacity: 1;
+  box-shadow: 0 0 12px rgba(245, 197, 24, 0.55);
+}
+
+html[data-theme="alldebrid"] .app-tabs {
+  animation: ambre-in 0.45s 0.04s ease both;
+}
+
+html[data-theme="alldebrid"] .app-tab-btn {
+  transition: transform 0.18s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.22s ease;
+}
+
+html[data-theme="alldebrid"] .app-tab-btn:hover {
+  transform: translateY(-2px);
+  color: var(--ink);
+}
+
+html[data-theme="alldebrid"] .app-tab-btn.is-active {
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.2);
+}
+
+html[data-theme="alldebrid"] .extract-form {
+  animation: ambre-in 0.55s 0.1s ease both;
+}
+
+html[data-theme="alldebrid"] .queue-panel {
+  animation: ambre-in 0.55s 0.16s ease both;
+}
+
+html[data-theme="alldebrid"] .history-panel,
+html[data-theme="alldebrid"] .rename-hero,
+html[data-theme="alldebrid"] .rename-results {
+  animation: ambre-in 0.5s 0.12s ease both;
+}
+
+html[data-theme="alldebrid"] .btn,
+html[data-theme="alldebrid"] .btn-ghost,
+html[data-theme="alldebrid"] .btn-secondary {
+  transition: transform 0.16s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+html[data-theme="alldebrid"] .btn:hover {
+  transform: translateY(-2px);
+}
+
+html[data-theme="alldebrid"] .btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+html[data-theme="alldebrid"] .btn-primary {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+}
+
+html[data-theme="alldebrid"] .btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 65%
+  );
+  background-size: 220% 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-theme="alldebrid"] .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.32);
+}
+
+html[data-theme="alldebrid"] .btn-primary:hover::after {
+  opacity: 1;
+  animation: ambre-shimmer 0.9s ease;
+}
+
+html[data-theme="alldebrid"] .theme-btn,
+html[data-theme="alldebrid"] .lang-btn {
+  transition: background 0.2s ease, transform 0.16s ease, box-shadow 0.2s ease;
+}
+
+html[data-theme="alldebrid"] .theme-btn:hover,
+html[data-theme="alldebrid"] .lang-btn:hover {
+  transform: translateY(-1px);
+}
+
+html[data-theme="alldebrid"] .theme-btn.is-active {
+  animation: ambre-pulse-ring 2.4s ease-in-out infinite;
+}
+
+html[data-theme="alldebrid"] .lang-btn.is-active {
+  animation: ambre-pulse-ring 2.8s ease-in-out 0.2s infinite;
+}
+
+html[data-theme="alldebrid"] .page-block {
+  animation: ambre-in 0.4s ease both;
+  transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+html[data-theme="alldebrid"] .page-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(26, 35, 50, 0.1);
+}
+
+html[data-theme="alldebrid"] .resolve-progress-fill {
+  background: linear-gradient(90deg, #2563eb, #f5c518, #2563eb);
+  background-size: 200% 100%;
+  animation: ambre-shimmer 2.2s linear infinite, ambre-bar-glow 1.6s ease-in-out infinite;
+}
+
+html[data-theme="alldebrid"] .toast {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+}
+
+html[data-theme="alldebrid"] .modal-panel,
+html[data-theme="alldebrid"] .confirm-panel {
+  animation: ambre-in 0.28s ease both;
+}
+
+html[data-theme="alldebrid"] .history-body {
+  animation: ambre-in 0.28s ease both;
+}
+
+html[data-theme="alldebrid"] .btn-help-round {
+  transition: transform 0.18s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+html[data-theme="alldebrid"] .btn-help-round:hover {
+  transform: translateY(-2px) rotate(-8deg);
+  box-shadow: 0 8px 18px rgba(217, 119, 6, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="alldebrid"] .bg-atmosphere,
+  html[data-theme="alldebrid"] .brand-logo,
+  html[data-theme="alldebrid"] .hero-logo,
+  html[data-theme="alldebrid"] .hero-brand,
+  html[data-theme="alldebrid"] .hero-lead,
+  html[data-theme="alldebrid"] .app-tabs,
+  html[data-theme="alldebrid"] .extract-form,
+  html[data-theme="alldebrid"] .queue-panel,
+  html[data-theme="alldebrid"] .history-panel,
+  html[data-theme="alldebrid"] .page-block,
+  html[data-theme="alldebrid"] .theme-btn.is-active,
+  html[data-theme="alldebrid"] .lang-btn.is-active,
+  html[data-theme="alldebrid"] .resolve-progress-fill,
+  html[data-theme="alldebrid"] .btn-primary:hover::after,
+  html[data-theme="alldebrid"] .modal-panel,
+  html[data-theme="alldebrid"] .confirm-panel,
+  html[data-theme="alldebrid"] .history-body {
+    animation: none !important;
+  }
+
+  html[data-theme="alldebrid"] .btn:hover,
+  html[data-theme="alldebrid"] .app-tab-btn:hover,
+  html[data-theme="alldebrid"] .page-block:hover,
+  html[data-theme="alldebrid"] .hero-lead:hover,
+  html[data-theme="alldebrid"] .btn-help-round:hover {
+    transform: none;
+  }
+}
+

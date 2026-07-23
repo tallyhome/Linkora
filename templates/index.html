@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Linkora — Récupérateur de liens</title>
+  <title data-i18n="meta.title">Linkora — Récupérateur de liens</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,8 +16,8 @@
   <div id="update-banner" class="update-banner" hidden>
     <p id="update-banner-text"></p>
     <div class="update-banner-actions">
-      <button type="button" class="btn btn-primary btn-xs" id="btn-update-apply" hidden>Mettre à jour</button>
-      <button type="button" class="btn btn-ghost btn-xs" id="btn-update-dismiss">OK</button>
+      <button type="button" class="btn btn-primary btn-xs" id="btn-update-apply" hidden data-i18n="header.updateApply">Mettre à jour</button>
+      <button type="button" class="btn btn-ghost btn-xs" id="btn-update-dismiss" data-i18n="header.updateOk">OK</button>
     </div>
   </div>
 
@@ -45,36 +45,44 @@
     </div>
     <div class="header-actions">
       <span id="provider-badge" class="provider-badge" hidden></span>
-      <div class="theme-switch" role="group" aria-label="Thème">
-        <button type="button" class="theme-btn is-active" data-theme-set="linkora" title="Thème Linkora">Défaut</button>
-        <button type="button" class="theme-btn" data-theme-set="alldebrid" title="Thème Ambre">Ambre</button>
-        <button type="button" class="theme-btn" data-theme-set="nocturne" title="Thème Pro sombre">Pro</button>
+      <div class="theme-switch" role="group" data-i18n-aria="header.theme" aria-label="Thème">
+        <button type="button" class="theme-btn is-active" data-theme-set="linkora" data-i18n="header.themeDefault" data-i18n-title="header.themeDefaultTitle" title="Thème Linkora">Défaut</button>
+        <button type="button" class="theme-btn" data-theme-set="alldebrid" data-i18n="header.themeAmber" data-i18n-title="header.themeAmberTitle" title="Thème Ambre">Ambre</button>
+        <button type="button" class="theme-btn" data-theme-set="nocturne" data-i18n="header.themePro" data-i18n-title="header.themeProTitle" title="Thème Pro sombre">Pro</button>
       </div>
-      <button type="button" class="btn-help-round" id="btn-reload" title="Actualiser Linkora (comme un redémarrage)" aria-label="Actualiser Linkora">
+      <div class="lang-switch" role="group" data-i18n-aria="header.lang" aria-label="Langue">
+        <button type="button" class="lang-btn is-active" data-locale-set="fr" data-i18n-title="header.langFrTitle" title="Français" aria-label="Français">
+          <span class="lang-flag" aria-hidden="true">🇫🇷</span>
+        </button>
+        <button type="button" class="lang-btn" data-locale-set="en" data-i18n-title="header.langEnTitle" title="English" aria-label="English">
+          <span class="lang-flag" aria-hidden="true">🇬🇧</span>
+        </button>
+      </div>
+      <button type="button" class="btn-help-round" id="btn-reload" data-i18n-title="header.reloadTitle" data-i18n-aria="header.reloadAria" title="Actualiser Linkora (comme un redémarrage)" aria-label="Actualiser Linkora">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12a9 9 0 1 1-2.6-6.4"/>
           <polyline points="21 3 21 9 15 9"/>
         </svg>
       </button>
-      <button type="button" class="btn-help-round" id="btn-help" title="Aide & infos" aria-label="Aide et informations">
+      <button type="button" class="btn-help-round" id="btn-help" data-i18n-title="header.helpTitle" data-i18n-aria="header.helpAria" title="Aide & infos" aria-label="Aide et informations">
         <span aria-hidden="true">?</span>
       </button>
-      <button type="button" class="btn btn-ghost" id="btn-settings">Paramètres</button>
+      <button type="button" class="btn btn-ghost" id="btn-settings" data-i18n="header.settings">Paramètres</button>
     </div>
   </header>
 
   <main>
-    <nav class="app-tabs" role="tablist" aria-label="Sections Linkora">
-      <button type="button" class="app-tab-btn is-active" data-tab="extract" role="tab" aria-selected="true">
+    <nav class="app-tabs" role="tablist" data-i18n-aria="tabs.aria" aria-label="Sections Linkora">
+      <button type="button" class="app-tab-btn is-active" data-tab="extract" role="tab" aria-selected="true" data-i18n="tabs.extract">
         Récupération
       </button>
-      <button type="button" class="app-tab-btn" data-tab="rename" role="tab" aria-selected="false">
+      <button type="button" class="app-tab-btn" data-tab="rename" role="tab" aria-selected="false" data-i18n="tabs.rename">
         Renommage
       </button>
-      <button type="button" class="app-tab-btn" data-tab="library" role="tab" aria-selected="false">
+      <button type="button" class="app-tab-btn" data-tab="library" role="tab" aria-selected="false" data-i18n="tabs.library">
         Bibliothèque
       </button>
-      <button type="button" class="app-tab-btn" data-tab="help" role="tab" aria-selected="false">
+      <button type="button" class="app-tab-btn" data-tab="help" role="tab" aria-selected="false" data-i18n="tabs.help">
         Aide
       </button>
     </nav>
@@ -103,26 +111,26 @@
           </span>
           <h1 class="hero-title">Linkora</h1>
         </div>
-        <p class="hero-lead">
+        <p class="hero-lead" data-i18n="hero.lead">
           Collez l’URL d’une page, indiquez l’hébergeur souhaité, récupérez et résolvez les liens via AllDebrid ou Real-Debrid.
           Noms Plex/Kodi générés automatiquement.
         </p>
       </div>
 
       <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
-        <div class="profile-bar" role="group" aria-label="Profil de récupération">
-          <span class="profile-chip-label">Profil</span>
-          <select id="profile-select" class="profile-select" aria-label="Choisir un profil">
-            <option value="">— Aucun —</option>
+        <div class="profile-bar" role="group" data-i18n-aria="extract.profileAria" aria-label="Profil de récupération">
+          <span class="profile-chip-label" data-i18n="extract.profile">Profil</span>
+          <select id="profile-select" class="profile-select" data-i18n-aria="extract.profileSelectAria" aria-label="Choisir un profil">
+            <option value="" data-i18n="extract.profileNone">— Aucun —</option>
           </select>
           <div class="profile-bar-actions">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-save" title="Enregistrer hébergeur + réglages actuels">Sauver</button>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-delete" title="Supprimer le profil sélectionné">Suppr.</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-save" title="Enregistrer hébergeur + réglages actuels" data-i18n="extract.profileSave" data-i18n-title="extract.profileSaveTitle">Sauver</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-profile-delete" title="Supprimer le profil sélectionné" data-i18n="extract.profileDelete" data-i18n-title="extract.profileDeleteTitle">Suppr.</button>
           </div>
         </div>
 
         <label class="field field-urls">
-          <span class="field-label">URL(s) de page(s) — une par ligne</span>
+          <span class="field-label" data-i18n="extract.urlsLabel">URL(s) de page(s) — une par ligne</span>
           <textarea
             id="urls"
             name="urls"
@@ -138,7 +146,7 @@
             <div class="hosts-list" id="hosts-list">
               <div class="host-row" data-host-row>
                 <label class="field field-host">
-                  <span class="field-label">Hébergeur</span>
+                  <span class="field-label" data-i18n="extract.host">Hébergeur</span>
                   <div class="host-input-row">
                     <input
                       type="text"
@@ -146,7 +154,7 @@
                       name="host"
                       data-host-input
                       list="host-suggestions"
-                      placeholder="rapidgator, mega, mixdrop…"
+                      placeholder="rapidgator, mega, mixdrop…" data-i18n-placeholder="extract.hostPlaceholder"
                       spellcheck="false"
                     >
                   </div>
@@ -155,18 +163,18 @@
             </div>
             <label class="check-field hosts-all-check" title="Utilise tous les hébergeurs connus du système présents sur la page">
               <input type="checkbox" id="use-all-hosts" name="use_all_hosts">
-              <span>Tous les hébergeurs disponibles</span>
+              <span data-i18n="extract.allHosts">Tous les hébergeurs disponibles</span>
             </label>
             <label class="field field-extract-mode">
-              <span class="field-label">Mode d’extraction</span>
-              <select id="extract-mode-page" aria-label="Mode d’extraction">
-                <option value="smart">Smart (recommandé)</option>
-                <option value="providers">Providers (annuaire)</option>
-                <option value="domains">Domaines hosters</option>
-                <option value="extensions">Extensions (.zip…)</option>
+              <span class="field-label" data-i18n="extract.extractMode">Mode d’extraction</span>
+              <select id="extract-mode-page" data-i18n-aria="extract.extractMode" aria-label="Mode d’extraction">
+                <option value="smart" data-i18n="extract.modeSmart">Smart (recommandé)</option>
+                <option value="providers" data-i18n="extract.modeProviders">Providers (annuaire)</option>
+                <option value="domains" data-i18n="extract.modeDomains">Domaines hosters</option>
+                <option value="extensions" data-i18n="extract.modeExtensions">Extensions (.zip…)</option>
               </select>
             </label>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)">
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)" data-i18n="extract.addHost" data-i18n-title="extract.addHostTitle">
               + Ajouter un hébergeur
             </button>
             <datalist id="host-suggestions">
@@ -197,7 +205,7 @@
           </div>
 
           <button type="submit" class="btn btn-primary" id="btn-extract">
-            <span class="btn-label">Récupérer</span>
+            <span class="btn-label" data-i18n="extract.submit">Récupérer</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
         </div>
@@ -205,14 +213,14 @@
 
       <div class="queue-panel" id="queue-panel">
         <div class="queue-head">
-          <h3 class="queue-title">File d’attente</h3>
+          <h3 class="queue-title" data-i18n="extract.queueTitle">File d’attente</h3>
           <div class="queue-actions">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-add">Ajouter URLs</button>
-            <button type="button" class="btn btn-primary btn-xs" id="btn-queue-run">Lancer (récupérer + résoudre)</button>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-clear">Vider</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-add" data-i18n="extract.queueAdd">Ajouter URLs</button>
+            <button type="button" class="btn btn-primary btn-xs" id="btn-queue-run" data-i18n="extract.queueRun">Lancer (récupérer + résoudre)</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-clear" data-i18n="extract.queueClear">Vider</button>
           </div>
         </div>
-        <p class="queue-hint" id="queue-hint">Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.</p>
+        <p class="queue-hint" id="queue-hint" data-i18n="extract.queueHint">Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.</p>
         <ul class="queue-list" id="queue-list"></ul>
       </div>
 
@@ -222,7 +230,7 @@
     <section id="results" class="results" hidden>
       <div class="results-toolbar">
         <div class="results-meta">
-          <h2 id="results-title">Résultats</h2>
+          <h2 id="results-title" data-i18n="results.title">Résultats</h2>
           <p id="results-summary" class="results-summary"></p>
         </div>
         <button type="button" class="btn btn-close" id="btn-close-results" title="Fermer les résultats" aria-label="Fermer les résultats">
@@ -233,42 +241,42 @@
       <div class="results-actions-bar">
         <div class="action-cluster">
           <button type="button" class="btn btn-primary" id="btn-resolve" title="Résoudre via le débrideur">
-            <span class="btn-resolve-label">Résoudre</span>
+            <span class="btn-resolve-label" data-i18n="results.resolve">Résoudre</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
-          <button type="button" class="btn btn-ghost" id="btn-recheck-dead" title="Re-vérifier uniquement les liens morts/erreurs">
+          <button type="button" class="btn btn-ghost" id="btn-recheck-dead" title="Re-vérifier uniquement les liens morts/erreurs" data-i18n="results.recheckDead" data-i18n-title="results.recheckDeadTitle">
             Re-vérifier morts
           </button>
-          <button type="button" class="btn btn-ghost" id="btn-stop-resolve" hidden>Stop</button>
+          <button type="button" class="btn btn-ghost" id="btn-stop-resolve" hidden data-i18n="results.stop">Stop</button>
         </div>
         <div class="action-cluster">
-          <button type="button" class="btn btn-ghost" id="btn-copy" title="Copier les liens résolus">Copier résolus</button>
-          <button type="button" class="btn btn-ghost" id="btn-copy-source" title="Copier les liens source">Copier source</button>
-          <button type="button" class="btn btn-ghost" id="btn-save" title="Sauvegarder">Sauvegarder</button>
+          <button type="button" class="btn btn-ghost" id="btn-copy" title="Copier les liens résolus" data-i18n="results.copyResolved" data-i18n-title="results.copyResolvedTitle">Copier résolus</button>
+          <button type="button" class="btn btn-ghost" id="btn-copy-source" title="Copier les liens source" data-i18n="results.copySource" data-i18n-title="results.copySourceTitle">Copier source</button>
+          <button type="button" class="btn btn-ghost" id="btn-save" title="Sauvegarder" data-i18n="results.save" data-i18n-title="results.saveTitle">Sauvegarder</button>
         </div>
         <div class="action-cluster export-group">
           <div class="export-split">
             <button type="button" class="btn btn-secondary" data-export="csv" title="Télécharger CSV">CSV</button>
-            <button type="button" class="btn btn-ghost btn-view" data-view="csv" title="Voir CSV">Voir</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="csv" title="Voir CSV" data-i18n="results.view" data-i18n-title="results.csvViewTitle">Voir</button>
           </div>
           <div class="export-split">
             <button type="button" class="btn btn-secondary" data-export="html" title="Télécharger HTML">HTML</button>
-            <button type="button" class="btn btn-ghost btn-view" data-view="html" title="Voir HTML">Voir</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="html" title="Voir HTML" data-i18n="results.view" data-i18n-title="results.htmlViewTitle">Voir</button>
           </div>
           <div class="export-split">
             <button type="button" class="btn btn-secondary" data-export="pdf" title="Télécharger PDF">PDF</button>
-            <button type="button" class="btn btn-ghost btn-view" data-view="pdf" title="Voir PDF">Voir</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="pdf" title="Voir PDF" data-i18n="results.view" data-i18n-title="results.pdfViewTitle">Voir</button>
           </div>
           <div class="export-split">
             <button type="button" class="btn btn-secondary" data-export="jdownloader" title="Export JDownloader (URL + nom suggéré)">JD</button>
-            <button type="button" class="btn btn-ghost btn-view" data-view="jdownloader" title="Voir export JDownloader">Voir</button>
+            <button type="button" class="btn btn-ghost btn-view" data-view="jdownloader" title="Voir export JDownloader" data-i18n="results.view" data-i18n-title="results.jdViewTitle">Voir</button>
           </div>
         </div>
       </div>
 
       <div id="resolve-progress" class="resolve-progress" hidden>
         <div class="resolve-progress-top">
-          <span id="resolve-progress-text">Résolution…</span>
+          <span id="resolve-progress-text" data-i18n="results.resolving">Résolution…</span>
           <span id="resolve-progress-count">0 / 0</span>
         </div>
         <div class="resolve-progress-bar">
@@ -278,23 +286,23 @@
 
       <div class="results-filter-bar" id="results-filter-bar" hidden>
         <label class="filter-field">
-          <span>Filtre</span>
+          <span data-i18n="results.filter">Filtre</span>
           <select id="filter-status">
-            <option value="all">Tous</option>
-            <option value="ok">Valides</option>
-            <option value="dead">Morts / erreurs</option>
-            <option value="pending">En attente</option>
+            <option value="all" data-i18n="results.filterAll">Tous</option>
+            <option value="ok" data-i18n="results.filterOk">Valides</option>
+            <option value="dead" data-i18n="results.filterDead">Morts / erreurs</option>
+            <option value="pending" data-i18n="results.filterPending">En attente</option>
           </select>
         </label>
         <label class="filter-field filter-grow">
-          <span>Recherche</span>
-          <input type="search" id="filter-text" placeholder="S03E01, nom…" spellcheck="false">
+          <span data-i18n="results.search">Recherche</span>
+          <input type="search" id="filter-text" placeholder="S03E01, nom…" data-i18n-placeholder="results.searchPlaceholder" spellcheck="false">
         </label>
-        <button type="button" class="btn btn-ghost btn-xs" id="btn-select-visible">Tout sélectionner (vus)</button>
-        <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-selection">Tout désélectionner</button>
-        <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-selection">Copier sélection</button>
-        <button type="button" class="btn btn-secondary btn-xs" id="btn-jd-selection">Envoi JD (sélection)</button>
-        <button type="button" class="btn btn-ghost btn-xs" id="btn-missing-episodes">Épisodes manquants</button>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-select-visible" data-i18n="results.selectVisible">Tout sélectionner (vus)</button>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-selection" data-i18n="results.clearSelection">Tout désélectionner</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-selection" data-i18n="results.copySelection">Copier sélection</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="btn-jd-selection" data-i18n="results.jdSelection">Envoi JD (sélection)</button>
+        <button type="button" class="btn btn-ghost btn-xs" id="btn-missing-episodes" data-i18n="results.missingEpisodes">Épisodes manquants</button>
       </div>
       <p id="missing-episodes-box" class="missing-box" hidden></p>
 
@@ -304,26 +312,26 @@
     <section class="history history-panel is-collapsed" id="history-panel">
       <button type="button" class="history-toggle" id="btn-history-toggle" aria-expanded="false" aria-controls="history-body">
         <span class="history-toggle-main">
-          <span class="history-toggle-title">Historique</span>
+          <span class="history-toggle-title" data-i18n="history.title">Historique</span>
           <span class="history-toggle-meta" id="history-count">0 entrée(s)</span>
         </span>
-        <span class="history-toggle-hint">Afficher les pages débridées sauvegardées</span>
+        <span class="history-toggle-hint" data-i18n="history.hint">Afficher les pages débridées sauvegardées</span>
         <span class="history-chevron" aria-hidden="true"></span>
       </button>
       <div class="history-body" id="history-body" hidden>
-        <p class="history-lead">Une entrée par page — cliquez sur Ouvrir pour revoir les liens.</p>
+        <p class="history-lead" data-i18n="history.lead">Une entrée par page — cliquez sur Ouvrir pour revoir les liens.</p>
         <div class="history-bulk-bar" id="history-bulk-bar" hidden>
           <label class="check-field history-bulk-check">
             <input type="checkbox" id="history-select-all" aria-label="Tout sélectionner">
-            <span>Tout sélectionner</span>
+            <span data-i18n="history.selectAll">Tout sélectionner</span>
           </label>
-          <button type="button" class="btn btn-danger btn-xs" id="btn-history-delete-selected" disabled>
+          <button type="button" class="btn btn-danger btn-xs" id="btn-history-delete-selected" disabled data-i18n="history.deleteSelected">
             Supprimer la sélection
           </button>
           <span class="history-bulk-count" id="history-bulk-count" hidden></span>
         </div>
         <ul id="history-list" class="history-list">
-          <li class="history-empty">Aucune sauvegarde pour le moment.</li>
+          <li class="history-empty" data-i18n="history.empty">Aucune sauvegarde pour le moment.</li>
         </ul>
       </div>
     </section>
@@ -331,15 +339,15 @@
 
     <section id="tab-rename" class="app-tab-panel" role="tabpanel" hidden>
       <section class="rename-hero">
-        <h1 class="hero-title">Renommage intelligent</h1>
-        <p class="hero-lead">
+        <h1 class="hero-title" data-i18n="rename.title">Renommage intelligent</h1>
+        <p class="hero-lead" data-i18n="rename.lead">
           Nettoyez vos fichiers téléchargés pour Plex, Kodi ou Jellyfin.
           Séries <code>S03E01</code>, films <code>Titre (2024)</code>, anime, documentaires.
         </p>
 
         <form id="rename-scan-form" class="extract-form rename-form" autocomplete="off">
           <label class="field">
-            <span class="field-label">Dossier à scanner</span>
+            <span class="field-label" data-i18n="rename.folder">Dossier à scanner</span>
             <input
               type="text"
               id="rename-folder"
@@ -353,10 +361,10 @@
           <div class="rename-options">
             <label class="check-field">
               <input type="checkbox" id="rename-recursive" name="recursive">
-              <span>Inclure les sous-dossiers</span>
+              <span data-i18n="rename.recursive">Inclure les sous-dossiers</span>
             </label>
             <button type="submit" class="btn btn-primary" id="btn-rename-scan">
-              <span class="btn-label">Scanner</span>
+              <span class="btn-label" data-i18n="rename.scan">Scanner</span>
               <span class="btn-spinner" hidden aria-hidden="true"></span>
             </button>
           </div>
@@ -367,14 +375,14 @@
       <section id="rename-results" class="rename-results" hidden>
         <div class="results-toolbar">
           <div class="results-meta">
-            <h2 id="rename-results-title">Aperçu des renommages</h2>
+            <h2 id="rename-results-title" data-i18n="rename.previewTitle">Aperçu des renommages</h2>
             <p id="rename-results-summary" class="results-summary"></p>
           </div>
         </div>
         <div class="rename-actions-bar">
-          <button type="button" class="btn btn-primary" id="btn-rename-apply">Renommer les fichiers</button>
-          <button type="button" class="btn btn-ghost" id="btn-rename-dry">Simulation (aperçu seulement)</button>
-          <button type="button" class="btn btn-ghost" id="btn-rename-copy">Copier la liste</button>
+          <button type="button" class="btn btn-primary" id="btn-rename-apply" data-i18n="rename.apply">Renommer les fichiers</button>
+          <button type="button" class="btn btn-ghost" id="btn-rename-dry" data-i18n="rename.dry">Simulation (aperçu seulement)</button>
+          <button type="button" class="btn btn-ghost" id="btn-rename-copy" data-i18n="rename.copy">Copier la liste</button>
         </div>
         <div class="table-wrap">
           <table class="links-table rename-table">
@@ -399,7 +407,7 @@
 
     <section id="tab-library" class="app-tab-panel" role="tabpanel" hidden>
       <section class="rename-hero">
-        <h1 class="hero-title">Bibliothèque</h1>
+        <h1 class="hero-title" data-i18n="library.title">Bibliothèque</h1>
         <p class="hero-lead">
           Scannez un dossier ou un disque : Linkora liste films et séries avec une
           <strong>identité intelligente</strong> (même épisode = même clé, même si les noms de fichiers diffèrent).
@@ -422,10 +430,10 @@
           <div class="rename-options">
             <label class="check-field">
               <input type="checkbox" id="library-recursive" name="recursive" checked>
-              <span>Inclure les sous-dossiers</span>
+              <span data-i18n="library.recursive">Inclure les sous-dossiers</span>
             </label>
             <button type="submit" class="btn btn-primary" id="btn-library-scan">
-              <span class="btn-label">Scanner</span>
+              <span class="btn-label" data-i18n="library.scan">Scanner</span>
               <span class="btn-spinner" hidden aria-hidden="true"></span>
             </button>
           </div>
@@ -491,10 +499,10 @@
         <div class="rename-options">
           <label class="check-field">
             <input type="checkbox" id="library-diff-recursive" checked>
-            <span>Inclure les sous-dossiers</span>
+            <span data-i18n="library.recursive">Inclure les sous-dossiers</span>
           </label>
           <button type="button" class="btn btn-primary" id="btn-library-diff">
-            <span class="btn-label">Comparer</span>
+            <span class="btn-label" data-i18n="library.diffCompare">Comparer</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
         </div>
@@ -519,9 +527,9 @@
         </div>
         <div class="library-toolbar rename-actions-bar">
           <div class="library-filters" role="group" aria-label="Listes diff">
-            <button type="button" class="btn btn-ghost btn-xs library-diff-tab is-active" data-diff-tab="missing_b">Manquants sur NAS</button>
-            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="missing_a">Manquants sur PC</button>
-            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="common">Communs</button>
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab is-active" data-diff-tab="missing_b" data-i18n="library.missingNas">Manquants sur NAS</button>
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="missing_a" data-i18n="library.missingPc">Manquants sur PC</button>
+            <button type="button" class="btn btn-ghost btn-xs library-diff-tab" data-diff-tab="common" data-i18n="library.common">Communs</button>
           </div>
           <button type="button" class="btn btn-ghost" id="btn-library-diff-copy">Copier la liste</button>
         </div>
@@ -594,25 +602,25 @@
     <section id="tab-help" class="app-tab-panel help-panel" role="tabpanel" hidden>
       <article class="help-doc">
         <header class="help-hero">
-          <h1 class="hero-title">Aide &amp; infos</h1>
+          <h1 class="hero-title" data-i18n="help.title">Aide &amp; infos</h1>
           <p class="hero-lead">
             Guide rapide de Linkora v{{ app_version }} — à quoi sert chaque option, et comment enchaîner.
           </p>
         </header>
 
-        <nav class="help-toc" aria-label="Sommaire">
-          <a href="#help-start">Démarrage</a>
-          <a href="#help-extract">Récupération</a>
-          <a href="#help-profiles">Profils</a>
-          <a href="#help-queue">File d’attente</a>
-          <a href="#help-resolve">Résolution</a>
-          <a href="#help-filters">Filtres &amp; sélection</a>
-          <a href="#help-rename">Renommage</a>
-          <a href="#help-library">Bibliothèque</a>
-          <a href="#help-changelog">Changelog</a>
-          <a href="#help-settings">Paramètres</a>
-          <a href="#help-backup">Backup</a>
-          <a href="#help-update">Mises à jour</a>
+        <nav class="help-toc" data-i18n-aria="help.tocAria" aria-label="Sommaire">
+          <a href="#help-start" data-i18n="help.tocStart">Démarrage</a>
+          <a href="#help-extract" data-i18n="help.tocExtract">Récupération</a>
+          <a href="#help-profiles" data-i18n="help.tocProfiles">Profils</a>
+          <a href="#help-queue" data-i18n="help.tocQueue">File d’attente</a>
+          <a href="#help-resolve" data-i18n="help.tocResolve">Résolution</a>
+          <a href="#help-filters" data-i18n="help.tocFilters">Filtres &amp; sélection</a>
+          <a href="#help-rename" data-i18n="help.tocRename">Renommage</a>
+          <a href="#help-library" data-i18n="help.tocLibrary">Bibliothèque</a>
+          <a href="#help-changelog" data-i18n="help.tocChangelog">Changelog</a>
+          <a href="#help-settings" data-i18n="help.tocSettings">Paramètres</a>
+          <a href="#help-backup" data-i18n="help.tocBackup">Backup</a>
+          <a href="#help-update" data-i18n="help.tocUpdate">Mises à jour</a>
         </nav>
 
         <section id="help-start" class="help-section">
@@ -747,7 +755,7 @@
           <h2>Paramètres</h2>
           <dl class="help-dl">
             <dt>Thème</dt>
-            <dd>Linkora (défaut clair), Ambre (sombre bleu/jaune) ou Pro (sombre dense). Couleur d’accent optionnelle. Le logo Linkora n’est pas modifiable.</dd>
+            <dd data-i18n="help.themeAmberDesc">Linkora (défaut clair), Ambre (clair ambre / jaune) ou Pro (sombre dense). Couleur d’accent optionnelle. Le logo Linkora n’est pas modifiable.</dd>
             <dt>Sections Paramètres</dt>
             <dd>Compte (clés), Apparence, Récupération (mode d’extraction), Bibliothèque (TMDB / NAS), MAJ &amp; backup.</dd>
             <dt>Notifications</dt>
@@ -792,7 +800,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Linkora <span class="footer-version">v{{ app_version }}</span> — outil local d’extraction, débridage et renommage intelligent.</p>
+    <p><span data-i18n="footer.tagline">Linkora — outil local d’extraction, débridage et renommage intelligent.</span> <span class="footer-version">v{{ app_version }}</span></p>
     <p class="footer-copy">© 2026 Tallyhome</p>
   </footer>
 
@@ -801,7 +809,7 @@
     <div class="modal-panel modal-panel-settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="modal-head">
         <div>
-          <h2 id="settings-title">Paramètres</h2>
+          <h2 id="settings-title" data-i18n="settings.title">Paramètres</h2>
           <p class="modal-lead settings-lead" id="settings-lead">Compte débrideur et clés API.</p>
         </div>
         <button type="button" class="btn btn-close" data-close-settings aria-label="Fermer">×</button>
@@ -809,11 +817,11 @@
 
       <form id="settings-form" class="settings-form settings-shell" autocomplete="off" onsubmit="return false;">
         <nav class="settings-nav" role="tablist" aria-label="Sections paramètres">
-          <button type="button" class="settings-nav-btn is-active" data-settings-section="account" role="tab" aria-selected="true">Compte</button>
-          <button type="button" class="settings-nav-btn" data-settings-section="appearance" role="tab" aria-selected="false">Apparence</button>
-          <button type="button" class="settings-nav-btn" data-settings-section="extract" role="tab" aria-selected="false">Récupération</button>
-          <button type="button" class="settings-nav-btn" data-settings-section="library" role="tab" aria-selected="false">Bibliothèque</button>
-          <button type="button" class="settings-nav-btn" data-settings-section="updates" role="tab" aria-selected="false">MAJ &amp; backup</button>
+          <button type="button" class="settings-nav-btn is-active" data-settings-section="account" role="tab" aria-selected="true" data-i18n="settings.navAccount">Compte</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="appearance" role="tab" aria-selected="false" data-i18n="settings.navAppearance">Apparence</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="extract" role="tab" aria-selected="false" data-i18n="settings.navExtract">Récupération</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="library" role="tab" aria-selected="false" data-i18n="settings.navLibrary">Bibliothèque</button>
+          <button type="button" class="settings-nav-btn" data-settings-section="updates" role="tab" aria-selected="false" data-i18n="settings.navUpdates">MAJ &amp; backup</button>
         </nav>
 
         <div class="settings-body">
@@ -839,7 +847,7 @@
                 ></textarea>
                 <span class="field-hint" id="hint-alldebrid"></span>
               </label>
-              <button type="button" class="btn btn-ghost" data-test-provider="alldebrid">Tester</button>
+              <button type="button" class="btn btn-ghost" data-test-provider="alldebrid" data-i18n="settings.test">Tester</button>
             </fieldset>
 
             <fieldset class="provider-block">
@@ -855,17 +863,25 @@
                 ></textarea>
                 <span class="field-hint" id="hint-realdebrid"></span>
               </label>
-              <button type="button" class="btn btn-ghost" data-test-provider="realdebrid">Tester</button>
+              <button type="button" class="btn btn-ghost" data-test-provider="realdebrid" data-i18n="settings.test">Tester</button>
             </fieldset>
           </section>
 
           <section class="settings-section" data-settings-panel="appearance" role="tabpanel" hidden>
             <label class="field">
-              <span class="field-label">Thème d’interface</span>
+              <span class="field-label" data-i18n="settings.uiTheme">Thème d’interface</span>
               <select id="ui-theme" name="theme">
-                <option value="linkora">Linkora (défaut)</option>
-                <option value="alldebrid">Ambre (jaune / rouge)</option>
-                <option value="nocturne">Pro (sombre, dense)</option>
+                <option value="linkora" data-i18n="settings.themeLinkora">Linkora (défaut)</option>
+                <option value="alldebrid" data-i18n="settings.themeAmber">Ambre (clair / jaune)</option>
+                <option value="nocturne" data-i18n="settings.themePro">Pro (sombre, dense)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label" data-i18n="settings.uiLanguage">Langue</span>
+              <select id="ui-locale" name="ui_locale">
+                <option value="fr" data-i18n="settings.langFr">Français</option>
+                <option value="en" data-i18n="settings.langEn">English</option>
               </select>
             </label>
 
@@ -1027,8 +1043,8 @@
         <p id="settings-message" class="settings-message" hidden></p>
 
         <div class="modal-actions settings-footer">
-          <button type="button" class="btn btn-ghost" data-close-settings>Annuler</button>
-          <button type="button" class="btn btn-primary" id="btn-settings-save">Enregistrer</button>
+          <button type="button" class="btn btn-ghost" data-close-settings data-i18n="settings.cancel">Annuler</button>
+          <button type="button" class="btn btn-primary" id="btn-settings-save" data-i18n="settings.save">Enregistrer</button>
         </div>
       </form>
     </div>
@@ -1105,6 +1121,7 @@
     </div>
   </div>
 
+  <script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ app_version }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}?v={{ app_version }}"></script>
 </body>
 </html>

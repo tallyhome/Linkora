@@ -56,7 +56,8 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis :"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
 
 [Files]
 ; Appli complète — exclure data/ et updates/ pour préserver historique & staging MAJ
@@ -281,4 +282,39 @@ begin
       DelTree(ExpandConstant('{app}\data'), True, True, True);
     end;
   end;
+end;
+
+function InstallLocaleCode: String;
+begin
+  if ActiveLanguage = 'english' then
+    Result := 'en'
+  else
+    Result := 'fr';
+end;
+
+procedure WriteUiLocaleSetting;
+var
+  SettingsPath, Content, Locale: String;
+begin
+  Locale := InstallLocaleCode;
+  ForceDirectories(ExpandConstant('{app}\data'));
+  SettingsPath := ExpandConstant('{app}\data\settings.json');
+  if FileExists(SettingsPath) then
+  begin
+    { Mise à jour / réparation : ne pas écraser les réglages existants }
+    Exit;
+  end;
+  Content :=
+    '{' + #13#10 +
+    '  "active_provider": "alldebrid",' + #13#10 +
+    '  "theme": "linkora",' + #13#10 +
+    '  "ui_locale": "' + Locale + '"' + #13#10 +
+    '}';
+  SaveStringToFile(SettingsPath, Content, False);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    WriteUiLocaleSetting;
 end;
