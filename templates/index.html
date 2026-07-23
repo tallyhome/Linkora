@@ -81,31 +81,33 @@
 
     <section id="tab-extract" class="app-tab-panel is-active" role="tabpanel">
     <section class="hero">
-      <div class="hero-brand">
-        <span class="hero-logo" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="logo-svg">
-            <defs>
-              <linearGradient id="logoGradHero" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" class="logo-stop-a"/>
-                <stop offset="55%" class="logo-stop-b"/>
-                <stop offset="100%" class="logo-stop-c"/>
-              </linearGradient>
-            </defs>
-            <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#logoGradHero)"/>
-            <path d="M22.5 28.5c-3.6 3.6-3.6 9.4 0 13l3.2 3.2c3.6 3.6 9.4 3.6 13 0l1.4-1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
-            <path d="M41.5 35.5c3.6-3.6 3.6-9.4 0-13l-3.2-3.2c-3.6-3.6-9.4-3.6-13 0l-1.4 1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
-            <circle cx="43.5" cy="43.5" r="5.2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4"/>
-            <path d="M47.2 47.2l5.8 5.8" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="43.5" cy="43.5" r="1.6" fill="#fff"/>
-            <path d="M18 16l1.1 2.6L21.7 20l-2.6 1.1L18 23.7l-1.1-2.6L14.3 20l2.6-1.1z" fill="var(--logo-spark)"/>
-          </svg>
-        </span>
-        <h1 class="hero-title">Linkora</h1>
+      <div class="hero-top">
+        <div class="hero-brand">
+          <span class="hero-logo" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="logo-svg">
+              <defs>
+                <linearGradient id="logoGradHero" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" class="logo-stop-a"/>
+                  <stop offset="55%" class="logo-stop-b"/>
+                  <stop offset="100%" class="logo-stop-c"/>
+                </linearGradient>
+              </defs>
+              <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#logoGradHero)"/>
+              <path d="M22.5 28.5c-3.6 3.6-3.6 9.4 0 13l3.2 3.2c3.6 3.6 9.4 3.6 13 0l1.4-1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+              <path d="M41.5 35.5c3.6-3.6 3.6-9.4 0-13l-3.2-3.2c-3.6-3.6-9.4-3.6-13 0l-1.4 1.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+              <circle cx="43.5" cy="43.5" r="5.2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4"/>
+              <path d="M47.2 47.2l5.8 5.8" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="43.5" cy="43.5" r="1.6" fill="#fff"/>
+              <path d="M18 16l1.1 2.6L21.7 20l-2.6 1.1L18 23.7l-1.1-2.6L14.3 20l2.6-1.1z" fill="var(--logo-spark)"/>
+            </svg>
+          </span>
+          <h1 class="hero-title">Linkora</h1>
+        </div>
+        <p class="hero-lead">
+          Collez l’URL d’une page, indiquez l’hébergeur souhaité, récupérez et résolvez les liens via AllDebrid ou Real-Debrid.
+          Noms Plex/Kodi générés automatiquement.
+        </p>
       </div>
-      <p class="hero-lead">
-        Collez l’URL d’une page, indiquez l’hébergeur souhaité, récupérez et résolvez les liens via AllDebrid ou Real-Debrid.
-        Noms Plex/Kodi générés automatiquement.
-      </p>
 
       <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
         <div class="profile-bar" role="group" aria-label="Profil de récupération">
@@ -778,8 +780,9 @@
           </p>
           <p>
             Vos données <code>data/</code> sont conservées.
-            Les fichiers temporaires de MAJ sont dans <code>updates/</code> (à côté de Linkora.exe),
-            plus dans <code>%TEMP%</code>.
+            Le dossier <code>updates/</code> est créé au démarrage à côté de Linkora.exe ;
+            les fichiers temporaires de MAJ (<code>linkora-upd-*</code>) y sont extraits puis
+            supprimés après installation (le dossier <code>updates/</code> lui-même reste).
           </p>
         </section>
 
@@ -790,6 +793,7 @@
 
   <footer class="site-footer">
     <p>Linkora <span class="footer-version">v{{ app_version }}</span> — outil local d’extraction, débridage et renommage intelligent.</p>
+    <p class="footer-copy">© 2026 Tallyhome</p>
   </footer>
 
   <div id="settings-modal" class="modal" hidden>

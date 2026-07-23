@@ -30,6 +30,7 @@ app = Flask(
 )
 storage.init_db()
 app_settings.load_settings()
+updater.ensure_runtime_dirs()
 
 _BACKUP_ALLOW = frozenset({"settings.json", "history.db"})
 

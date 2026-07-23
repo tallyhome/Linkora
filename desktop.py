@@ -74,6 +74,8 @@ def main() -> None:
     import settings as app_settings
     import updater
 
+    updater.ensure_runtime_dirs()
+
     port = _pick_port(5000)
     conf = app_settings.load_settings()
     updater.startup_autoupdate(

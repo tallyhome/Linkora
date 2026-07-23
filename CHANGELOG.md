@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.7.1] — 2026-07-23
+
+### Ajouté
+- Pied de page : **© 2026 Tallyhome**
+- Création de `updates/` au démarrage (visible à côté de `data/`)
+
+### Amélioré
+- Accueil : texte d’intro à droite du logo / titre
+- Aide MAJ : clarification dossier `updates/` vs staging temporaire
+
+---
+
 ## [2.7.0] — 2026-07-23
 
 ### Ajouté

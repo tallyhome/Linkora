@@ -406,14 +406,22 @@ def _make_update_staging() -> Path:
 
 
 def cleanup_stale_update_dirs() -> None:
-    """Supprime d’anciens linkora-upd-* laissés après une MAJ (verrou Windows)."""
+    """Crée updates/ si besoin et supprime d’anciens linkora-upd-* orphelins."""
     try:
-        if not UPDATES_DIR.is_dir():
-            return
+        UPDATES_DIR.mkdir(parents=True, exist_ok=True)
         for path in UPDATES_DIR.glob("linkora-upd-*"):
             if path.is_dir():
                 shutil.rmtree(path, ignore_errors=True)
     except Exception:
+        pass
+
+
+def ensure_runtime_dirs() -> None:
+    """Garantit data/ et updates/ dès le démarrage (visibles dans l’install)."""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
         pass
 
 
