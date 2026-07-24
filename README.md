@@ -1,7 +1,7 @@
 # Linkora
 
 <p align="center">
-  <img src="docs/logo.png" alt="Linkora" width="128" height="128">
+  <img src="docs/promo/linkora-promo-marketplace-v2.png" alt="Linkora — Récupère · Débride · Organise" width="100%">
 </p>
 
 <p align="center">
