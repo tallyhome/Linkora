@@ -9,9 +9,10 @@ Site : [https://signpath.org/](https://signpath.org/)
 - [x] Dépôt public : `tallyhome/Linkora`
 - [x] Politique de signature : [`CODE_SIGNING_POLICY.md`](../CODE_SIGNING_POLICY.md)
 - [x] Builds reproductibles documentés + workflow CI (voir ci-dessous)
-- [ ] Compte SignPath + candidature **acceptée** (à faire une fois)
+- [x] Compte SignPath + candidature **acceptée** (à confirmer côté SignPath.io)
 - [ ] MFA activé sur le compte GitHub du mainteneur
-
+- [ ] Secrets GitHub `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID`
+- [ ] Étape CI « Sign with SignPath » **activée** (encore commentée dans le workflow)
 ## Étapes pour toi (une fois)
 
 1. Active la **2FA / MFA** sur GitHub (`tallyhome`).

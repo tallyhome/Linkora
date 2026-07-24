@@ -2,8 +2,6 @@
 
 Roadmap : [docs/ROADMAP.md](docs/ROADMAP.md)
 
-**Phases 0 → 5 : terminées.**
-
 ## Suivi optionnel
 
 - [ ] Certificat Authenticode réel (achat)
