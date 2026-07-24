@@ -67,12 +67,14 @@ Windows peut afficher un avertissement SmartScreen (exe non signé) — voir [do
 | Asset | Aperçu |
 |--------|--------|
 | Icône / logo | <img src="docs/logo.png" alt="Logo Linkora" height="64"> |
-| Logo SVG | <img src="static/img/logo.svg" alt="Logo SVG Linkora" height="64"> |
+| Logo SVG | <img src="static/img/logo.png" alt="Logo Linkora" height="64"> · [`logo.svg`](static/img/logo.svg) |
 | Promo marketplace | <img src="docs/promo/linkora-promo-marketplace-v2.png" alt="Promo marketplace" width="420"> |
 | Promo social | <img src="docs/promo/linkora-promo-social-1080.png" alt="Promo social" width="220"> |
 | Promo Pro (sombre) | <img src="docs/promo/linkora-promo-dark-pro.png" alt="Promo Pro" width="280"> |
 
-Fichiers : `docs/logo.png`, `static/img/logo.svg`, `docs/promo/…`
+> GitHub n’affiche pas les fichiers `.svg` dans le README (restriction de sécurité) : l’aperçu ci-dessus utilise le PNG ; le SVG reste téléchargeable via le lien.
+
+Fichiers : `docs/logo.png`, `static/img/logo.svg`, `static/img/logo.png`, `docs/promo/…`
 
 ## macOS / Linux (depuis les sources)
 
