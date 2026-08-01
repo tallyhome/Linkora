@@ -131,13 +131,13 @@
         </div>
 
         <label class="field field-urls">
-          <span class="field-label" data-i18n="extract.urlsLabel">URL(s) de page(s) — une par ligne</span>
+          <span class="field-label" data-i18n="extract.urlsLabel">URL(s) — pages ou liens directs (une par ligne)</span>
           <textarea
             id="urls"
             name="urls"
             required
             rows="3"
-            placeholder="https://exemple.com/?p=serie&id=saison-1&#10;https://exemple.com/?p=serie&id=saison-2&#10;https://exemple.com/?p=serie&id=saison-3"
+            placeholder="https://exemple.com/?p=serie&id=saison-1&#10;https://dl-protect.link/…&#10;https://torbobit.net/…"
             spellcheck="false"
           ></textarea>
         </label>
@@ -655,8 +655,12 @@
         <section id="help-extract" class="help-section">
           <h2>Récupération</h2>
           <dl class="help-dl">
-            <dt>URL(s) de page(s)</dt>
-            <dd>Une adresse par ligne. Linkora ouvre chaque page et extrait les liens de l’hébergeur choisi.</dd>
+            <dt>URL(s)</dt>
+            <dd>
+              Une adresse par ligne : <strong>page</strong> à scraper <em>ou</em> <strong>lien direct</strong>
+              (hébergeur / protecteur, ex. <code>dl-protect.link</code>, <code>torbobit.net</code>).
+              Les liens directs sont ajoutés tels quels (pastille <em>Lien direct</em>), sans scrape de page.
+            </dd>
             <dt>Hébergeur</dt>
             <dd>
               Mot-clé filtré (ex. <code>rapidgator</code>, <code>mega</code>).

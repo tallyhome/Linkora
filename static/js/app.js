@@ -708,6 +708,10 @@
     const hostBadge = link.matched_host
       ? `<div class="host-pill" title="Hébergeur détecté">${escapeHtml(link.matched_host)}</div>`
       : "";
+    const directBadge =
+      link.source === "direct"
+        ? `<div class="direct-pill" title="URL collée directement (pas de scrape de page)">Lien direct</div>`
+        : "";
     const runningClass = status.cls === "running" ? " is-running" : "";
     const rowStatus =
       status.cls === "ok"
@@ -733,7 +737,7 @@
       <tr class="${runningClass}${rowStatus}" data-batch="${bi}" data-link="${li}">
         <td class="col-check"><input type="checkbox" class="link-check" data-batch="${bi}" data-link="${li}"></td>
         <td>${li + 1}</td>
-        <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}${hostBadge}</td>
+        <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}${hostBadge}${directBadge}</td>
         <td><span class="size-pill">${escapeHtml(size)}</span></td>
         <td><span class="status-pill ${status.cls}">${status.text}</span>${attempts}</td>
         <td class="td-source">
@@ -901,6 +905,9 @@
     const hostNote = multi
       ? ` · multi-hébergeurs · <strong>${mainItems.length}</strong> épisode(s) principal(aux)`
       : "";
+    const directNote = batch.direct
+      ? ` · <span class="direct-pill">Lien direct</span>`
+      : "";
 
     return `
       <article class="page-block" data-batch-index="${bi}">
@@ -908,7 +915,7 @@
           <div>
             <h3 class="page-block-title">${escapeHtml(batch.title || "Page")}</h3>
             <p class="page-block-meta">
-              <strong>${batch.links?.length || 0}</strong> lien(s)${hostNote}
+              <strong>${batch.links?.length || 0}</strong> lien(s)${hostNote}${directNote}
               ${ok || dead ? ` · <strong>${ok}</strong> valides · <strong>${dead}</strong> morts` : ""}
               · <a href="${escapeHtml(batch.source_url)}" target="_blank" rel="noopener noreferrer">ouvrir la page</a>
             </p>

@@ -1563,6 +1563,19 @@ html[data-theme="nocturne"] .hero-lead {
   border: 1px solid var(--line);
 }
 
+.direct-pill {
+  display: inline-block;
+  margin-top: 0.2rem;
+  margin-left: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-deep, #0f766e);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-solid));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .mirrors-block {
   margin-top: 0.85rem;
   border: 1px dashed var(--line);

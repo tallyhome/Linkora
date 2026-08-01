@@ -533,6 +533,9 @@ def api_extract():
                 mode=extract_mode,
                 extensions=extensions,
             )
+            # Titre plus parlant pour un lien collé directement
+            if len(links) == 1 and links[0].get("source") == "direct":
+                title = links[0].get("label") or title or "Lien direct"
             enriched = [
                 smart_naming.enrich_link(
                     {**link, "page_url": u, "page_title": title}
@@ -549,6 +552,7 @@ def api_extract():
                     "extract_mode": extract_mode,
                     "count": len(enriched),
                     "links": enriched,
+                    "direct": bool(enriched and enriched[0].get("source") == "direct"),
                 }
             )
         except Exception as exc:

@@ -54,7 +54,7 @@ HOST_DOMAINS: dict[str, tuple[str, ...]] = {
     "rapidgator": ("rapidgator.net", "rg.to"),
     "nitroflare": ("nitroflare.com", "nitro.download"),
     "1fichier": ("1fichier.com",),
-    "turbobit": ("turbobit.net", "turbobit.com"),
+    "turbobit": ("turbobit.net", "turbobit.com", "torbobit.net", "trbt.cc"),
     "uptobox": ("uptobox.com", "uptostream.com"),
     "mega": ("mega.nz", "mega.co.nz"),
     "mixdrop": ("mixdrop.top", "mixdrop.co", "mixdrop.ag", "mixdrop.sx", "mixdrop.to"),
@@ -574,6 +574,62 @@ def extract_links(
     return results
 
 
+def try_direct_link(
+    url: str,
+    hosts: str | list[str] | None = None,
+    *,
+    max_hosts: int | None = 6,
+) -> list[dict]:
+    """
+    Si l’URL collée est déjà un hébergeur / protecteur connu,
+    la retourne comme résultat unique (sans scraper une « page »).
+    """
+    href = _clean_url((url or "").strip())
+    if not href.lower().startswith(("http://", "https://")):
+        return []
+
+    # Filtre hébergeurs UI ignoré ici : l’utilisateur a collé ce lien exprès.
+
+    if _is_protector_url(href):
+        label = _label_from_protect_url(href) or "Lien protecteur"
+        return [
+            {
+                "label": label,
+                "size": "",
+                "url": href,
+                "matched_host": "protect",
+                "source": "direct",
+            }
+        ]
+
+    # Hébergeur connu (même hors filtre UI : l’utilisateur a collé ce lien exprès)
+    matched = _host_for_url(href, None)
+    if not matched:
+        return []
+
+    # Si un filtre hosters est actif et que ce n’est pas celui-là, on accepte
+    # quand même (lien collé volontairement) mais on garde matched_host réel.
+    label = ""
+    try:
+        label = unquote(urlparse(href).path.rsplit("/", 1)[-1])
+        if "?" in label:
+            label = label.split("?", 1)[0]
+    except Exception:
+        label = ""
+    if not label or label.lower() in {"", "index.html", "download"}:
+        label = matched
+
+    return [
+        {
+            "label": label[:140],
+            "size": "",
+            "url": href,
+            "matched_host": matched,
+            "source": "direct",
+        }
+    ]
+
+
 def scrape(
     url: str,
     host: str | list[str],
@@ -582,6 +638,9 @@ def scrape(
     mode: str | None = None,
     extensions: list[str] | tuple[str, ...] | str | None = None,
 ) -> list[dict]:
+    direct = try_direct_link(url, host, max_hosts=max_hosts)
+    if direct:
+        return direct
     html = fetch_html(url)
     return extract_links(
         html,

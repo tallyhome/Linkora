@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.11.0] — 2026-08-01
+
+### Ajouté
+- Récupération : collage de **liens directs** (hébergeurs / protecteurs) sans scrape de page
+- Pastille **Lien direct** dans les résultats
+- Domaines Turbobit : `torbobit.net`, `trbt.cc`
+
+### Amélioré
+- Champ URL : pages et liens directs mélangables ; aide mise à jour
+
+---
+
 ## [2.10.0] — 2026-08-01
 
 ### Ajouté
