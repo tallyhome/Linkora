@@ -1714,16 +1714,29 @@ def rename_scan():
     folder = (data.get("folder") or "").strip()
     recursive = bool(data.get("recursive", False))
     template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
+    force_title = (data.get("force_title") or "").strip()
+    remove_words = (data.get("remove_words") or "").strip()
     if not folder:
         return jsonify({"error": "Indiquez un dossier."}), 400
+    # Mémoire dossier : préremplir si le client n’envoie rien
+    memory = app_settings.get_rename_memory(folder)
+    if not force_title:
+        force_title = memory.get("force_title") or ""
+    if not remove_words:
+        remove_words = memory.get("remove_words") or ""
     try:
         items = smart_naming.scan_folder(
-            folder, recursive=recursive, template_id=template_id
+            folder,
+            recursive=recursive,
+            template_id=template_id,
+            force_title=force_title,
+            remove_words=remove_words,
         )
     except FileNotFoundError as exc:
         return jsonify({"error": str(exc)}), 404
     except Exception as exc:
         return jsonify({"error": f"Scan impossible : {exc}"}), 400
+    suggested_title = smart_naming.most_frequent_title(items)
     return jsonify(
         {
             "folder": folder,
@@ -1731,6 +1744,48 @@ def rename_scan():
             "to_rename": sum(1 for i in items if not i["unchanged"]),
             "items": items,
             "template": template_id,
+            "force_title": force_title,
+            "remove_words": remove_words,
+            "suggested_title": suggested_title,
+            "memory": memory,
+        }
+    )
+
+
+@app.post("/api/rename/rebuild")
+def rename_rebuild():
+    """Recalcule les noms suggérés (titre forcé / mots à retirer) sur les items."""
+    data = request.get_json(silent=True) or {}
+    items = data.get("items") or []
+    if not isinstance(items, list) or not items:
+        return jsonify({"error": "Aucun item."}), 400
+    template_id = (data.get("template") or "").strip() or app_settings.get_rename_template()
+    force_title = (data.get("force_title") or "").strip()
+    remove_words = (data.get("remove_words") or "").strip()
+    selected = data.get("selected_indexes")
+    indexes = None
+    if isinstance(selected, list):
+        indexes = []
+        for i in selected:
+            try:
+                indexes.append(int(i))
+            except (TypeError, ValueError):
+                continue
+    rebuilt = smart_naming.rebuild_items(
+        items,
+        force_title=force_title,
+        remove_words=remove_words,
+        template_id=template_id,
+        selected_indexes=indexes,
+    )
+    return jsonify(
+        {
+            "items": rebuilt,
+            "count": len(rebuilt),
+            "to_rename": sum(1 for i in rebuilt if not i.get("unchanged")),
+            "force_title": force_title,
+            "remove_words": remove_words,
+            "suggested_title": smart_naming.most_frequent_title(rebuilt),
         }
     )
 
@@ -1743,6 +1798,14 @@ def rename_apply():
     if not isinstance(items, list) or not items:
         return jsonify({"error": "Aucun fichier à renommer."}), 400
     result = smart_naming.apply_renames(items, dry_run=dry_run)
+    # Mémoriser les options pour ce dossier
+    folder = (data.get("folder") or "").strip()
+    if folder and not dry_run and result.get("count"):
+        app_settings.save_rename_memory(
+            folder,
+            force_title=(data.get("force_title") or "").strip(),
+            remove_words=(data.get("remove_words") or "").strip(),
+        )
     return jsonify(result)
 
 

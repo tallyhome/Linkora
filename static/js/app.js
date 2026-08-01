@@ -4691,7 +4691,13 @@
   const renameSummary = document.getElementById("rename-results-summary");
   const btnRenameScan = document.getElementById("btn-rename-scan");
   const renameCheckAll = document.getElementById("rename-check-all");
+  const renameForceTitle = document.getElementById("rename-force-title");
+  const renameRemoveWords = document.getElementById("rename-remove-words");
+  const btnRenameSuggestTitle = document.getElementById("btn-rename-suggest-title");
+  const btnRenameRebuild = document.getElementById("btn-rename-rebuild");
   let renameItems = [];
+  let renameSuggestedTitle = "";
+  let renameFolderPath = "";
 
   function showRenameError(message) {
     if (!message) {
@@ -4724,13 +4730,18 @@
     renameCheckAll.indeterminate = n > 0 && n < boxes.length;
   }
 
-  function selectedRenameItems() {
+  function selectedRenameIndexes() {
     if (!renameBody) return [];
-    const selected = new Set();
+    const out = [];
     renameBody.querySelectorAll(".rename-check:checked").forEach((cb) => {
       const i = Number(cb.dataset.renameIndex);
-      if (!Number.isNaN(i)) selected.add(i);
+      if (!Number.isNaN(i)) out.push(i);
     });
+    return out;
+  }
+
+  function selectedRenameItems() {
+    const selected = new Set(selectedRenameIndexes());
     return renameItems.filter((item, i) => selected.has(i));
   }
 
@@ -4738,15 +4749,31 @@
     return selectedRenameItems().filter((i) => !i.unchanged && !i.conflict);
   }
 
-  function renderRenameResults(data) {
+  function renderRenameResults(data, { preserveChecks = false } = {}) {
+    const prevChecked = preserveChecks ? new Set(selectedRenameIndexes()) : null;
     renameItems = data.items || [];
+    renameFolderPath = data.folder || renameFolder?.value?.trim() || renameFolderPath;
+    renameSuggestedTitle = data.suggested_title || "";
+    if (renameForceTitle && data.force_title != null && !preserveChecks) {
+      renameForceTitle.value = data.force_title || "";
+    }
+    if (renameRemoveWords && data.remove_words != null && !preserveChecks) {
+      renameRemoveWords.value = data.remove_words || "";
+    }
+    // Si mémoire vide mais suggestion dispo, préremplir le champ titre
+    if (renameForceTitle && !renameForceTitle.value.trim() && renameSuggestedTitle) {
+      renameForceTitle.placeholder = `Ex. ${renameSuggestedTitle}`;
+    }
     renameResults.hidden = false;
     const toRename = renameItems.filter((i) => !i.unchanged).length;
     renameSummary.innerHTML =
       `<strong>${renameItems.length}</strong> fichier(s) · ` +
       `<strong>${toRename}</strong> à renommer · ` +
-      `<code>${escapeHtml(data.folder)}</code>` +
-      `<br><span class="field-hint">Décochez les fichiers à ne pas modifier (tout est coché par défaut).</span>`;
+      `<code>${escapeHtml(renameFolderPath || data.folder || "")}</code>` +
+      (renameSuggestedTitle
+        ? ` · suggestion titre : <strong>${escapeHtml(renameSuggestedTitle)}</strong>`
+        : "") +
+      `<br><span class="field-hint">Décochez les fichiers à ignorer. « Recalculer » n’applique le titre forcé / retraits qu’aux lignes cochées.</span>`;
 
     renameBody.innerHTML = renameItems.length
       ? renameItems
@@ -4760,6 +4787,8 @@
               status = "Conflit";
               statusCls = "dead";
             }
+            const checked =
+              !prevChecked || prevChecked.size === 0 ? true : prevChecked.has(i);
             return `
         <tr class="${item.unchanged ? "row-muted" : ""}">
           <td>${i + 1}</td>
@@ -4769,17 +4798,16 @@
           <td><span class="size-pill">${escapeHtml(item.type || "—")}</span></td>
           <td><span class="status-pill ${statusCls}">${status}</span></td>
           <td class="col-check">
-            <input type="checkbox" class="rename-check" data-rename-index="${i}" checked aria-label="Inclure ${escapeHtml(item.original)}">
+            <input type="checkbox" class="rename-check" data-rename-index="${i}" ${checked ? "checked" : ""} aria-label="Inclure ${escapeHtml(item.original)}">
           </td>
         </tr>`;
           })
           .join("")
       : `<tr><td colspan="7">Aucun fichier vidéo/audio dans ce dossier.</td></tr>`;
-    if (renameCheckAll) {
-      renameCheckAll.checked = renameItems.length > 0;
-      renameCheckAll.indeterminate = false;
+    syncRenameCheckAll();
+    if (!preserveChecks) {
+      renameResults.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    renameResults.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   renameBody?.addEventListener("change", (event) => {
@@ -4794,6 +4822,60 @@
     renameCheckAll.indeterminate = false;
   });
 
+  btnRenameSuggestTitle?.addEventListener("click", () => {
+    if (!renameForceTitle) return;
+    if (renameSuggestedTitle) {
+      renameForceTitle.value = renameSuggestedTitle;
+      showToast(`Titre suggéré : ${renameSuggestedTitle}`);
+    } else {
+      showToast("Aucun titre fréquent détecté — lancez un scan d’abord.");
+    }
+  });
+
+  btnRenameRebuild?.addEventListener("click", async () => {
+    if (!renameItems.length) {
+      showToast("Scannez un dossier d’abord.");
+      return;
+    }
+    const indexes = selectedRenameIndexes();
+    if (!indexes.length) {
+      showToast("Cochez au moins une ligne.");
+      return;
+    }
+    btnRenameRebuild.disabled = true;
+    try {
+      const res = await fetch("/api/rename/rebuild", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: renameItems,
+          force_title: renameForceTitle?.value?.trim() || "",
+          remove_words: renameRemoveWords?.value?.trim() || "",
+          selected_indexes: indexes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Recalcul impossible.");
+        return;
+      }
+      renderRenameResults(
+        {
+          ...data,
+          folder: renameFolderPath,
+          force_title: renameForceTitle?.value || "",
+          remove_words: renameRemoveWords?.value || "",
+        },
+        { preserveChecks: true }
+      );
+      showToast(`Aperçu recalculé (${indexes.length} ligne(s)).`);
+    } catch {
+      showToast("Recalcul impossible.");
+    } finally {
+      btnRenameRebuild.disabled = false;
+    }
+  });
+
   renameForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     showRenameError("");
@@ -4805,6 +4887,8 @@
         body: JSON.stringify({
           folder: renameFolder.value.trim(),
           recursive: renameRecursive?.checked || false,
+          force_title: renameForceTitle?.value?.trim() || "",
+          remove_words: renameRemoveWords?.value?.trim() || "",
         }),
       });
       const data = await res.json();
@@ -4830,7 +4914,7 @@
     }
     const ok = await askConfirm(
       `Renommer ${items.length} fichier(s) coché(s) ?`,
-      "Seuls les fichiers sélectionnés seront modifiés sur votre PC.",
+      "Seuls les fichiers sélectionnés seront modifiés sur votre PC. Les options titre / retraits seront mémorisées pour ce dossier.",
       { confirmText: "Renommer", icon: "question" }
     );
     if (!ok) return;
@@ -4838,7 +4922,13 @@
       const res = await fetch("/api/rename/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, dry_run: false }),
+        body: JSON.stringify({
+          items,
+          dry_run: false,
+          folder: renameFolderPath || renameFolder?.value?.trim() || "",
+          force_title: renameForceTitle?.value?.trim() || "",
+          remove_words: renameRemoveWords?.value?.trim() || "",
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -5507,8 +5597,84 @@
     }, 350);
   }
 
-  btnUpdateApply?.addEventListener("click", () => {
+  function askUpdateNotes(state) {
+    const modal = document.getElementById("update-notes-modal");
+    const lead = document.getElementById("update-notes-lead");
+    const body = document.getElementById("update-notes-body");
+    const empty = document.getElementById("update-notes-empty");
+    const link = document.getElementById("update-notes-link");
+    const okBtn = document.getElementById("update-notes-ok");
+    if (!modal || !okBtn) {
+      return askConfirm(
+        `Mettre à jour vers ${state?.latest || "?"} ?`,
+        state?.notes || "Les notes de version n’ont pas pu être chargées.",
+        { confirmText: "Mettre à jour", icon: "question" }
+      );
+    }
+    const latest = state?.latest || "?";
+    const current = state?.current || "?";
+    if (lead) {
+      lead.textContent = `Version actuelle : ${current} → nouvelle : ${latest}. Voici ce qui change :`;
+    }
+    const notes = String(state?.notes || "").trim();
+    if (body) {
+      body.textContent = notes;
+      body.hidden = !notes;
+    }
+    if (empty) empty.hidden = !!notes;
+    if (link) {
+      const url = String(state?.release_url || "").trim();
+      if (url) {
+        link.href = url;
+        link.hidden = false;
+      } else {
+        link.hidden = true;
+      }
+    }
+    modal.hidden = false;
+    return new Promise((resolve) => {
+      const finish = (value) => {
+        modal.hidden = true;
+        modal.removeEventListener("click", onClick);
+        document.removeEventListener("keydown", onKey);
+        resolve(value);
+      };
+      const onClick = (event) => {
+        if (event.target.closest("[data-update-notes-cancel]")) finish(false);
+        else if (event.target.closest("#update-notes-ok")) finish(true);
+      };
+      const onKey = (event) => {
+        if (event.key === "Escape") finish(false);
+      };
+      modal.addEventListener("click", onClick);
+      document.addEventListener("keydown", onKey);
+      okBtn.focus();
+    });
+  }
+
+  async function confirmAndRunUpdate() {
+    let state = null;
+    try {
+      const res = await fetch("/api/update/status");
+      state = await res.json();
+    } catch {
+      state = null;
+    }
+    if (!state?.notes && state?.update_available) {
+      try {
+        const res = await fetch("/api/update/check", { method: "POST" });
+        state = await res.json();
+      } catch {
+        /* ignore */
+      }
+    }
+    const ok = await askUpdateNotes(state || {});
+    if (!ok) return;
     runUpdateWithProgress();
+  }
+
+  btnUpdateApply?.addEventListener("click", () => {
+    confirmAndRunUpdate();
   });
 
   btnCheckUpdate?.addEventListener("click", async () => {
@@ -5535,6 +5701,6 @@
   });
 
   btnForceUpdate?.addEventListener("click", () => {
-    runUpdateWithProgress();
+    confirmAndRunUpdate();
   });
 })();

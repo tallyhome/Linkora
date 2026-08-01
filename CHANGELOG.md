@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.10.0] — 2026-08-01
+
+### Ajouté
+- Renommage : **titre forcé** (ex. `Professor T` pour unifier Professor/Professeur)
+- Renommage : **retirer mots/phrases** (ex. `2021`) tout en gardant `S04E04`
+- Renommage : suggestion du **titre le plus fréquent** + **mémoire par dossier**
+- Renommage : recalcul de l’aperçu sur les **lignes cochées** uniquement
+- MAJ : popup des **notes de version** (GitHub Releases) avant d’appliquer
+
+### Amélioré
+- Flux de mise à jour plus transparent (changelog avant téléchargement)
+
+---
+
 ## [2.9.0] — 2026-07-23
 
 ### Ajouté

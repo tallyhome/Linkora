@@ -612,8 +612,146 @@ def list_templates() -> list[dict[str, str]]:
     ]
 
 
+def parse_remove_tokens(raw: str | list | None) -> list[str]:
+    """Mots / phrases à retirer (virgule ou ligne). Plus longs d’abord."""
+    if isinstance(raw, list):
+        parts = [str(x or "") for x in raw]
+    else:
+        parts = str(raw or "").replace(",", "\n").splitlines()
+    tokens: list[str] = []
+    for part in parts:
+        t = part.strip()
+        if t and t not in tokens:
+            tokens.append(t)
+    tokens.sort(key=len, reverse=True)
+    return tokens[:40]
+
+
+def strip_remove_tokens(text: str, tokens: list[str]) -> str:
+    out = text or ""
+    for token in tokens:
+        if not token:
+            continue
+        out = re.sub(re.escape(token), " ", out, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", out).strip(" ._-")
+
+
+def most_frequent_title(items: list[dict[str, Any]]) -> str:
+    """Titre le plus fréquent parmi les items (séries / films)."""
+    counts: dict[str, int] = {}
+    for item in items:
+        title = str(item.get("title") or "").strip()
+        if len(title) < 2:
+            continue
+        key = title.casefold()
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return ""
+    best_key = max(counts.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
+    for item in items:
+        title = str(item.get("title") or "").strip()
+        if title.casefold() == best_key:
+            return title
+    return ""
+
+
+def apply_name_overrides(
+    info: dict[str, Any],
+    *,
+    force_title: str = "",
+    remove_words: str | list | None = "",
+    template_id: str = "simple",
+) -> dict[str, Any]:
+    """
+    Recalcule le nom suggéré : titre forcé + retrait de mots/phrases.
+    Conserve type, saison, épisode (SxxExx).
+    """
+    out = dict(info)
+    tokens = parse_remove_tokens(remove_words)
+    force = (force_title or "").strip()
+    title = force if force else str(out.get("title") or "").strip()
+    title = strip_remove_tokens(title, tokens) or (force if force else "Sans titre")
+
+    year = out.get("year")
+    if year is not None:
+        y = str(year)
+        if any(t.casefold() == y.casefold() for t in tokens):
+            year = None
+
+    out["title"] = title
+    out["year"] = year
+    out["force_title"] = force
+    out["remove_words"] = ", ".join(tokens)
+
+    # Rejouer le template (SxxExx conservés)
+    media = out.get("type") or "other"
+    if media in {"tv", "anime"} and out.get("season") is not None and out.get("episode") is not None:
+        base = apply_template(out, template_id)
+        # double épisode éventuel déjà dans suggested d’origine : non rejoué ici
+        out["suggested"] = base
+    else:
+        out["suggested"] = apply_template(out, template_id)
+
+    # Filet de sécurité : retirer aussi les tokens du nom final
+    stem = Path(out["suggested"]).stem
+    ext = Path(out["suggested"]).suffix
+    stem2 = strip_remove_tokens(stem, tokens)
+    # Eviter espaces avant extension / Sxx
+    stem2 = re.sub(r"\s+", " ", stem2).strip(" ._-")
+    if stem2:
+        out["suggested"] = _safe_filename(stem2 + ext)
+
+    path = out.get("path")
+    if path:
+        src = Path(str(path))
+        target = src.with_name(out["suggested"])
+        out["target_path"] = str(target)
+        out["unchanged"] = src.name == out["suggested"]
+        out["conflict"] = target.exists() and target.resolve() != src.resolve()
+    return out
+
+
+def rebuild_items(
+    items: list[dict[str, Any]],
+    *,
+    force_title: str = "",
+    remove_words: str | list | None = "",
+    template_id: str = "simple",
+    selected_indexes: list[int] | None = None,
+) -> list[dict[str, Any]]:
+    """Applique les overrides sur une liste d’items (optionnellement indexés)."""
+    selected = set(selected_indexes) if selected_indexes is not None else None
+    out: list[dict[str, Any]] = []
+    for i, item in enumerate(items):
+        row = dict(item)
+        if selected is not None and i not in selected:
+            out.append(row)
+            continue
+        # Reprendre depuis l’original pour ne pas empiler les overrides
+        original = str(row.get("original") or "")
+        if original:
+            fresh = suggest_name(original, template_id=template_id)
+            for key in ("type", "title", "season", "episode", "year", "suggested"):
+                if key in fresh:
+                    row[key] = fresh[key]
+        out.append(
+            apply_name_overrides(
+                row,
+                force_title=force_title,
+                remove_words=remove_words,
+                template_id=template_id,
+            )
+        )
+    return out
+
+
 def scan_folder(
-    folder: str, *, recursive: bool = False, template_id: str = "simple"
+    folder: str,
+    *,
+    recursive: bool = False,
+    template_id: str = "simple",
+    force_title: str = "",
+    remove_words: str | list | None = "",
 ) -> list[dict[str, Any]]:
     """Scanne un dossier local et propose des renommages."""
     root = Path(folder).expanduser()
@@ -630,22 +768,26 @@ def scan_folder(
         if p.suffix.lower() not in allowed:
             continue
         info = suggest_name(p.name, template_id=template_id)
-        target = p.with_name(info["suggested"])
-        items.append(
-            {
-                "original": p.name,
-                "suggested": info["suggested"],
-                "path": str(p),
-                "target_path": str(target),
-                "type": info["type"],
-                "title": info.get("title") or "",
-                "season": info.get("season"),
-                "episode": info.get("episode"),
-                "year": info.get("year"),
-                "unchanged": p.name == info["suggested"],
-                "conflict": target.exists() and target.resolve() != p.resolve(),
-            }
+        row = {
+            "original": p.name,
+            "suggested": info["suggested"],
+            "path": str(p),
+            "target_path": str(p.with_name(info["suggested"])),
+            "type": info["type"],
+            "title": info.get("title") or "",
+            "season": info.get("season"),
+            "episode": info.get("episode"),
+            "year": info.get("year"),
+            "unchanged": p.name == info["suggested"],
+            "conflict": False,
+        }
+        row = apply_name_overrides(
+            row,
+            force_title=force_title,
+            remove_words=remove_words,
+            template_id=template_id,
         )
+        items.append(row)
     return items
 
 

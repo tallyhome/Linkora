@@ -21,6 +21,7 @@ DEFAULTS = {
     "auto_update": True,
     "update_manifest_url": "",
     "rename_template": "simple",
+    "rename_memory": {},
     "notify_on_resolve": True,
     "ssl_ignore_errors": False,
     "custom_accent": "",
@@ -210,6 +211,7 @@ def _ensure() -> dict:
     if "rename_template" in data:
         tmpl = str(data.get("rename_template") or "simple")
         merged["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
+    merged["rename_memory"] = _normalize_rename_memory(data.get("rename_memory"))
     if "notify_on_resolve" in data:
         merged["notify_on_resolve"] = bool(data["notify_on_resolve"])
     if "ssl_ignore_errors" in data:
@@ -514,6 +516,67 @@ def get_resolve_concurrency() -> int:
 
 def get_rename_template() -> str:
     return str(load_settings().get("rename_template") or "simple")
+
+
+def _folder_memory_key(folder: str) -> str:
+    text = (folder or "").strip()
+    if not text:
+        return ""
+    try:
+        return str(Path(text).expanduser().resolve()).casefold()
+    except OSError:
+        return text.casefold()
+
+
+def _normalize_rename_memory(raw) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    for key, val in raw.items():
+        k = str(key or "").strip()
+        if not k or not isinstance(val, dict):
+            continue
+        out[k[:480]] = {
+            "force_title": str(val.get("force_title") or "").strip()[:200],
+            "remove_words": str(val.get("remove_words") or "").strip()[:300],
+        }
+        if len(out) >= 80:
+            break
+    return out
+
+
+def get_rename_memory(folder: str) -> dict:
+    key = _folder_memory_key(folder)
+    if not key:
+        return {"force_title": "", "remove_words": ""}
+    mem = load_settings().get("rename_memory") or {}
+    entry = mem.get(key) if isinstance(mem, dict) else None
+    if not isinstance(entry, dict):
+        return {"force_title": "", "remove_words": ""}
+    return {
+        "force_title": str(entry.get("force_title") or "").strip(),
+        "remove_words": str(entry.get("remove_words") or "").strip(),
+    }
+
+
+def save_rename_memory(folder: str, *, force_title: str = "", remove_words: str = "") -> dict:
+    key = _folder_memory_key(folder)
+    if not key:
+        return {"force_title": "", "remove_words": ""}
+    current = load_settings()
+    mem = dict(current.get("rename_memory") or {})
+    force = (force_title or "").strip()[:200]
+    remove = (remove_words or "").strip()[:300]
+    if not force and not remove:
+        mem.pop(key, None)
+    else:
+        mem[key] = {"force_title": force, "remove_words": remove}
+        # LRU approximatif : tronquer si trop d’entrées
+        if len(mem) > 80:
+            mem = dict(list(mem.items())[-80:])
+    current["rename_memory"] = mem
+    save_settings(current)
+    return {"force_title": force, "remove_words": remove}
 
 
 def get_update_manifest_url() -> str:

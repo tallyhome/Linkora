@@ -380,6 +380,24 @@
             <p id="rename-results-summary" class="results-summary"></p>
           </div>
         </div>
+        <div class="rename-smart-bar" id="rename-smart-bar">
+          <label class="field rename-smart-field">
+            <span class="field-label">Titre forcé (série / film)</span>
+            <div class="rename-smart-row">
+              <input type="text" id="rename-force-title" placeholder="Ex. Professor T" spellcheck="false" autocomplete="off">
+              <button type="button" class="btn btn-ghost" id="btn-rename-suggest-title" title="Utiliser le titre le plus fréquent">Suggestion</button>
+            </div>
+            <span class="field-hint">Remplace le titre détecté. Les codes <code>S04E04</code> sont conservés. Mémorisé par dossier.</span>
+          </label>
+          <label class="field rename-smart-field">
+            <span class="field-label">Retirer mots / phrases</span>
+            <input type="text" id="rename-remove-words" placeholder="Ex. 2021, EXTENDED, REMUX" spellcheck="false" autocomplete="off">
+            <span class="field-hint">Séparez par virgule. Ex. retirer <code>2021</code> → <code>Professor T S04E04.mp4</code>.</span>
+          </label>
+          <div class="rename-smart-actions">
+            <button type="button" class="btn btn-secondary" id="btn-rename-rebuild">Recalculer l’aperçu (lignes cochées)</button>
+          </div>
+        </div>
         <div class="rename-actions-bar">
           <button type="button" class="btn btn-primary" id="btn-rename-apply" data-i18n="rename.apply">Renommer les fichiers</button>
           <button type="button" class="btn btn-ghost" id="btn-rename-dry" data-i18n="rename.dry">Simulation (aperçu seulement)</button>
@@ -1103,6 +1121,22 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="btn-library-gaps-copy">Copier la liste</button>
         <button type="button" class="btn btn-primary" data-close-library-gaps>Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="update-notes-modal" class="confirm-modal" hidden>
+    <div class="confirm-backdrop" data-update-notes-cancel></div>
+    <div class="confirm-panel update-notes-panel" role="dialog" aria-modal="true" aria-labelledby="update-notes-title">
+      <div class="confirm-icon is-question" aria-hidden="true">i</div>
+      <h3 id="update-notes-title">Nouveautés de la mise à jour</h3>
+      <p id="update-notes-lead" class="update-notes-lead"></p>
+      <pre id="update-notes-body" class="update-notes-body"></pre>
+      <p id="update-notes-empty" class="field-hint" hidden>Aucune note de version fournie pour cette release.</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-ghost" data-update-notes-cancel>Plus tard</button>
+        <a id="update-notes-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener" hidden>Voir sur GitHub</a>
+        <button type="button" class="btn btn-primary" id="update-notes-ok">Mettre à jour</button>
       </div>
     </div>
   </div>

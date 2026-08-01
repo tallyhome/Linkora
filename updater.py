@@ -42,6 +42,8 @@ _state: dict[str, Any] = {
     "percent": 0,
     "progress_message": "",
     "done": False,
+    "notes": "",
+    "release_url": "",
 }
 _lock = threading.Lock()
 _apply_lock = threading.Lock()
@@ -121,8 +123,9 @@ def fetch_from_custom_url(manifest_url: str) -> dict[str, str] | None:
             return {
                 "version": version,
                 "url": url,
-                "notes": str(data.get("notes") or ""),
+                "notes": str(data.get("notes") or "")[:8000],
                 "sha256": str(data.get("sha256") or "").strip().lower(),
+                "release_url": str(data.get("release_url") or data.get("html_url") or "").strip(),
             }
     except (requests.RequestException, ValueError, TypeError):
         return None
@@ -152,7 +155,7 @@ def fetch_github_release() -> dict[str, str] | None:
                     break
         if not zip_url:
             zip_url = f"https://github.com/{GITHUB_REPO}/archive/refs/tags/v{tag}.zip"
-        return {"version": tag, "url": zip_url, "notes": (data.get("body") or "")[:500]}
+        return {"version": tag, "url": zip_url, "notes": (data.get("body") or "")[:8000], "release_url": str(data.get("html_url") or "")}
     except requests.RequestException:
         return _fetch_github_tag_fallback()
 
@@ -214,6 +217,8 @@ def check_for_update(manifest_url: str | None = None) -> dict[str, Any]:
         download_sha256=str(info.get("sha256") or ""),
         update_available=available,
         source=source,
+        notes=str(info.get("notes") or ""),
+        release_url=str(info.get("release_url") or ""),
         message=(
             f"Mise à jour {latest} disponible."
             if available
