@@ -78,6 +78,7 @@ def main() -> None:
 
     port = _pick_port(5000)
     conf = app_settings.load_settings()
+    app_settings.record_launch()
     updater.startup_autoupdate(
         enabled=bool(conf.get("auto_update", True)),
         manifest_url=(conf.get("update_manifest_url") or "").strip() or None,

@@ -7,6 +7,27 @@ Roadmap : [docs/ROADMAP.md](docs/ROADMAP.md)
 - [ ] Certificat Authenticode réel (achat)
 - [ ] PIN / mot de passe local au lancement (si demandé)
 
+## Téléchargement vidéos (YouTube / Dailymotion…)
+
+Nouvelle brique (pas un simple hébergeur) : coller une URL vidéo → télécharger via **yt-dlp**.
+
+- [ ] Intégrer **yt-dlp** (+ ffmpeg optionnel pour mux / audio)
+- [ ] Détection YouTube / Dailymotion (et autres sites supportés yt-dlp)
+- [ ] Onglet ou mode **Vidéos** (qualité, audio seul, dossier de sortie)
+- [ ] File d’attente + barre de progression
+- [ ] Mentions ToS / usage perso dans l’Aide
+
+## Intégration ObiLab (MAJ + stats)
+
+Relier Linkora au site **ObiLab** pour la distribution et le suivi d’usage.
+
+- [ ] Source MAJ ObiLab (`latest.json` / assets) — vérif au démarrage + appliquer si nouvelle version
+- [ ] Remplacer / compléter GitHub Releases comme canal de MAJ (manifeste configurable déjà prêt)
+- [ ] Ping stats anonymes vers API ObiLab : téléchargement, 1ʳᵉ install, lancements, version, OS
+- [ ] ID install local (UUID dans `data/`) — pas de données personnelles
+- [ ] Opt-out clair dans Paramètres (« Envoyer des stats anonymes »)
+- [ ] Côté ObiLab : panneau stats (downloads, installs, actives 7/30 j, versions)
+
 ## Monétisation — dons ou paiement (à décider)
 
 **Recommandation actuelle :** commencer par les **dons** (simple, pas de blocage).  
@@ -14,9 +35,10 @@ Le **paiement / licence** reste une option plus tard si la base d’utilisateurs
 
 ### A) Système de dons (priorité)
 
-- [ ] Bouton **« Soutenir Linkora »** (Aide / À propos / Paramètres)
-- [ ] Lien(s) Ko-fi et/ou PayPal (1–2 max)
-- [ ] Message court non intrusif (pas de popup bloquante)
+- [x] Bouton **« Don »** en haut à droite
+- [x] Popup après **10 lancements** (Plus tard / Ne plus afficher / Faire un don)
+- [x] URL de don configurable (Paramètres → Mises à jour ; défaut GitHub Sponsors)
+- [ ] Lien(s) Ko-fi et/ou PayPal dédiés (si tu préfères autre chose que Sponsors)
 
 **Contrepartie possible d’un don** (léger, sans verrouiller l’app) :
 
@@ -156,11 +178,12 @@ Chaque app envoie un ping anonyme vers **la même API** du site :
 
 ### Lien avec Linkora
 
-- [ ] Brancher Linkora sur l’API stats du site (quand le site existe)
-- [ ] MAJ via `latest.json` hébergé sur le même site (déjà prévu dans la doc)
+- [ ] Brancher Linkora sur l’API stats **ObiLab** (voir section dédiée ci-dessus)
+- [ ] MAJ via `latest.json` hébergé sur ObiLab (manifeste déjà configurable)
 
 ## Fait récemment
 
+- [x] v2.12.0 — bouton Don + popup soutien après 10 lancements
 - [x] Page Aide (`?`) + explications profils / options
 - [x] Phase 5 : multi-clés, branding, CLI, doc site MAJ
 - [x] Phase 4 : profils, notifs, backup, file d’attente

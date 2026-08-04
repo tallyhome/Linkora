@@ -12,6 +12,9 @@ SETTINGS_PATH = DATA_DIR / "settings.json"
 
 UI_LOCALES = ("fr", "en")
 
+DEFAULT_DONATE_URL = "https://github.com/sponsors/tallyhome"
+DONATE_PROMPT_AFTER = 10
+
 DEFAULTS = {
     "active_provider": "alldebrid",
     "theme": "linkora",
@@ -33,6 +36,10 @@ DEFAULTS = {
     "network_shares": [],
     "tmdb_api_key": "",
     "library_show_posters": True,
+    "launch_count": 0,
+    "donate_dismissed": False,
+    "donate_snooze_until": 0,
+    "donate_url": DEFAULT_DONATE_URL,
     "providers": {
         "alldebrid": {"api_key": "", "api_keys": [], "enabled": True},
         "realdebrid": {"api_key": "", "api_keys": [], "enabled": True},
@@ -241,6 +248,18 @@ def _ensure() -> dict:
         merged["extract_extensions"] = ",".join(
             normalize_extensions(data.get("extract_extensions"))
         )
+    merged["launch_count"] = _clamp_int(
+        data.get("launch_count", DEFAULTS["launch_count"]), 0, 0, 10_000_000
+    )
+    merged["donate_dismissed"] = bool(data.get("donate_dismissed", False))
+    merged["donate_snooze_until"] = _clamp_int(
+        data.get("donate_snooze_until", DEFAULTS["donate_snooze_until"]),
+        0,
+        0,
+        10_000_000,
+    )
+    donate_url = str(data.get("donate_url") or DEFAULTS["donate_url"]).strip()
+    merged["donate_url"] = (donate_url or DEFAULT_DONATE_URL)[:500]
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
         merged["active_profile_id"] = active_pid
@@ -351,6 +370,12 @@ def update_settings(payload: dict) -> dict:
         current["extract_extensions"] = ",".join(
             normalize_extensions(payload.get("extract_extensions"))
         )
+    if "donate_url" in payload:
+        url = str(payload.get("donate_url") or "").strip()[:500]
+        if url.startswith(("http://", "https://")):
+            current["donate_url"] = url
+        elif not url:
+            current["donate_url"] = DEFAULT_DONATE_URL
     if "active_profile_id" in payload:
         pid = str(payload.get("active_profile_id") or "")
         if pid and any(p["id"] == pid for p in current["profiles"]):
@@ -448,6 +473,7 @@ def public_settings() -> dict:
         ),
         "extract_extensions": data.get("extract_extensions")
         or DEFAULTS["extract_extensions"],
+        "donate_url": data.get("donate_url") or DEFAULT_DONATE_URL,
         "providers": {},
     }
     for name, conf in data["providers"].items():
@@ -460,6 +486,44 @@ def public_settings() -> dict:
             "api_key": "",
         }
     return out
+
+
+def record_launch() -> dict:
+    """Incrémente le compteur de lancements (une fois par démarrage app)."""
+    conf = load_settings()
+    conf["launch_count"] = int(conf.get("launch_count") or 0) + 1
+    return save_settings(conf)
+
+
+def donate_status() -> dict:
+    conf = load_settings()
+    count = int(conf.get("launch_count") or 0)
+    dismissed = bool(conf.get("donate_dismissed"))
+    snooze = int(conf.get("donate_snooze_until") or 0)
+    url = str(conf.get("donate_url") or DEFAULT_DONATE_URL).strip() or DEFAULT_DONATE_URL
+    show = (not dismissed) and count >= DONATE_PROMPT_AFTER and count >= snooze
+    return {
+        "launch_count": count,
+        "show_prompt": show,
+        "donate_url": url,
+        "donate_dismissed": dismissed,
+        "prompt_after": DONATE_PROMPT_AFTER,
+    }
+
+
+def apply_donate_action(action: str) -> dict:
+    """Actions : later | dismiss | donated."""
+    conf = load_settings()
+    count = int(conf.get("launch_count") or 0)
+    act = str(action or "").strip().lower()
+    if act == "dismiss":
+        conf["donate_dismissed"] = True
+    elif act == "later":
+        conf["donate_snooze_until"] = count + DONATE_PROMPT_AFTER
+    elif act == "donated":
+        conf["donate_dismissed"] = True
+    save_settings(conf)
+    return donate_status()
 
 
 def get_provider_key(provider: str | None = None) -> tuple[str, str]:

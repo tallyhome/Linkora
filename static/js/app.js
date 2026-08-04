@@ -34,6 +34,7 @@
   const uiLocaleSelect = document.getElementById("ui-locale");
   const autoUpdateInput = document.getElementById("auto-update");
   const updateManifestInput = document.getElementById("update-manifest-url");
+  const donateUrlInput = document.getElementById("donate-url");
   const renameTemplateSelect = document.getElementById("rename-template");
   const updateStatusHint = document.getElementById("update-status-hint");
   const updateBanner = document.getElementById("update-banner");
@@ -1419,6 +1420,9 @@
     if (updateManifestInput) {
       updateManifestInput.value = settings.update_manifest_url || "";
     }
+    if (donateUrlInput) {
+      donateUrlInput.value = settings.donate_url || "";
+    }
     if (renameTemplateSelect) {
       renameTemplateSelect.value = settings.rename_template || "simple";
     }
@@ -2438,6 +2442,7 @@
           ? customAccentInput.value
           : settings?.custom_accent || "",
       update_manifest_url: updateManifestInput?.value?.trim() || "",
+      donate_url: donateUrlInput?.value?.trim() || "",
       rename_template: renameTemplateSelect?.value || "simple",
       extract_mode: extractModeSelect?.value || extractModePageSelect?.value || "smart",
       extract_extensions:
@@ -5510,6 +5515,7 @@
   // Re-vérifie l’état MAJ après le check auto au démarrage serveur
   setTimeout(() => refreshUpdateStatus(), 2500);
   setTimeout(() => refreshUpdateStatus(), 8000);
+  setTimeout(() => maybeShowDonatePrompt(), 1800);
 
   // Après « Actualiser » : check MAJ discret (bannière seulement si MAJ)
   try {
@@ -5658,6 +5664,97 @@
       okBtn.focus();
     });
   }
+
+  let donateUrlCache = "";
+
+  async function fetchDonateStatus() {
+    const res = await fetch("/api/donate/status");
+    if (!res.ok) throw new Error("donate status");
+    return res.json();
+  }
+
+  async function postDonateAction(action) {
+    const res = await fetch("/api/donate/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) throw new Error("donate action");
+    return res.json();
+  }
+
+  function openDonateUrl(url) {
+    const href = String(url || donateUrlCache || "").trim();
+    if (!href) {
+      showToast(t("donate.text"));
+      return;
+    }
+    try {
+      window.open(href, "_blank", "noopener,noreferrer");
+    } catch {
+      window.location.href = href;
+    }
+  }
+
+  function showDonateModal(url) {
+    const modal = document.getElementById("donate-modal");
+    const okBtn = document.getElementById("donate-ok");
+    if (!modal || !okBtn) {
+      openDonateUrl(url);
+      return;
+    }
+    donateUrlCache = String(url || "").trim();
+    const finish = async (action) => {
+      modal.hidden = true;
+      modal.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKey);
+      try {
+        await postDonateAction(action);
+        if (action === "donated") showToast(t("donate.thanks"));
+      } catch {
+        /* ignore */
+      }
+    };
+    const onClick = (event) => {
+      if (event.target.closest("[data-donate-later]")) {
+        finish("later");
+      } else if (event.target.closest("[data-donate-dismiss]")) {
+        finish("dismiss");
+      } else if (event.target.closest("#donate-ok")) {
+        openDonateUrl(donateUrlCache);
+        finish("donated");
+      }
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") finish("later");
+    };
+    modal.hidden = false;
+    modal.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKey);
+    okBtn.focus();
+  }
+
+  async function maybeShowDonatePrompt() {
+    try {
+      const status = await fetchDonateStatus();
+      donateUrlCache = status.donate_url || donateUrlCache;
+      if (status.show_prompt) {
+        showDonateModal(status.donate_url);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  document.getElementById("btn-donate")?.addEventListener("click", async () => {
+    try {
+      const status = await fetchDonateStatus();
+      donateUrlCache = status.donate_url || "";
+      openDonateUrl(donateUrlCache);
+    } catch {
+      openDonateUrl(settings?.donate_url || "");
+    }
+  });
 
   async function confirmAndRunUpdate() {
     let state = null;

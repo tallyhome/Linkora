@@ -301,6 +301,20 @@ def api_version():
     )
 
 
+@app.get("/api/donate/status")
+def api_donate_status():
+    return jsonify(app_settings.donate_status())
+
+
+@app.post("/api/donate/action")
+def api_donate_action():
+    data = request.get_json(silent=True) or {}
+    action = str(data.get("action") or "").strip().lower()
+    if action not in ("later", "dismiss", "donated"):
+        return jsonify({"error": "Action invalide."}), 400
+    return jsonify(app_settings.apply_donate_action(action))
+
+
 @app.get("/api/update/status")
 def api_update_status():
     return jsonify(updater.get_state())
@@ -1925,6 +1939,7 @@ if __name__ == "__main__":
         debug_mode = os.environ.get("LINKORA_DEBUG") == "1"
         if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not use_reloader:
             conf = app_settings.load_settings()
+            app_settings.record_launch()
             updater.startup_autoupdate(
                 enabled=bool(conf.get("auto_update", True)),
                 manifest_url=(conf.get("update_manifest_url") or "").strip() or None,

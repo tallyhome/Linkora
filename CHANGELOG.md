@@ -4,6 +4,19 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.12.0] — 2026-08-04
+
+### Ajouté
+- Bouton **Don** en haut à droite (ouvre l’URL de soutien)
+- Rappel optionnel après **10 lancements** : phrase de soutien + Faire un don / Plus tard / Ne plus afficher
+- Paramètre **URL de don** (défaut : GitHub Sponsors)
+
+### Planifié (TODO)
+- Téléchargement YouTube / Dailymotion via yt-dlp
+- Intégration ObiLab (source MAJ + stats installs anonymes)
+
+---
+
 ## [2.11.0] — 2026-08-01
 
 ### Ajouté

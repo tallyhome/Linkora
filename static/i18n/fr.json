@@ -17,6 +17,8 @@
     "reloadAria": "Actualiser Linkora",
     "helpTitle": "Aide & infos",
     "helpAria": "Aide et informations",
+    "donate": "Don",
+    "donateTitle": "Soutenir Linkora",
     "settings": "Paramètres",
     "updateApply": "Mettre à jour",
     "updateOk": "OK"
@@ -230,6 +232,8 @@
     "leadExtract": "Mode d’extraction, retries et renommage.",
     "leadLibrary": "Affiches TMDB et accès NAS.",
     "leadUpdates": "Mises à jour automatiques et sauvegarde des données.",
+    "donateUrl": "URL de don",
+    "donateUrlHint": "Lien ouvert par le bouton Don et le rappel après 10 lancements.",
     "closeAria": "Fermer",
     "navAria": "Sections paramètres",
     "navAccount": "Compte",
@@ -319,6 +323,14 @@
     "confirmTitle": "Confirmer",
     "confirmOk": "Confirmer",
     "confirmCancel": "Annuler"
+  },
+  "donate": {
+    "title": "Un petit coup de pouce ?",
+    "text": "Si Linkora vous rend service au quotidien, un don optionnel aide à le faire évoluer. Merci de soutenir le projet !",
+    "later": "Plus tard",
+    "dismiss": "Ne plus afficher",
+    "cta": "Faire un don",
+    "thanks": "Merci pour votre soutien !"
   },
   "toast": {
     "themeOn": "Thème {name} activé.",

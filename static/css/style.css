@@ -271,6 +271,25 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   color: var(--accent);
 }
 
+.confirm-actions-wrap {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-donate {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+}
+
+.btn-donate:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 .confirm-panel h3 {
   margin: 0 0 0.4rem;
   font-family: var(--font-display);

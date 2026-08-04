@@ -17,6 +17,8 @@
     "reloadAria": "Refresh Linkora",
     "helpTitle": "Help & info",
     "helpAria": "Help and information",
+    "donate": "Donate",
+    "donateTitle": "Support Linkora",
     "settings": "Settings",
     "updateApply": "Update",
     "updateOk": "OK"
@@ -230,6 +232,8 @@
     "leadExtract": "Extraction mode, retries and rename.",
     "leadLibrary": "TMDB posters and NAS access.",
     "leadUpdates": "Automatic updates and data backup.",
+    "donateUrl": "Donation URL",
+    "donateUrlHint": "Opened by the Donate button and the reminder after 10 launches.",
     "closeAria": "Close",
     "navAria": "Settings sections",
     "navAccount": "Account",
@@ -319,6 +323,14 @@
     "confirmTitle": "Confirm",
     "confirmOk": "Confirm",
     "confirmCancel": "Cancel"
+  },
+  "donate": {
+    "title": "A little help goes a long way",
+    "text": "If Linkora helps you day to day, an optional tip keeps it growing. Thank you for supporting the project!",
+    "later": "Later",
+    "dismiss": "Don't show again",
+    "cta": "Donate",
+    "thanks": "Thank you for your support!"
   },
   "toast": {
     "themeOn": "Theme {name} enabled.",

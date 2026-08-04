@@ -68,6 +68,7 @@
       <button type="button" class="btn-help-round" id="btn-help" data-i18n-title="header.helpTitle" data-i18n-aria="header.helpAria" title="Aide & infos" aria-label="Aide et informations">
         <span aria-hidden="true">?</span>
       </button>
+      <button type="button" class="btn btn-donate" id="btn-donate" data-i18n="header.donate" data-i18n-title="header.donateTitle" title="Soutenir Linkora">Don</button>
       <button type="button" class="btn btn-ghost" id="btn-settings" data-i18n="header.settings">Paramètres</button>
     </div>
   </header>
@@ -1043,6 +1044,11 @@
               <input type="url" id="update-manifest-url" placeholder="https://ton-site.com/linkora/latest.json" spellcheck="false">
               <span class="field-hint">Sinon : releases GitHub.</span>
             </label>
+            <label class="field">
+              <span class="field-label" data-i18n="settings.donateUrl">URL de don</span>
+              <input type="url" id="donate-url" placeholder="https://github.com/sponsors/tallyhome" spellcheck="false">
+              <span class="field-hint" data-i18n="settings.donateUrlHint">Lien ouvert par le bouton Don et le rappel après 10 lancements.</span>
+            </label>
             <p class="field-hint" id="update-status-hint">Version locale : —</p>
             <div class="modal-actions" style="justify-content:flex-start;margin:0 0 1rem">
               <button type="button" class="btn btn-ghost" id="btn-check-update">
@@ -1141,6 +1147,22 @@
         <button type="button" class="btn btn-ghost" data-update-notes-cancel>Plus tard</button>
         <a id="update-notes-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener" hidden>Voir sur GitHub</a>
         <button type="button" class="btn btn-primary" id="update-notes-ok">Mettre à jour</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="donate-modal" class="confirm-modal" hidden>
+    <div class="confirm-backdrop" data-donate-later></div>
+    <div class="confirm-panel donate-panel" role="dialog" aria-modal="true" aria-labelledby="donate-title">
+      <div class="confirm-icon is-question" aria-hidden="true">♥</div>
+      <h3 id="donate-title" data-i18n="donate.title">Un petit coup de pouce ?</h3>
+      <p id="donate-text" data-i18n="donate.text">
+        Si Linkora vous rend service au quotidien, un don optionnel aide à le faire évoluer. Merci de soutenir le projet !
+      </p>
+      <div class="confirm-actions confirm-actions-wrap">
+        <button type="button" class="btn btn-ghost" data-donate-later data-i18n="donate.later">Plus tard</button>
+        <button type="button" class="btn btn-ghost" data-donate-dismiss data-i18n="donate.dismiss">Ne plus afficher</button>
+        <button type="button" class="btn btn-primary" id="donate-ok" data-i18n="donate.cta">Faire un don</button>
       </div>
     </div>
   </div>
