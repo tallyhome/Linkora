@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.12.1] — 2026-08-04
+
+### Changé
+- URL de don **codée en dur** (`DONATE_URL` dans le code) — plus modifiable dans les paramètres
+- Source MAJ **codée en dur** (`UPDATE_MANIFEST_URL`, vide = GitHub) — champ retiré des paramètres
+- Popup don : bouton **J’ai déjà donné** (ne plus rappeler)
+
+### Sécurité
+- L’API ignore toute URL de manifeste envoyée par le client
+
+---
+
 ## [2.12.0] — 2026-08-04
 
 ### Ajouté

@@ -232,8 +232,7 @@
     "leadExtract": "Extraction mode, retries and rename.",
     "leadLibrary": "TMDB posters and NAS access.",
     "leadUpdates": "Automatic updates and data backup.",
-    "donateUrl": "Donation URL",
-    "donateUrlHint": "Opened by the Donate button and the reminder after 10 launches.",
+    "manifestSourceHint": "Updates come from GitHub Releases (source is fixed in the app).",
     "closeAria": "Close",
     "navAria": "Settings sections",
     "navAccount": "Account",
@@ -328,7 +327,7 @@
     "title": "A little help goes a long way",
     "text": "If Linkora helps you day to day, an optional tip keeps it growing. Thank you for supporting the project!",
     "later": "Later",
-    "dismiss": "Don't show again",
+    "already": "I already donated",
     "cta": "Donate",
     "thanks": "Thank you for your support!"
   },

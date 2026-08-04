@@ -12,8 +12,16 @@ SETTINGS_PATH = DATA_DIR / "settings.json"
 
 UI_LOCALES = ("fr", "en")
 
-DEFAULT_DONATE_URL = "https://github.com/sponsors/tallyhome"
+# Lien de don figé dans le code (pas modifiable depuis l’UI / settings.json).
+# Remplace le placeholder par ton lien PayPal, Ko-fi, etc. avant de builder :
+#   ex. "https://paypal.me/tonpseudo"  ou  "https://www.paypal.com/donate/?hosted_button_id=…"
+DONATE_URL = "https://paypal.me/TON_PSEUDO"
 DONATE_PROMPT_AFTER = 10
+
+# Source MAJ figée : vide = GitHub Releases.
+# Plus tard (ObiLab) : mettre l’URL HTTPS du latest.json, ex.
+#   "https://obilab.example/apps/linkora/latest.json"
+UPDATE_MANIFEST_URL = ""
 
 DEFAULTS = {
     "active_provider": "alldebrid",
@@ -22,7 +30,6 @@ DEFAULTS = {
     "max_retries": 3,
     "resolve_concurrency": 6,
     "auto_update": True,
-    "update_manifest_url": "",
     "rename_template": "simple",
     "rename_memory": {},
     "notify_on_resolve": True,
@@ -39,7 +46,6 @@ DEFAULTS = {
     "launch_count": 0,
     "donate_dismissed": False,
     "donate_snooze_until": 0,
-    "donate_url": DEFAULT_DONATE_URL,
     "providers": {
         "alldebrid": {"api_key": "", "api_keys": [], "enabled": True},
         "realdebrid": {"api_key": "", "api_keys": [], "enabled": True},
@@ -213,8 +219,6 @@ def _ensure() -> dict:
     )
     if "auto_update" in data:
         merged["auto_update"] = bool(data["auto_update"])
-    if "update_manifest_url" in data:
-        merged["update_manifest_url"] = str(data.get("update_manifest_url") or "")
     if "rename_template" in data:
         tmpl = str(data.get("rename_template") or "simple")
         merged["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
@@ -258,8 +262,6 @@ def _ensure() -> dict:
         0,
         10_000_000,
     )
-    donate_url = str(data.get("donate_url") or DEFAULTS["donate_url"]).strip()
-    merged["donate_url"] = (donate_url or DEFAULT_DONATE_URL)[:500]
     active_pid = str(data.get("active_profile_id") or "")
     if active_pid and any(p["id"] == active_pid for p in merged["profiles"]):
         merged["active_profile_id"] = active_pid
@@ -307,8 +309,6 @@ def update_settings(payload: dict) -> dict:
         )
     if "auto_update" in payload:
         current["auto_update"] = bool(payload["auto_update"])
-    if "update_manifest_url" in payload:
-        current["update_manifest_url"] = str(payload.get("update_manifest_url") or "").strip()
     if "rename_template" in payload:
         tmpl = str(payload.get("rename_template") or "simple")
         current["rename_template"] = tmpl if tmpl in RENAME_TEMPLATES else "simple"
@@ -370,12 +370,6 @@ def update_settings(payload: dict) -> dict:
         current["extract_extensions"] = ",".join(
             normalize_extensions(payload.get("extract_extensions"))
         )
-    if "donate_url" in payload:
-        url = str(payload.get("donate_url") or "").strip()[:500]
-        if url.startswith(("http://", "https://")):
-            current["donate_url"] = url
-        elif not url:
-            current["donate_url"] = DEFAULT_DONATE_URL
     if "active_profile_id" in payload:
         pid = str(payload.get("active_profile_id") or "")
         if pid and any(p["id"] == pid for p in current["profiles"]):
@@ -443,7 +437,6 @@ def public_settings() -> dict:
         "max_retries": data.get("max_retries", 3),
         "resolve_concurrency": data.get("resolve_concurrency", 6),
         "auto_update": bool(data.get("auto_update", True)),
-        "update_manifest_url": data.get("update_manifest_url") or "",
         "rename_template": data.get("rename_template") or "simple",
         "notify_on_resolve": bool(data.get("notify_on_resolve", True)),
         "ssl_ignore_errors": bool(data.get("ssl_ignore_errors")),
@@ -473,7 +466,6 @@ def public_settings() -> dict:
         ),
         "extract_extensions": data.get("extract_extensions")
         or DEFAULTS["extract_extensions"],
-        "donate_url": data.get("donate_url") or DEFAULT_DONATE_URL,
         "providers": {},
     }
     for name, conf in data["providers"].items():
@@ -500,8 +492,13 @@ def donate_status() -> dict:
     count = int(conf.get("launch_count") or 0)
     dismissed = bool(conf.get("donate_dismissed"))
     snooze = int(conf.get("donate_snooze_until") or 0)
-    url = str(conf.get("donate_url") or DEFAULT_DONATE_URL).strip() or DEFAULT_DONATE_URL
-    show = (not dismissed) and count >= DONATE_PROMPT_AFTER and count >= snooze
+    url = str(DONATE_URL or "").strip()
+    show = (
+        bool(url)
+        and (not dismissed)
+        and count >= DONATE_PROMPT_AFTER
+        and count >= snooze
+    )
     return {
         "launch_count": count,
         "show_prompt": show,
@@ -512,16 +509,15 @@ def donate_status() -> dict:
 
 
 def apply_donate_action(action: str) -> dict:
-    """Actions : later | dismiss | donated."""
+    """Actions : later | already_donated | donated (CTA → ne plus rappeler)."""
     conf = load_settings()
     count = int(conf.get("launch_count") or 0)
     act = str(action or "").strip().lower()
-    if act == "dismiss":
+    if act in ("dismiss", "already_donated", "donated"):
+        # Confiance utilisateur : pas de vérif PayPal côté app (impossible sans serveur).
         conf["donate_dismissed"] = True
     elif act == "later":
         conf["donate_snooze_until"] = count + DONATE_PROMPT_AFTER
-    elif act == "donated":
-        conf["donate_dismissed"] = True
     save_settings(conf)
     return donate_status()
 
@@ -644,7 +640,8 @@ def save_rename_memory(folder: str, *, force_title: str = "", remove_words: str 
 
 
 def get_update_manifest_url() -> str:
-    return str(load_settings().get("update_manifest_url") or "").strip()
+    """Source MAJ figée dans le code (vide = GitHub Releases)."""
+    return str(UPDATE_MANIFEST_URL or "").strip()
 
 
 def _mask(key: str) -> str:

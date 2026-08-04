@@ -17,17 +17,20 @@ Nouvelle brique (pas un simple hébergeur) : coller une URL vidéo → télécha
 - [ ] File d’attente + barre de progression
 - [ ] Mentions ToS / usage perso dans l’Aide
 
-## Intégration ObiLab (MAJ + stats)
+## Intégration ObiLab (MAJ + stats + dons)
 
-Relier Linkora au site **ObiLab** pour la distribution et le suivi d’usage.
+Relier Linkora au site **ObiLab** pour la distribution, le suivi d’usage et la confirmation des dons.
 
-- [ ] Source MAJ ObiLab (`latest.json` / assets) — vérif au démarrage + appliquer si nouvelle version
-- [ ] Remplacer / compléter GitHub Releases comme canal de MAJ (manifeste configurable déjà prêt)
+- [ ] Source MAJ ObiLab : renseigner `UPDATE_MANIFEST_URL` dans `settings.py` (aujourd’hui vide = **GitHub**)
 - [ ] Ping stats anonymes vers API ObiLab : téléchargement, 1ʳᵉ install, lancements, version, OS
 - [ ] ID install local (UUID dans `data/`) — pas de données personnelles
 - [ ] Opt-out clair dans Paramètres (« Envoyer des stats anonymes »)
 - [ ] Côté ObiLab : panneau stats (downloads, installs, actives 7/30 j, versions)
-
+- [ ] **Dons PayPal via ObiLab** (confirmation sans « retour » manuel dans l’app) :
+  - Page ObiLab `/donate/linkora?install_id=…` → redirige vers PayPal (custom / invoice id = install_id)
+  - Webhook / IPN PayPal → ObiLab marque l’install comme *supporter*
+  - Linkora ping ObiLab au démarrage → si supporter → `donate_dismissed` (plus de popup)
+  - Fallback local : boutons « Faire un don » / « J’ai déjà donné » (déjà en place)
 ## Monétisation — dons ou paiement (à décider)
 
 **Recommandation actuelle :** commencer par les **dons** (simple, pas de blocage).  
@@ -36,9 +39,9 @@ Le **paiement / licence** reste une option plus tard si la base d’utilisateurs
 ### A) Système de dons (priorité)
 
 - [x] Bouton **« Don »** en haut à droite
-- [x] Popup après **10 lancements** (Plus tard / Ne plus afficher / Faire un don)
-- [x] URL de don configurable (Paramètres → Mises à jour ; défaut GitHub Sponsors)
-- [ ] Lien(s) Ko-fi et/ou PayPal dédiés (si tu préfères autre chose que Sponsors)
+- [x] Popup après **10 lancements** (Plus tard / J’ai déjà donné / Faire un don)
+- [x] URL de don **codée en dur** (`DONATE_URL` dans `settings.py` — placeholder PayPal)
+- [ ] Remplacer le placeholder PayPal par le vrai lien avant build
 
 **Contrepartie possible d’un don** (léger, sans verrouiller l’app) :
 
@@ -179,10 +182,11 @@ Chaque app envoie un ping anonyme vers **la même API** du site :
 ### Lien avec Linkora
 
 - [ ] Brancher Linkora sur l’API stats **ObiLab** (voir section dédiée ci-dessus)
-- [ ] MAJ via `latest.json` hébergé sur ObiLab (manifeste déjà configurable)
+- [ ] Passer `UPDATE_MANIFEST_URL` sur le `latest.json` ObiLab quand le site est prêt
 
 ## Fait récemment
 
+- [x] v2.12.1 — don + source MAJ figés dans le code (plus modifiables UI)
 - [x] v2.12.0 — bouton Don + popup soutien après 10 lancements
 - [x] Page Aide (`?`) + explications profils / options
 - [x] Phase 5 : multi-clés, branding, CLI, doc site MAJ

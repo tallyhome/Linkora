@@ -310,7 +310,7 @@ def api_donate_status():
 def api_donate_action():
     data = request.get_json(silent=True) or {}
     action = str(data.get("action") or "").strip().lower()
-    if action not in ("later", "dismiss", "donated"):
+    if action not in ("later", "dismiss", "donated", "already_donated"):
         return jsonify({"error": "Action invalide."}), 400
     return jsonify(app_settings.apply_donate_action(action))
 
@@ -322,18 +322,17 @@ def api_update_status():
 
 @app.post("/api/update/check")
 def api_update_check():
-    data = request.get_json(silent=True) or {}
-    manifest = (data.get("manifest_url") or "").strip() or app_settings.get_update_manifest_url()
-    return jsonify(updater.check_for_update(manifest or None))
+    manifest = app_settings.get_update_manifest_url() or None
+    return jsonify(updater.check_for_update(manifest))
 
 
 @app.post("/api/update/apply")
 def api_update_apply():
     data = request.get_json(silent=True) or {}
     tag = (data.get("tag") or "").strip() or None
-    manifest = (data.get("manifest_url") or "").strip() or app_settings.get_update_manifest_url()
+    manifest = app_settings.get_update_manifest_url() or None
     # Toujours en arrière-plan pour laisser l’UI afficher la progression
-    result = updater.apply_update(tag, manifest_url=manifest or None, background=True)
+    result = updater.apply_update(tag, manifest_url=manifest, background=True)
     return jsonify(result)
 
 
@@ -1942,6 +1941,6 @@ if __name__ == "__main__":
             app_settings.record_launch()
             updater.startup_autoupdate(
                 enabled=bool(conf.get("auto_update", True)),
-                manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
+                manifest_url=app_settings.get_update_manifest_url() or None,
             )
         app.run(debug=debug_mode, port=5000, use_reloader=use_reloader)

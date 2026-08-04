@@ -232,8 +232,7 @@
     "leadExtract": "Mode d’extraction, retries et renommage.",
     "leadLibrary": "Affiches TMDB et accès NAS.",
     "leadUpdates": "Mises à jour automatiques et sauvegarde des données.",
-    "donateUrl": "URL de don",
-    "donateUrlHint": "Lien ouvert par le bouton Don et le rappel après 10 lancements.",
+    "manifestSourceHint": "Les mises à jour viennent de GitHub Releases (source figée dans l’app).",
     "closeAria": "Fermer",
     "navAria": "Sections paramètres",
     "navAccount": "Compte",
@@ -328,7 +327,7 @@
     "title": "Un petit coup de pouce ?",
     "text": "Si Linkora vous rend service au quotidien, un don optionnel aide à le faire évoluer. Merci de soutenir le projet !",
     "later": "Plus tard",
-    "dismiss": "Ne plus afficher",
+    "already": "J’ai déjà donné",
     "cta": "Faire un don",
     "thanks": "Merci pour votre soutien !"
   },

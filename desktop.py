@@ -81,7 +81,7 @@ def main() -> None:
     app_settings.record_launch()
     updater.startup_autoupdate(
         enabled=bool(conf.get("auto_update", True)),
-        manifest_url=(conf.get("update_manifest_url") or "").strip() or None,
+        manifest_url=app_settings.get_update_manifest_url() or None,
     )
 
     def run_server() -> None:

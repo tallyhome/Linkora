@@ -33,8 +33,6 @@
   const uiThemeSelect = document.getElementById("ui-theme");
   const uiLocaleSelect = document.getElementById("ui-locale");
   const autoUpdateInput = document.getElementById("auto-update");
-  const updateManifestInput = document.getElementById("update-manifest-url");
-  const donateUrlInput = document.getElementById("donate-url");
   const renameTemplateSelect = document.getElementById("rename-template");
   const updateStatusHint = document.getElementById("update-status-hint");
   const updateBanner = document.getElementById("update-banner");
@@ -1417,12 +1415,6 @@
       postersToggle.checked = settings.library_show_posters !== false;
       postersToggle.disabled = !settings.tmdb_configured;
     }
-    if (updateManifestInput) {
-      updateManifestInput.value = settings.update_manifest_url || "";
-    }
-    if (donateUrlInput) {
-      donateUrlInput.value = settings.donate_url || "";
-    }
     if (renameTemplateSelect) {
       renameTemplateSelect.value = settings.rename_template || "simple";
     }
@@ -2441,8 +2433,6 @@
         customAccentInput && !customAccentInput.dataset.reset
           ? customAccentInput.value
           : settings?.custom_accent || "",
-      update_manifest_url: updateManifestInput?.value?.trim() || "",
-      donate_url: donateUrlInput?.value?.trim() || "",
       rename_template: renameTemplateSelect?.value || "simple",
       extract_mode: extractModeSelect?.value || extractModePageSelect?.value || "smart",
       extract_extensions:
@@ -5710,7 +5700,9 @@
       document.removeEventListener("keydown", onKey);
       try {
         await postDonateAction(action);
-        if (action === "donated") showToast(t("donate.thanks"));
+        if (action === "donated" || action === "already_donated") {
+          showToast(t("donate.thanks"));
+        }
       } catch {
         /* ignore */
       }
@@ -5718,8 +5710,8 @@
     const onClick = (event) => {
       if (event.target.closest("[data-donate-later]")) {
         finish("later");
-      } else if (event.target.closest("[data-donate-dismiss]")) {
-        finish("dismiss");
+      } else if (event.target.closest("[data-donate-already]")) {
+        finish("already_donated");
       } else if (event.target.closest("#donate-ok")) {
         openDonateUrl(donateUrlCache);
         finish("donated");
@@ -5752,7 +5744,7 @@
       donateUrlCache = status.donate_url || "";
       openDonateUrl(donateUrlCache);
     } catch {
-      openDonateUrl(settings?.donate_url || "");
+      openDonateUrl(donateUrlCache);
     }
   });
 
