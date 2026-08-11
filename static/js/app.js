@@ -5686,29 +5686,69 @@
     }
   }
 
-  function showDonateModal(url) {
+  function showDonateModal(url, unlockSeconds) {
     const modal = document.getElementById("donate-modal");
     const okBtn = document.getElementById("donate-ok");
+    const laterBtn = document.getElementById("donate-later");
+    const alreadyBtn = document.getElementById("donate-already");
+    const countdownEl = document.getElementById("donate-countdown");
+    const buttons = [okBtn, laterBtn, alreadyBtn].filter(Boolean);
     if (!modal || !okBtn) {
       openDonateUrl(url);
       return;
     }
     donateUrlCache = String(url || "").trim();
+    let unlocked = false;
+    let countdownTimer = null;
+    let remaining = Math.max(0, Number(unlockSeconds) || 10);
+
+    const setButtonsEnabled = (enabled) => {
+      buttons.forEach((btn) => {
+        btn.disabled = !enabled;
+      });
+    };
+
+    const updateCountdownLabel = () => {
+      if (!countdownEl) return;
+      if (remaining > 0) {
+        countdownEl.hidden = false;
+        countdownEl.textContent = t("donate.wait", { n: remaining });
+      } else {
+        countdownEl.hidden = true;
+        countdownEl.textContent = "";
+      }
+    };
+
     const finish = async (action) => {
+      if (!unlocked && action !== "force-close") return;
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
       modal.hidden = true;
       modal.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKey);
+      setButtonsEnabled(true);
+      if (countdownEl) countdownEl.hidden = true;
+      if (action === "force-close") return;
       try {
-        await postDonateAction(action);
-        if (action === "donated" || action === "already_donated") {
+        // Seul « déjà donné » désactive définitivement le popup.
+        if (action === "already_donated") {
+          await postDonateAction("already_donated");
           showToast(t("donate.thanks"));
+        } else if (action === "donated") {
+          await postDonateAction("donated");
+          showToast(t("donate.thanksOpen"));
         }
+        // later : rien à persister → réaffichage au prochain lancement
       } catch {
         /* ignore */
       }
     };
+
     const onClick = (event) => {
-      if (event.target.closest("[data-donate-later]")) {
+      if (!unlocked) return;
+      if (event.target.closest("[data-donate-later]") || event.target.id === "donate-backdrop") {
         finish("later");
       } else if (event.target.closest("[data-donate-already]")) {
         finish("already_donated");
@@ -5717,13 +5757,36 @@
         finish("donated");
       }
     };
+
     const onKey = (event) => {
+      if (!unlocked) return;
       if (event.key === "Escape") finish("later");
     };
+
+    setButtonsEnabled(false);
+    updateCountdownLabel();
     modal.hidden = false;
     modal.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
-    okBtn.focus();
+
+    if (remaining <= 0) {
+      unlocked = true;
+      setButtonsEnabled(true);
+      laterBtn?.focus();
+      return;
+    }
+
+    countdownTimer = setInterval(() => {
+      remaining -= 1;
+      updateCountdownLabel();
+      if (remaining <= 0) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        unlocked = true;
+        setButtonsEnabled(true);
+        laterBtn?.focus();
+      }
+    }, 1000);
   }
 
   async function maybeShowDonatePrompt() {
@@ -5731,7 +5794,7 @@
       const status = await fetchDonateStatus();
       donateUrlCache = status.donate_url || donateUrlCache;
       if (status.show_prompt) {
-        showDonateModal(status.donate_url);
+        showDonateModal(status.donate_url, status.unlock_seconds ?? 10);
       }
     } catch {
       /* ignore */

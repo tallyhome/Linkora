@@ -4,6 +4,15 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.12.2] — 2026-08-11
+
+### Changé
+- Popup don : après 10 lancements, s’affiche **à chaque** démarrage (Plus tard ne snooze plus)
+- Popup don : décompte **10 secondes** avant de pouvoir cliquer
+- « Faire un don » n’arrête plus définitivement le rappel (seul « J’ai déjà donné » le fait)
+
+---
+
 ## [2.12.1] — 2026-08-04
 
 ### Changé

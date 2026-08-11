@@ -1143,17 +1143,18 @@
   </div>
 
   <div id="donate-modal" class="confirm-modal" hidden>
-    <div class="confirm-backdrop" data-donate-later></div>
+    <div class="confirm-backdrop" id="donate-backdrop"></div>
     <div class="confirm-panel donate-panel" role="dialog" aria-modal="true" aria-labelledby="donate-title">
       <div class="confirm-icon is-question" aria-hidden="true">♥</div>
       <h3 id="donate-title" data-i18n="donate.title">Un petit coup de pouce ?</h3>
       <p id="donate-text" data-i18n="donate.text">
         Si Linkora vous rend service au quotidien, un don optionnel aide à le faire évoluer. Merci de soutenir le projet !
       </p>
+      <p id="donate-countdown" class="donate-countdown" hidden></p>
       <div class="confirm-actions confirm-actions-wrap">
-        <button type="button" class="btn btn-ghost" data-donate-later data-i18n="donate.later">Plus tard</button>
-        <button type="button" class="btn btn-ghost" data-donate-already data-i18n="donate.already">J’ai déjà donné</button>
-        <button type="button" class="btn btn-primary" id="donate-ok" data-i18n="donate.cta">Faire un don</button>
+        <button type="button" class="btn btn-ghost" id="donate-later" data-donate-later data-i18n="donate.later" disabled>Plus tard</button>
+        <button type="button" class="btn btn-ghost" id="donate-already" data-donate-already data-i18n="donate.already" disabled>J’ai déjà donné</button>
+        <button type="button" class="btn btn-primary" id="donate-ok" data-i18n="donate.cta" disabled>Faire un don</button>
       </div>
     </div>
   </div>

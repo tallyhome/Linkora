@@ -290,6 +290,18 @@ html[data-theme="alldebrid"] .bg-atmosphere {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
+.donate-countdown {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted, #8b98a8);
+  text-align: center;
+}
+
+.donate-panel .confirm-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .confirm-panel h3 {
   margin: 0 0 0.4rem;
   font-family: var(--font-display);

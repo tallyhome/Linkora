@@ -17,6 +17,7 @@ UI_LOCALES = ("fr", "en")
 #   ex. "https://paypal.me/tonpseudo"  ou  "https://www.paypal.com/donate/?hosted_button_id=…"
 DONATE_URL = "https://paypal.me/TON_PSEUDO"
 DONATE_PROMPT_AFTER = 10
+DONATE_UNLOCK_SECONDS = 10
 
 # Source MAJ figée : vide = GitHub Releases.
 # Plus tard (ObiLab) : mettre l’URL HTTPS du latest.json, ex.
@@ -491,34 +492,31 @@ def donate_status() -> dict:
     conf = load_settings()
     count = int(conf.get("launch_count") or 0)
     dismissed = bool(conf.get("donate_dismissed"))
-    snooze = int(conf.get("donate_snooze_until") or 0)
     url = str(DONATE_URL or "").strip()
-    show = (
-        bool(url)
-        and (not dismissed)
-        and count >= DONATE_PROMPT_AFTER
-        and count >= snooze
-    )
+    # Après N lancements : à chaque démarrage, jusqu’à confirmation don / déjà donné.
+    show = bool(url) and (not dismissed) and count >= DONATE_PROMPT_AFTER
     return {
         "launch_count": count,
         "show_prompt": show,
         "donate_url": url,
         "donate_dismissed": dismissed,
         "prompt_after": DONATE_PROMPT_AFTER,
+        "unlock_seconds": DONATE_UNLOCK_SECONDS,
     }
 
 
 def apply_donate_action(action: str) -> dict:
-    """Actions : later | already_donated | donated (CTA → ne plus rappeler)."""
+    """
+    already_donated / dismiss → ne plus afficher le popup.
+    later / donated → session seule (pas de snooze) : le popup revient au prochain lancement.
+    """
     conf = load_settings()
-    count = int(conf.get("launch_count") or 0)
     act = str(action or "").strip().lower()
-    if act in ("dismiss", "already_donated", "donated"):
-        # Confiance utilisateur : pas de vérif PayPal côté app (impossible sans serveur).
+    if act in ("dismiss", "already_donated"):
+        # Confiance utilisateur jusqu’à la vérif ObiLab / PayPal.
         conf["donate_dismissed"] = True
-    elif act == "later":
-        conf["donate_snooze_until"] = count + DONATE_PROMPT_AFTER
-    save_settings(conf)
+        save_settings(conf)
+    # later / donated : rien à persister
     return donate_status()
 
 

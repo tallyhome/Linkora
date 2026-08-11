@@ -31,6 +31,11 @@ Relier Linkora au site **ObiLab** pour la distribution, le suivi d’usage et la
   - Webhook / IPN PayPal → ObiLab marque l’install comme *supporter*
   - Linkora ping ObiLab au démarrage → si supporter → `donate_dismissed` (plus de popup)
   - Fallback local : boutons « Faire un don » / « J’ai déjà donné » (déjà en place)
+
+## Notifications push (idée)
+
+- [ ] Évaluer **OneSignal** : adapté web / mobile ; pour Linkora desktop (pywebview) plutôt limited
+- [ ] Alternative : toasts Windows locaux (déjà partiel) + ping ObiLab pour messages in-app
 ## Monétisation — dons ou paiement (à décider)
 
 **Recommandation actuelle :** commencer par les **dons** (simple, pas de blocage).  
@@ -39,9 +44,11 @@ Le **paiement / licence** reste une option plus tard si la base d’utilisateurs
 ### A) Système de dons (priorité)
 
 - [x] Bouton **« Don »** en haut à droite
-- [x] Popup après **10 lancements** (Plus tard / J’ai déjà donné / Faire un don)
+- [x] Popup après **10 lancements** — **chaque** lancement tant que non confirmé
+- [x] Décompte **10 s** avant de pouvoir cliquer les boutons
 - [x] URL de don **codée en dur** (`DONATE_URL` dans `settings.py` — placeholder PayPal)
 - [ ] Remplacer le placeholder PayPal par le vrai lien avant build
+- [ ] Confirmation don réelle via ObiLab + webhook PayPal (sinon : bouton « J’ai déjà donné »)
 
 **Contrepartie possible d’un don** (léger, sans verrouiller l’app) :
 
@@ -186,6 +193,7 @@ Chaque app envoie un ping anonyme vers **la même API** du site :
 
 ## Fait récemment
 
+- [x] v2.12.2 — popup don à chaque lancement + décompte 10 s
 - [x] v2.12.1 — don + source MAJ figés dans le code (plus modifiables UI)
 - [x] v2.12.0 — bouton Don + popup soutien après 10 lancements
 - [x] Page Aide (`?`) + explications profils / options

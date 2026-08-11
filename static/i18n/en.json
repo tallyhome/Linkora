@@ -329,7 +329,9 @@
     "later": "Later",
     "already": "I already donated",
     "cta": "Donate",
-    "thanks": "Thank you for your support!"
+    "wait": "Buttons unlock in {n} s…",
+    "thanks": "Thank you for your support!",
+    "thanksOpen": "Thanks! The reminder will stop after donation is confirmed."
   },
   "toast": {
     "themeOn": "Theme {name} enabled.",

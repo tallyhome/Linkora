@@ -329,7 +329,9 @@
     "later": "Plus tard",
     "already": "J’ai déjà donné",
     "cta": "Faire un don",
-    "thanks": "Merci pour votre soutien !"
+    "wait": "Les boutons seront disponibles dans {n} s…",
+    "thanks": "Merci pour votre soutien !",
+    "thanksOpen": "Merci ! Le rappel disparaîtra après confirmation du don."
   },
   "toast": {
     "themeOn": "Thème {name} activé.",
