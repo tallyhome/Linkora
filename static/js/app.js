@@ -412,7 +412,7 @@
     return false;
   }
 
-  async function resolveWithMultiHostFallback(provider, labelPrefix, onlyBi = null) {
+  async function resolveWithMultiHostFallback(provider, labelPrefix, onlyBi = null, allowedKeys = null) {
     assignMultiHostRoles();
     refreshCurrentView({ scroll: false });
 
@@ -428,6 +428,7 @@
       (current?.batches || []).forEach((batch, bi) => {
         if (onlyBi != null && bi !== onlyBi) return;
         (batch.links || []).forEach((link, li) => {
+          if (allowedKeys && !allowedKeys.has(`${bi}:${li}`)) return;
           if (isMultiHostSession() && link.is_mirror) return;
           if (link.resolve_status === "ok") return;
           jobs.push({ bi, li });
@@ -734,7 +735,7 @@
 
     return `
       <tr class="${runningClass}${rowStatus}" data-batch="${bi}" data-link="${li}">
-        <td class="col-check"><input type="checkbox" class="link-check" data-batch="${bi}" data-link="${li}"></td>
+        <td class="col-check"><input type="checkbox" class="link-check" data-batch="${bi}" data-link="${li}" ${link.selected ? "checked" : ""} aria-label="Sélectionner"></td>
         <td>${li + 1}</td>
         <td><div class="cell-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>${clean}${hostBadge}${directBadge}</td>
         <td><span class="size-pill">${escapeHtml(size)}</span></td>
@@ -823,7 +824,7 @@
     return `
       <div class="page-block-toolbar">
         <div class="action-cluster">
-          <button type="button" class="btn btn-primary btn-xs" data-resolve-batch="${bi}">Résoudre</button>
+          <button type="button" class="btn btn-primary btn-xs" data-resolve-batch="${bi}">Résoudre sélection</button>
           <button type="button" class="btn btn-ghost btn-xs" data-recheck-batch-dead="${bi}">Re-vérifier morts</button>
         </div>
         <div class="action-cluster">
@@ -1030,15 +1031,39 @@
     });
   }
 
-  function selectedLinks() {
+  function selectedLinkRefs() {
     const out = [];
-    pageBlocks?.querySelectorAll(".link-check:checked").forEach((cb) => {
-      const bi = Number(cb.dataset.batch);
-      const li = Number(cb.dataset.link);
-      const link = current?.batches?.[bi]?.links?.[li];
-      if (link) out.push(link);
+    (current?.batches || []).forEach((batch, bi) => {
+      (batch.links || []).forEach((link, li) => {
+        if (link.selected) out.push({ bi, li, link });
+      });
     });
     return out;
+  }
+
+  function selectedLinks() {
+    return selectedLinkRefs().map((x) => x.link);
+  }
+
+  function setLinkSelected(bi, li, on) {
+    const link = current?.batches?.[bi]?.links?.[li];
+    if (link) link.selected = !!on;
+  }
+
+  /** Clés bi:li autorisées pour résoudre (sélection + miroirs multi-hébergeurs du même épisode). */
+  function resolveAllowedKeys(refs) {
+    const keys = new Set(refs.map(({ bi, li }) => `${bi}:${li}`));
+    if (!isMultiHostSession()) return keys;
+    const groups = new Set();
+    refs.forEach(({ bi, link }) => {
+      groups.add(`${bi}|${episodeKey(link)}`);
+    });
+    (current?.batches || []).forEach((batch, bi) => {
+      (batch.links || []).forEach((link, li) => {
+        if (groups.has(`${bi}|${episodeKey(link)}`)) keys.add(`${bi}:${li}`);
+      });
+    });
+    return keys;
   }
 
   function resultsRoot() {
@@ -1634,13 +1659,44 @@
   function batchPayload(bi) {
     const batch = current?.batches?.[bi];
     if (!batch) return null;
+    const all = batch.links || [];
+    const selected = all.filter((l) => l.selected);
+    const links = selected.length ? selected : all;
     return {
       source_url: batch.source_url,
       host: batch.host || current.host,
       title: batch.title,
-      links: batch.links || [],
+      links,
       theme: settings?.theme || "linkora",
     };
+  }
+
+  function currentExportPayload(extra = {}) {
+    const sel = selectedLinks();
+    if (!sel.length) {
+      return { ...current, theme: settings?.theme || "linkora", ...extra };
+    }
+    const batches = (current.batches || [])
+      .map((batch) => ({
+        ...batch,
+        links: (batch.links || []).filter((l) => l.selected),
+      }))
+      .filter((b) => (b.links || []).length);
+    return {
+      ...current,
+      batches,
+      links: batches.flatMap((b) => b.links || []),
+      theme: settings?.theme || "linkora",
+      ...extra,
+    };
+  }
+
+  function linksForBatchAction(bi) {
+    const all = (current?.batches?.[bi]?.links || []).filter(
+      (l) => !isMultiHostSession() || !l.is_mirror
+    );
+    const selected = all.filter((l) => l.selected);
+    return selected.length ? selected : all;
   }
 
   async function fetchExportBlobForPayload(payload, format, view = false) {
@@ -1746,11 +1802,7 @@
     const res = await fetch(`/api/export/${format}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...current,
-        view,
-        theme: settings?.theme || "linkora",
-      }),
+      body: JSON.stringify(currentExportPayload({ view })),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -2000,37 +2052,43 @@
       return;
     }
 
+    const refs = selectedLinkRefs();
+    if (!refs.length) {
+      showToast(t("results.selectToResolve"));
+      return;
+    }
+
     const provider = await ensureProviderReady();
     if (!provider) return;
 
     const providerName = PROVIDER_LABELS[provider] || provider;
+    const allowedKeys = resolveAllowedKeys(refs);
     resolveAbort = false;
     setResolving(true);
 
-    current.batches.forEach((batch) => {
-      batch.links = (batch.links || []).map(resetLinkForResolve);
+    // Reset uniquement la sélection (pas les épisodes déjà OK non cochés)
+    (current.batches || []).forEach((batch, bi) => {
+      batch.links = (batch.links || []).map((link, li) => {
+        if (!allowedKeys.has(`${bi}:${li}`)) return link;
+        return resetLinkForResolve(link);
+      });
     });
     assignMultiHostRoles();
     syncFlatLinks();
     refreshCurrentView({ scroll: false });
 
-    const jobs = collectJobs(
-      (l) => (!isMultiHostSession() || !l.is_mirror) && l.resolve_status !== "ok"
-    );
-
-    if (!jobs.length) {
-      showToast("Tous les liens principaux sont déjà valides.");
-      setResolving(false);
-      return;
-    }
-
     showToast(
-      `${providerName} — résolution` +
-        (isMultiHostSession() ? " (1er hébergeur + fallback miroirs)" : "") +
+      `${providerName} — ${refs.length} lien(s) sélectionné(s)` +
+        (isMultiHostSession() ? " (+ fallback miroirs)" : "") +
         ` (x${getConcurrency()}, ${getMaxRetries()} essais si dead).`
     );
 
-    const result = await resolveWithMultiHostFallback(provider, "Résolution…");
+    const result = await resolveWithMultiHostFallback(
+      provider,
+      "Résolution sélection…",
+      null,
+      allowedKeys
+    );
     syncFlatLinks();
     current.resolved_provider = provider;
     updateSummary();
@@ -2123,9 +2181,20 @@
   }
 
   pageBlocks.addEventListener("click", handlePageBlockClick);
+  pageBlocks.addEventListener("change", (event) => {
+    const cb = event.target.closest?.(".link-check");
+    if (!cb) return;
+    setLinkSelected(Number(cb.dataset.batch), Number(cb.dataset.link), cb.checked);
+  });
   historyList.addEventListener("click", (event) => {
     if (!event.target.closest(".history-item-detail .page-block")) return;
     handlePageBlockClick(event);
+  });
+  historyList.addEventListener("change", (event) => {
+    if (!event.target.closest(".history-item-detail .link-check")) return;
+    const cb = event.target.closest(".link-check");
+    if (!cb) return;
+    setLinkSelected(Number(cb.dataset.batch), Number(cb.dataset.link), cb.checked);
   });
 
   async function handlePageBlockClick(event) {
@@ -2137,17 +2206,30 @@
         showToast("Aucun lien sur cette page.");
         return;
       }
+      const refs = selectedLinkRefs().filter((r) => r.bi === bi);
+      if (!refs.length) {
+        showToast(t("results.selectToResolve"));
+        return;
+      }
       const provider = await ensureProviderReady();
       if (!provider) return;
 
+      const allowedKeys = resolveAllowedKeys(refs);
       resolveAbort = false;
       setResolving(true);
-      batch.links = batch.links.map(resetLinkForResolve);
+      batch.links = batch.links.map((link, li) =>
+        allowedKeys.has(`${bi}:${li}`) ? resetLinkForResolve(link) : link
+      );
       assignMultiHostRoles();
       syncFlatLinks();
       refreshCurrentView({ scroll: false });
 
-      const result = await resolveWithMultiHostFallback(provider, `Page ${bi + 1}…`, bi);
+      const result = await resolveWithMultiHostFallback(
+        provider,
+        `Page ${bi + 1} (sélection)…`,
+        bi,
+        allowedKeys
+      );
       current.resolved_provider = provider;
       updateSummary();
       await autoSaveHistory(current);
@@ -2208,14 +2290,18 @@
     const copySourceBtn = event.target.closest("[data-copy-batch-source]");
     if (copySourceBtn) {
       const bi = Number(copySourceBtn.dataset.copyBatchSource);
-      const text = (current.batches[bi]?.links || [])
-        .filter((l) => !isMultiHostSession() || !l.is_mirror)
+      const links = linksForBatchAction(bi);
+      const text = links
         .map((l) => l.url || "")
         .filter(Boolean)
         .join("\n");
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Sources de cette page copiées.");
+        showToast(
+          links.some((l) => l.selected)
+            ? `${links.length} source(s) sélectionnée(s) copiée(s).`
+            : "Sources de cette page copiées."
+        );
       } catch {
         showToast("Copie impossible.");
       }
@@ -2225,13 +2311,15 @@
     const copyJdBtn = event.target.closest("[data-copy-batch-jd]");
     if (copyJdBtn) {
       const bi = Number(copyJdBtn.dataset.copyBatchJd);
-      const links = (current.batches[bi]?.links || []).filter(
-        (l) => !isMultiHostSession() || !l.is_mirror
-      );
+      const links = linksForBatchAction(bi);
       const text = jdownloaderLines(links);
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Format JDownloader copié (principaux).");
+        showToast(
+          links.some((l) => l.selected)
+            ? `${links.length} lien(s) JD (sélection) copiés.`
+            : "Format JDownloader copié (principaux)."
+        );
       } catch {
         showToast("Copie impossible.");
       }
@@ -2283,14 +2371,18 @@
     const copyResolved = event.target.closest("[data-copy-batch-resolved]");
     if (copyResolved) {
       const bi = Number(copyResolved.dataset.copyBatchResolved);
-      const text = (current.batches[bi]?.links || [])
-        .filter((l) => !isMultiHostSession() || !l.is_mirror)
+      const links = linksForBatchAction(bi);
+      const text = links
         .map((l) => displayUrl(l))
         .filter(Boolean)
         .join("\n");
       try {
         await navigator.clipboard.writeText(text || "");
-        showToast("Liens principaux de cette page copiés.");
+        showToast(
+          links.some((l) => l.selected)
+            ? `${links.length} lien(s) sélectionné(s) copiés.`
+            : "Liens principaux de cette page copiés."
+        );
       } catch {
         showToast("Copie impossible.");
       }
@@ -2304,11 +2396,18 @@
 
   document.getElementById("btn-copy").addEventListener("click", async () => {
     if (!current?.links?.length) return;
-    const links = current.links.filter((l) => !isMultiHostSession() || !l.is_mirror);
+    const sel = selectedLinks();
+    const links = (sel.length ? sel : current.links).filter(
+      (l) => !isMultiHostSession() || !l.is_mirror
+    );
     const text = jdownloaderLines(links) || links.map((l) => displayUrl(l)).filter(Boolean).join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Liens principaux copiés (format JD si dispo).");
+      showToast(
+        sel.length
+          ? `${links.length} lien(s) sélectionné(s) copiés.`
+          : "Liens principaux copiés (format JD si dispo)."
+      );
     } catch {
       showToast("Copie impossible.");
     }
@@ -2316,14 +2415,21 @@
 
   document.getElementById("btn-copy-source").addEventListener("click", async () => {
     if (!current?.links?.length) return;
-    const text = current.links
-      .filter((l) => !isMultiHostSession() || !l.is_mirror)
+    const sel = selectedLinks();
+    const links = (sel.length ? sel : current.links).filter(
+      (l) => !isMultiHostSession() || !l.is_mirror
+    );
+    const text = links
       .map((l) => l.url || "")
       .filter(Boolean)
       .join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Liens source principaux copiés.");
+      showToast(
+        sel.length
+          ? `${links.length} source(s) sélectionnée(s) copiée(s).`
+          : "Liens source principaux copiés."
+      );
     } catch {
       showToast("Copie impossible.");
     }
@@ -4979,13 +5085,22 @@
   filterText?.addEventListener("input", applyResultFilters);
 
   document.getElementById("btn-select-visible")?.addEventListener("click", () => {
-    pageBlocks?.querySelectorAll("tr[data-batch][data-link]:not(.row-hidden) .link-check").forEach((cb) => {
-      cb.checked = true;
+    pageBlocks?.querySelectorAll("tr[data-batch][data-link]:not(.row-hidden)").forEach((row) => {
+      const bi = Number(row.dataset.batch);
+      const li = Number(row.dataset.link);
+      setLinkSelected(bi, li, true);
+      const cb = row.querySelector(".link-check");
+      if (cb) cb.checked = true;
     });
     showToast("Sélection des lignes visibles.");
   });
 
   document.getElementById("btn-clear-selection")?.addEventListener("click", () => {
+    (current?.batches || []).forEach((batch) => {
+      (batch.links || []).forEach((link) => {
+        link.selected = false;
+      });
+    });
     pageBlocks?.querySelectorAll(".link-check").forEach((cb) => {
       cb.checked = false;
     });

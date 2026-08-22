@@ -242,8 +242,8 @@
 
       <div class="results-actions-bar">
         <div class="action-cluster">
-          <button type="button" class="btn btn-primary" id="btn-resolve" title="Résoudre via le débrideur">
-            <span class="btn-resolve-label" data-i18n="results.resolve">Résoudre</span>
+          <button type="button" class="btn btn-primary" id="btn-resolve" data-i18n-title="results.resolveTitle" title="Résoudre uniquement les liens cochés">
+            <span class="btn-resolve-label" data-i18n="results.resolve">Résoudre la sélection</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
           <button type="button" class="btn btn-ghost" id="btn-recheck-dead" title="Re-vérifier uniquement les liens morts/erreurs" data-i18n="results.recheckDead" data-i18n-title="results.recheckDeadTitle">
@@ -649,7 +649,7 @@
             <li>Ouvrez <strong>Paramètres</strong> et collez votre clé API AllDebrid ou Real-Debrid.</li>
             <li>Cliquez <strong>Tester</strong> puis <strong>Enregistrer</strong>.</li>
             <li>Dans <strong>Récupération</strong>, collez l’URL d’une page, indiquez l’hébergeur (ex. <code>rapidgator</code>), puis <strong>Récupérer</strong>.</li>
-            <li>Cliquez <strong>Résoudre</strong> pour obtenir les liens de téléchargement directs.</li>
+            <li>Cochez les liens à débrider, puis <strong>Résoudre la sélection</strong> (évite de retraiter les épisodes déjà téléchargés).</li>
           </ol>
         </section>
 
@@ -710,8 +710,8 @@
         <section id="help-resolve" class="help-section">
           <h2>Résolution (débridage)</h2>
           <dl class="help-dl">
-            <dt>Résoudre</dt>
-            <dd>Envoie les liens au débrideur actif pour obtenir une URL directe.</dd>
+            <dt>Résoudre la sélection</dt>
+            <dd>Envoie <strong>uniquement les liens cochés</strong> au débrideur. Sans case cochée → rien n’est résolu.</dd>
             <dt>Re-vérifier morts</dt>
             <dd>Retente uniquement les liens marqués morts / erreur.</dd>
             <dt>Stop</dt>
@@ -729,9 +729,9 @@
           <h2>Filtres, sélection &amp; exports</h2>
           <ul>
             <li><strong>Filtres</strong> — valides / morts / recherche texte.</li>
-            <li><strong>Cases à cocher</strong> — sélectionner certains liens.</li>
-            <li><strong>Copier / JD</strong> — copie presse-papiers ou fichier JDownloader (<code>URL | Nom</code>).</li>
-            <li><strong>CSV / HTML / PDF</strong> — exports du lot affiché.</li>
+            <li><strong>Cases à cocher</strong> — choisir quoi résoudre / copier / exporter.</li>
+            <li><strong>Copier / JD</strong> — si une sélection existe, elle est utilisée ; sinon tout le lot. Format JDownloader <code>URL | Nom</code>.</li>
+            <li><strong>CSV / HTML / PDF</strong> — exports (sélection si cases cochées).</li>
             <li><strong>Épisodes manquants</strong> (Récupération) — trous dans une plage SxxExx déjà listée (sans TMDB).</li>
           </ul>
         </section>

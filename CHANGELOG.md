@@ -4,6 +4,18 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.13.0] — 2026-08-22
+
+### Changé
+- **Résoudre** n’agit plus que sur les **liens cochés** (toast si aucune sélection)
+- Copie / export JD / CSV… utilisent la **sélection** quand des cases sont cochées
+- La sélection est **mémorisée** pendant la résolution (plus perdue au rafraîchissement)
+
+### Amélioré
+- Aide : workflow « cocher → résoudre / copier » pour éviter de redébrider tout un lot
+
+---
+
 ## [2.12.2] — 2026-08-11
 
 ### Changé
