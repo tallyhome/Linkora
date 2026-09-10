@@ -2705,6 +2705,30 @@ html[data-theme="alldebrid"] .status-pill.running {
   flex-wrap: wrap;
 }
 
+.batch-select-all {
+  flex-shrink: 0;
+  margin: 0.15rem 0 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.batch-select-all:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.links-table thead .batch-check-all {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
 .page-block-title {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;

@@ -825,6 +825,8 @@
       <div class="page-block-toolbar">
         <div class="action-cluster">
           <button type="button" class="btn btn-primary btn-xs" data-resolve-batch="${bi}">Résoudre sélection</button>
+          <button type="button" class="btn btn-ghost btn-xs" data-select-batch="${bi}" title="Cocher tous les liens de cette section">Tout cocher</button>
+          <button type="button" class="btn btn-ghost btn-xs" data-deselect-batch="${bi}" title="Décocher tous les liens de cette section">Tout décocher</button>
           <button type="button" class="btn btn-ghost btn-xs" data-recheck-batch-dead="${bi}">Re-vérifier morts</button>
         </div>
         <div class="action-cluster">
@@ -909,6 +911,10 @@
       ? ` · <span class="direct-pill">Lien direct</span>`
       : "";
 
+    const selectedMain = mainItems.filter((x) => x.link.selected).length;
+    const allMainSelected = mainItems.length > 0 && selectedMain === mainItems.length;
+    const someMainSelected = selectedMain > 0 && selectedMain < mainItems.length;
+
     return `
       <article class="page-block" data-batch-index="${bi}">
         <header class="page-block-head">
@@ -920,6 +926,10 @@
               · <a href="${escapeHtml(batch.source_url)}" target="_blank" rel="noopener noreferrer">ouvrir la page</a>
             </p>
           </div>
+          <label class="batch-select-all check-field" title="Sélectionner tous les liens de cette section">
+            <input type="checkbox" class="batch-check-all" data-batch="${bi}" ${allMainSelected ? "checked" : ""} ${someMainSelected ? "data-indeterminate=\"1\"" : ""} aria-label="Tout sélectionner cette section">
+            <span>Tout sélectionner</span>
+          </label>
         </header>
         ${batchToolbarHtml(batch, bi)}
         ${err}
@@ -932,7 +942,10 @@
             </colgroup>
             <thead>
               <tr>
-                <th></th><th>#</th><th>Label</th><th>Taille</th><th>Statut</th>
+                <th class="col-check">
+                  <input type="checkbox" class="batch-check-all" data-batch="${bi}" ${allMainSelected ? "checked" : ""} ${someMainSelected ? "data-indeterminate=\"1\"" : ""} title="Tout sélectionner cette section" aria-label="Tout sélectionner cette section">
+                </th>
+                <th>#</th><th>Label</th><th>Taille</th><th>Statut</th>
                 <th>Source</th><th>Résolu</th><th></th>
               </tr>
             </thead>
@@ -992,6 +1005,7 @@
 
     if (filterBar) filterBar.hidden = !current.links?.length;
     applyResultFilters();
+    syncBatchCheckAllUi();
 
     if (scroll) {
       results.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1048,6 +1062,50 @@
   function setLinkSelected(bi, li, on) {
     const link = current?.batches?.[bi]?.links?.[li];
     if (link) link.selected = !!on;
+  }
+
+  function setBatchSelection(bi, on, { visibleOnly = false } = {}) {
+    const batch = current?.batches?.[bi];
+    if (!batch?.links?.length) return 0;
+    const multi = isMultiHostSession();
+    let n = 0;
+    const block = resultsRoot()?.querySelector(`[data-batch-index="${bi}"]`);
+    batch.links.forEach((link, li) => {
+      if (multi && link.is_mirror) return;
+      if (visibleOnly) {
+        const row = block?.querySelector(`tr[data-batch="${bi}"][data-link="${li}"]`);
+        if (!row || row.classList.contains("row-hidden")) return;
+      }
+      link.selected = !!on;
+      n += 1;
+      const cb = block?.querySelector(`.link-check[data-batch="${bi}"][data-link="${li}"]`);
+      if (cb) cb.checked = !!on;
+    });
+    syncBatchCheckAllUi(bi);
+    return n;
+  }
+
+  function syncBatchCheckAllUi(bi = null) {
+    const root = resultsRoot();
+    if (!root) return;
+    const blocks =
+      bi == null
+        ? [...root.querySelectorAll(".page-block[data-batch-index]")]
+        : [root.querySelector(`[data-batch-index="${bi}"]`)].filter(Boolean);
+    blocks.forEach((block) => {
+      const idx = Number(block.dataset.batchIndex);
+      const batch = current?.batches?.[idx];
+      if (!batch) return;
+      const multi = isMultiHostSession();
+      const mains = (batch.links || []).filter((l) => !multi || !l.is_mirror);
+      const selected = mains.filter((l) => l.selected).length;
+      const allOn = mains.length > 0 && selected === mains.length;
+      const someOn = selected > 0 && selected < mains.length;
+      block.querySelectorAll(`.batch-check-all[data-batch="${idx}"]`).forEach((cb) => {
+        cb.checked = allOn;
+        cb.indeterminate = someOn;
+      });
+    });
   }
 
   /** Clés bi:li autorisées pour résoudre (sélection + miroirs multi-hébergeurs du même épisode). */
@@ -2182,22 +2240,56 @@
 
   pageBlocks.addEventListener("click", handlePageBlockClick);
   pageBlocks.addEventListener("change", (event) => {
+    const batchAll = event.target.closest?.(".batch-check-all");
+    if (batchAll) {
+      const bi = Number(batchAll.dataset.batch);
+      setBatchSelection(bi, batchAll.checked);
+      showToast(
+        batchAll.checked
+          ? `Section ${bi + 1} : tout sélectionné.`
+          : `Section ${bi + 1} : sélection vidée.`
+      );
+      return;
+    }
     const cb = event.target.closest?.(".link-check");
     if (!cb) return;
     setLinkSelected(Number(cb.dataset.batch), Number(cb.dataset.link), cb.checked);
+    syncBatchCheckAllUi(Number(cb.dataset.batch));
   });
   historyList.addEventListener("click", (event) => {
     if (!event.target.closest(".history-item-detail .page-block")) return;
     handlePageBlockClick(event);
   });
   historyList.addEventListener("change", (event) => {
-    if (!event.target.closest(".history-item-detail .link-check")) return;
+    const detail = event.target.closest(".history-item-detail");
+    if (!detail) return;
+    const batchAll = event.target.closest?.(".batch-check-all");
+    if (batchAll) {
+      setBatchSelection(Number(batchAll.dataset.batch), batchAll.checked);
+      return;
+    }
     const cb = event.target.closest(".link-check");
     if (!cb) return;
     setLinkSelected(Number(cb.dataset.batch), Number(cb.dataset.link), cb.checked);
+    syncBatchCheckAllUi(Number(cb.dataset.batch));
   });
 
   async function handlePageBlockClick(event) {
+    const selectBatchBtn = event.target.closest("[data-select-batch]");
+    if (selectBatchBtn) {
+      const bi = Number(selectBatchBtn.dataset.selectBatch);
+      const n = setBatchSelection(bi, true);
+      showToast(n ? `Section ${bi + 1} : ${n} lien(s) cochés.` : "Aucun lien.");
+      return;
+    }
+    const deselectBatchBtn = event.target.closest("[data-deselect-batch]");
+    if (deselectBatchBtn) {
+      const bi = Number(deselectBatchBtn.dataset.deselectBatch);
+      setBatchSelection(bi, false);
+      showToast(`Section ${bi + 1} : sélection vidée.`);
+      return;
+    }
+
     const resolveBatchBtn = event.target.closest("[data-resolve-batch]");
     if (resolveBatchBtn) {
       const bi = Number(resolveBatchBtn.dataset.resolveBatch);
@@ -2772,6 +2864,7 @@
       detail.innerHTML =
         head + current.batches.map((batch, bi) => pageBlockHtml(batch, bi)).join("");
       detail.hidden = false;
+      syncBatchCheckAllUi();
       return;
     }
     renderResults(current, { scroll });

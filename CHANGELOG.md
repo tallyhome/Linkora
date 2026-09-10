@@ -4,6 +4,13 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.13.1] — 2026-09-10
+
+### Ajouté
+- Par section (saison / page) : **Tout sélectionner**, case dans l’en-tête du tableau, boutons Tout cocher / Tout décocher
+
+---
+
 ## [2.13.0] — 2026-08-22
 
 ### Changé
