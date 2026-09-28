@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.14.0] — 2026-09-28
+
+### Ajouté
+- Thème **Console** : fond sombre, accent menthe, navigation latérale
+- Même application sur Récupération, Renommage et Bibliothèque (Défaut, Ambre et Pro inchangés)
+
+---
+
 ## [2.13.1] — 2026-09-10
 
 ### Ajouté

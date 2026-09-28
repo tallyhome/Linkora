@@ -777,9 +777,11 @@ def api_library_history_delete(item_id: int):
 def _payload_from_request() -> dict:
     data = request.get_json(silent=True) or {}
     theme = (data.get("theme") or "").strip()
-    if theme not in ("linkora", "lienlab", "alldebrid"):
+    if theme not in ("linkora", "lienlab", "alldebrid", "console"):
         theme = app_settings.load_settings().get("theme") or "linkora"
     if theme == "lienlab":
+        theme = "linkora"
+    if theme not in ("linkora", "alldebrid", "console"):
         theme = "linkora"
     return {
         "source_url": (data.get("source_url") or data.get("url") or "").strip(),
@@ -916,6 +918,32 @@ def _build_html(payload: dict) -> bytes:
   a:hover { text-decoration:underline; }
   .hint { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
   button.copy { background:#1e293b; color:var(--text); border:1px solid var(--line);
+                border-radius:6px; padding:.25rem .55rem; cursor:pointer; font-size:.8rem; }
+  @media (max-width:800px){ .cols{grid-template-columns:1fr;} }
+"""
+    elif theme == "console":
+        css = """
+  :root { --bg:#070d18; --panel:#121c30; --text:#e7eef8; --muted:#8b9bb3;
+          --ok:#34d399; --dead:#fb7185; --line:#243049; --accent:#2dd4bf; }
+  body { font-family: Segoe UI, Arial, sans-serif; background:var(--bg); color:var(--text);
+         max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  h1,h2 { margin: 0 0 .6rem; }
+  .meta { color: var(--muted); margin-bottom: 1.25rem; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1.25rem 0 2rem; }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1rem; }
+  .col h2 { font-size:1rem; display:flex; justify-content:space-between; align-items:center; }
+  .col pre { margin:0; white-space:pre-wrap; word-break:break-all; font-size:.9rem;
+             user-select:text; line-height:1.55; min-height:8rem; }
+  .col-resolved pre, a.ok { color: var(--ok); }
+  a.dead, .col pre.dead-list { color: var(--dead); }
+  a.pending { color: var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--panel); }
+  th,td { border-bottom:1px solid var(--line); padding:.55rem .4rem; text-align:left; vertical-align:top; font-size:.9rem; }
+  th { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+  a { word-break:break-all; text-decoration:none; color:var(--accent); }
+  a:hover { text-decoration:underline; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
+  button.copy { background:#0c1526; color:var(--text); border:1px solid var(--line);
                 border-radius:6px; padding:.25rem .55rem; cursor:pointer; font-size:.8rem; }
   @media (max-width:800px){ .cols{grid-template-columns:1fr;} }
 """

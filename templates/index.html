@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-console.css') }}?v={{ app_version }}">
 </head>
 <body>
   <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -50,6 +51,7 @@
         <button type="button" class="theme-btn is-active" data-theme-set="linkora" data-i18n="header.themeDefault" data-i18n-title="header.themeDefaultTitle" title="Thème Linkora">Défaut</button>
         <button type="button" class="theme-btn" data-theme-set="alldebrid" data-i18n="header.themeAmber" data-i18n-title="header.themeAmberTitle" title="Thème Ambre">Ambre</button>
         <button type="button" class="theme-btn" data-theme-set="nocturne" data-i18n="header.themePro" data-i18n-title="header.themeProTitle" title="Thème Pro sombre">Pro</button>
+        <button type="button" class="theme-btn" data-theme-set="console" data-i18n="header.themeConsole" data-i18n-title="header.themeConsoleTitle" title="Thème Console">Console</button>
       </div>
       <div class="lang-switch" role="group" data-i18n-aria="header.lang" aria-label="Langue">
         <button type="button" class="lang-btn is-active" data-locale-set="fr" data-i18n-title="header.langFrTitle" title="Français" aria-label="Français">
@@ -898,6 +900,7 @@
                 <option value="linkora" data-i18n="settings.themeLinkora">Linkora (défaut)</option>
                 <option value="alldebrid" data-i18n="settings.themeAmber">Ambre (clair / jaune)</option>
                 <option value="nocturne" data-i18n="settings.themePro">Pro (sombre, dense)</option>
+                <option value="console" data-i18n="settings.themeConsole">Console (dashboard)</option>
               </select>
             </label>
 

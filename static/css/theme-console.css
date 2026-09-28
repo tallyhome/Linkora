@@ -1,0 +1,252 @@
+/* Thème 4 — Console. Ne s'applique que si html[data-theme="console"]. */
+
+html[data-theme="console"] {
+  --ink: #e7eef8;
+  --ink-soft: #c5d0e2;
+  --muted: #8b9bb3;
+  --line: rgba(148, 163, 184, 0.16);
+  --surface: rgba(16, 26, 44, 0.92);
+  --surface-solid: #121c30;
+  --accent: #2dd4bf;
+  --accent-deep: #14b8a6;
+  --accent-soft: rgba(45, 212, 191, 0.16);
+  --danger: #fb7185;
+  --ok: #34d399;
+  --ok-bg: rgba(52, 211, 153, 0.14);
+  --dead: #fb7185;
+  --dead-bg: rgba(251, 113, 133, 0.14);
+  --pending: #94a3b8;
+  --body-bg: #070d18;
+  --radius: 16px;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  --logo-accent: #5eead4;
+  --logo-spark: #99f6e4;
+}
+
+html[data-theme="console"] .bg-atmosphere {
+  background:
+    radial-gradient(ellipse 50% 40% at 0% 0%, rgba(45, 212, 191, 0.12), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 100% 0%, rgba(56, 189, 248, 0.08), transparent 50%),
+    linear-gradient(180deg, #0b1220 0%, #070d18 100%);
+}
+
+html[data-theme="console"] .bg-atmosphere::after {
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+}
+
+html[data-theme="console"] .app-tabs {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100vh;
+  max-width: none;
+  margin: 0;
+  padding: 1.1rem 0.75rem;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  background: #0b1220;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+
+html[data-theme="console"] .app-tab-btn {
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.7rem 0.85rem;
+}
+
+html[data-theme="console"] .app-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  border-color: transparent;
+}
+
+html[data-theme="console"] .app-tab-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+
+html[data-theme="console"] .update-banner,
+html[data-theme="console"] .site-header,
+html[data-theme="console"] main {
+  margin-left: 220px;
+  max-width: none;
+}
+
+html[data-theme="console"] .site-header {
+  padding: 0.85rem 1.25rem 0;
+}
+
+html[data-theme="console"] main {
+  padding: 0.75rem 1.25rem 3rem;
+}
+
+html[data-theme="console"] .hero,
+html[data-theme="console"] .rename-hero {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+html[data-theme="console"] .hero-title {
+  font-family: var(--font-body);
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+html[data-theme="console"] .hero-lead {
+  text-align: left;
+  max-width: none;
+  font-size: 0.92rem;
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme="console"] .extract-form,
+html[data-theme="console"] .queue-panel,
+html[data-theme="console"] .results,
+html[data-theme="console"] .history-panel,
+html[data-theme="console"] .rename-results,
+html[data-theme="console"] .page-block,
+html[data-theme="console"] .rename-smart-bar,
+html[data-theme="console"] .library-series,
+html[data-theme="console"] .library-movie-card,
+html[data-theme="console"] .library-archive-card,
+html[data-theme="console"] .modal-panel,
+html[data-theme="console"] .confirm-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+html[data-theme="console"] #tab-extract {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  column-gap: 1rem;
+  align-items: start;
+}
+
+html[data-theme="console"] #tab-extract .hero {
+  display: contents;
+}
+
+html[data-theme="console"] #tab-extract .hero-top,
+html[data-theme="console"] #tab-extract .extract-form,
+html[data-theme="console"] #tab-extract #form-error,
+html[data-theme="console"] #tab-extract .results {
+  grid-column: 1;
+}
+
+html[data-theme="console"] #tab-extract .queue-panel,
+html[data-theme="console"] #tab-extract .history-panel {
+  grid-column: 2;
+}
+
+html[data-theme="console"] .queue-panel,
+html[data-theme="console"] .history-panel {
+  padding: 0.9rem;
+}
+
+html[data-theme="console"] .btn-primary {
+  background: linear-gradient(180deg, #2dd4bf, #14b8a6);
+  color: #042f2e;
+  border: none;
+  font-weight: 700;
+}
+
+html[data-theme="console"] .btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+html[data-theme="console"] .btn-ghost,
+html[data-theme="console"] .btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme="console"] input,
+html[data-theme="console"] textarea,
+html[data-theme="console"] select {
+  background: #0c1526;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme="console"] .links-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+html[data-theme="console"] .links-table td,
+html[data-theme="console"] .links-table th {
+  border-bottom-color: var(--line);
+}
+
+html[data-theme="console"] .status-pill.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+html[data-theme="console"] .status-pill.dead,
+html[data-theme="console"] .status-pill.error {
+  background: var(--dead-bg);
+  color: var(--dead);
+}
+
+html[data-theme="console"] .library-poster,
+html[data-theme="console"] .library-poster-ph {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+html[data-theme="console"] .theme-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+
+@media (max-width: 980px) {
+  html[data-theme="console"] .app-tabs {
+    position: static;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  html[data-theme="console"] .update-banner,
+  html[data-theme="console"] .site-header,
+  html[data-theme="console"] main {
+    margin-left: 0;
+  }
+
+  html[data-theme="console"] #tab-extract {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-theme="console"] #tab-extract .queue-panel,
+  html[data-theme="console"] #tab-extract .history-panel,
+  html[data-theme="console"] #tab-extract .hero-top,
+  html[data-theme="console"] #tab-extract .extract-form,
+  html[data-theme="console"] #tab-extract #form-error,
+  html[data-theme="console"] #tab-extract .results {
+    grid-column: 1;
+  }
+}

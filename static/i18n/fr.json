@@ -7,9 +7,11 @@
     "themeDefault": "Défaut",
     "themeAmber": "Ambre",
     "themePro": "Pro",
+    "themeConsole": "Console",
     "themeDefaultTitle": "Thème Linkora",
     "themeAmberTitle": "Thème Ambre",
     "themeProTitle": "Thème Pro sombre",
+    "themeConsoleTitle": "Thème Console",
     "lang": "Langue",
     "langFrTitle": "Français",
     "langEnTitle": "English",
@@ -253,6 +255,7 @@
     "themeLinkora": "Linkora (défaut)",
     "themeAmber": "Ambre (clair / jaune)",
     "themePro": "Pro (sombre, dense)",
+    "themeConsole": "Console (dashboard)",
     "langFr": "Français",
     "langEn": "English",
     "accentLegend": "Couleur d’accent",
@@ -379,7 +382,8 @@
   "themeNames": {
     "linkora": "Linkora",
     "alldebrid": "Ambre",
-    "nocturne": "Pro (sombre)"
+    "nocturne": "Pro (sombre)",
+    "console": "Console"
   },
   "langNames": {
     "fr": "Français",

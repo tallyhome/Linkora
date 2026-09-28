@@ -1276,7 +1276,7 @@
 
   function normalizeTheme(theme) {
     if (theme === "lienlab") return "linkora";
-    return ["linkora", "alldebrid", "nocturne"].includes(theme) ? theme : "linkora";
+    return ["linkora", "alldebrid", "nocturne", "console"].includes(theme) ? theme : "linkora";
   }
 
   function normalizeLocale(locale) {
