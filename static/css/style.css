@@ -1673,6 +1673,17 @@ html[data-theme="nocturne"] .hero-lead {
   color: var(--muted);
 }
 
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.field-label-row .field-label {
+  text-transform: uppercase;
+}
+
 .field input {
   width: 100%;
   border: 1px solid var(--line);

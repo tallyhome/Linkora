@@ -22,6 +22,59 @@
     </div>
   </div>
 
+  <aside class="console-sidebar console-only" id="console-sidebar" data-i18n-aria="tabs.aria" aria-label="Sections Linkora">
+    <div class="console-brand">
+      <img class="console-brand-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="30" height="30">
+      <span class="console-brand-name">Linkora</span>
+      <span class="console-brand-version">v{{ app_version }}</span>
+    </div>
+    <p class="console-side-label" data-i18n="console.workspace">Espace de travail</p>
+    <nav class="console-nav">
+      <button type="button" class="console-nav-btn is-active" data-console-nav="extract">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span data-i18n="tabs.extract">Récupération</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="queue">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        <span data-i18n="extract.queueTitle">File d’attente</span>
+        <span class="console-nav-badge" id="console-queue-badge" hidden>0</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="history">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        <span data-i18n="history.title">Historique</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="rename">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <span data-i18n="tabs.rename">Renommage</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="library">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+        <span data-i18n="tabs.library">Bibliothèque</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="diff">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>
+        <span>Diff PC ↔ NAS</span>
+      </button>
+    </nav>
+    <div class="console-side-foot">
+      <div class="console-status-card" id="console-provider-card">
+        <p class="console-status-title"><span class="console-dot"></span><span id="console-provider-title">—</span></p>
+        <p class="console-status-meta" id="console-provider-meta"></p>
+      </div>
+      <div class="console-status-card is-tmdb" id="console-tmdb-card" hidden>
+        <p class="console-status-title"><span class="console-dot"></span><span data-i18n="provider.tmdbReady">TMDB prêt</span></p>
+      </div>
+      <button type="button" class="console-nav-btn" data-console-nav="settings">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <span data-i18n="header.settings">Paramètres</span>
+      </button>
+      <button type="button" class="console-nav-btn" data-console-nav="help">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        <span data-i18n="header.helpTitle">Aide &amp; infos</span>
+      </button>
+    </div>
+  </aside>
+
   <header class="site-header">
     <div class="brand">
       <span class="brand-logo" aria-hidden="true">
@@ -44,7 +97,16 @@
       </span>
       <span class="brand-name">Linkora</span>
     </div>
+    <p class="console-crumb console-only" id="console-crumb"><span data-i18n="console.workspace">Espace de travail</span> <span class="console-crumb-sep">/</span> <strong id="console-crumb-current">Récupération</strong></p>
+    <label class="console-search console-only">
+      <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="console-search" placeholder="Rechercher dans l’historique…" data-i18n-placeholder="console.search" spellcheck="false">
+      <kbd>Ctrl K</kbd>
+    </label>
     <div class="header-actions">
+      <button type="button" class="btn-help-round console-only" id="console-theme-toggle" aria-expanded="false" data-i18n-title="header.theme" title="Thème">
+        <svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
       <span id="provider-badge" class="provider-badge" hidden></span>
       <span id="tmdb-badge" class="provider-badge tmdb-badge" hidden></span>
       <div class="theme-switch" role="group" data-i18n-aria="header.theme" aria-label="Thème">
@@ -92,6 +154,37 @@
     </nav>
 
     <section id="tab-extract" class="app-tab-panel is-active" role="tabpanel">
+    <div class="console-kpis console-only" id="console-kpis">
+      <article class="console-kpi">
+        <span class="console-kpi-icon is-teal"><svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+        <span class="console-kpi-text">
+          <span class="console-kpi-value" id="console-kpi-links">0</span>
+          <span class="console-kpi-label" data-i18n="console.kpiLinks">Liens extraits</span>
+        </span>
+        <span class="console-kpi-chip" id="console-kpi-pages" hidden></span>
+      </article>
+      <article class="console-kpi">
+        <span class="console-kpi-icon is-green"><svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+        <span class="console-kpi-text">
+          <span class="console-kpi-value" id="console-kpi-rate">0 %</span>
+          <span class="console-kpi-label" data-i18n="console.kpiRate">Taux de résolution</span>
+        </span>
+      </article>
+      <article class="console-kpi">
+        <span class="console-kpi-icon is-red"><svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></span>
+        <span class="console-kpi-text">
+          <span class="console-kpi-value" id="console-kpi-dead">0</span>
+          <span class="console-kpi-label" data-i18n="console.kpiDead">Liens morts à re-vérifier</span>
+        </span>
+      </article>
+      <article class="console-kpi">
+        <span class="console-kpi-icon is-blue"><svg class="console-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <span class="console-kpi-text">
+          <span class="console-kpi-value" id="console-kpi-history">0</span>
+          <span class="console-kpi-label" data-i18n="console.kpiHistory">Pages en historique</span>
+        </span>
+      </article>
+    </div>
     <section class="hero">
       <div class="hero-top">
         <div class="hero-brand">
@@ -122,6 +215,7 @@
       </div>
 
       <form id="extract-form" class="extract-form extract-form-multi" autocomplete="off">
+        <h2 class="console-card-title console-only" data-i18n="console.newExtract">Nouvelle récupération</h2>
         <div class="profile-bar" role="group" data-i18n-aria="extract.profileAria" aria-label="Profil de récupération">
           <span class="profile-chip-label" data-i18n="extract.profile">Profil</span>
           <select id="profile-select" class="profile-select" data-i18n-aria="extract.profileSelectAria" aria-label="Choisir un profil">
@@ -134,7 +228,10 @@
         </div>
 
         <label class="field field-urls">
-          <span class="field-label" data-i18n="extract.urlsLabel">URL(s) — pages ou liens directs (une par ligne)</span>
+          <span class="field-label-row">
+            <span class="field-label" data-i18n="extract.urlsLabel">URL(s) — pages ou liens directs (une par ligne)</span>
+            <button type="button" class="btn btn-ghost btn-xs" data-paste-into="urls" data-i18n="extract.paste">Coller</button>
+          </span>
           <textarea
             id="urls"
             name="urls"
@@ -209,19 +306,21 @@
           </div>
 
           <button type="submit" class="btn btn-primary" id="btn-extract">
+            <svg class="console-ico console-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
             <span class="btn-label" data-i18n="extract.submit">Récupérer</span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
+            <small class="console-extract-count console-only" id="console-extract-count"></small>
           </button>
         </div>
       </form>
 
       <div class="queue-panel" id="queue-panel">
         <div class="queue-head">
-          <h3 class="queue-title" data-i18n="extract.queueTitle">File d’attente</h3>
+          <h3 class="queue-title"><span data-i18n="extract.queueTitle">File d’attente</span> <span class="console-chip console-only" id="console-queue-count">0 page</span></h3>
           <div class="queue-actions">
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-add" data-i18n="extract.queueAdd">Ajouter URLs</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-add" data-i18n="extract.queueAdd" data-i18n-title="extract.queueAdd" title="Ajouter URLs">Ajouter URLs</button>
             <button type="button" class="btn btn-primary btn-xs" id="btn-queue-run" data-i18n="extract.queueRun">Lancer (récupérer + résoudre)</button>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-clear" data-i18n="extract.queueClear">Vider</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="btn-queue-clear" data-i18n="extract.queueClear" data-i18n-title="extract.queueClear" title="Vider">Vider</button>
           </div>
         </div>
         <p class="queue-hint" id="queue-hint" data-i18n="extract.queueHint">Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.</p>
@@ -246,6 +345,7 @@
         <div class="action-cluster">
           <button type="button" class="btn btn-primary" id="btn-resolve" data-i18n-title="results.resolveTitle" title="Résoudre uniquement les liens cochés">
             <span class="btn-resolve-label" data-i18n="results.resolve">Résoudre la sélection</span>
+            <span class="console-only console-resolve-count" id="console-resolve-count"></span>
             <span class="btn-spinner" hidden aria-hidden="true"></span>
           </button>
           <button type="button" class="btn btn-ghost" id="btn-recheck-dead" title="Re-vérifier uniquement les liens morts/erreurs" data-i18n="results.recheckDead" data-i18n-title="results.recheckDeadTitle">
@@ -289,6 +389,12 @@
       </div>
 
       <div class="results-filter-bar" id="results-filter-bar" hidden>
+        <div class="console-filter-tabs console-only" role="group" data-i18n-aria="results.filter" aria-label="Filtre">
+          <button type="button" class="is-active" data-console-filter="all"><span data-i18n="results.filterAll">Tous</span> <b data-console-count="all">0</b></button>
+          <button type="button" data-console-filter="ok"><span data-i18n="results.filterOk">Valides</span> <b data-console-count="ok">0</b></button>
+          <button type="button" data-console-filter="dead"><span data-i18n="console.filterDead">Morts</span> <b data-console-count="dead">0</b></button>
+          <button type="button" data-console-filter="pending"><span data-i18n="results.filterPending">En attente</span> <b data-console-count="pending">0</b></button>
+        </div>
         <label class="filter-field">
           <span data-i18n="results.filter">Filtre</span>
           <select id="filter-status">
@@ -317,11 +423,13 @@
       <button type="button" class="history-toggle" id="btn-history-toggle" aria-expanded="false" aria-controls="history-body">
         <span class="history-toggle-main">
           <span class="history-toggle-title" data-i18n="history.title">Historique</span>
+          <span class="console-card-title console-only" data-i18n="console.recentHistory">Historique récent</span>
           <span class="history-toggle-meta" id="history-count">0 entrée(s)</span>
         </span>
         <span class="history-toggle-hint" data-i18n="history.hint">Afficher les pages débridées sauvegardées</span>
         <span class="history-chevron" aria-hidden="true"></span>
       </button>
+      <button type="button" class="console-link-btn console-only" id="console-history-all" aria-expanded="false" data-i18n="console.seeAll">Tout voir</button>
       <div class="history-body" id="history-body" hidden>
         <p class="history-lead" data-i18n="history.lead">Une entrée par page — cliquez sur Ouvrir pour revoir les liens.</p>
         <div class="history-bulk-bar" id="history-bulk-bar" hidden>
@@ -351,7 +459,10 @@
 
         <form id="rename-scan-form" class="extract-form rename-form" autocomplete="off">
           <label class="field">
-            <span class="field-label" data-i18n="rename.folder">Dossier à scanner</span>
+            <span class="field-label-row">
+              <span class="field-label" data-i18n="rename.folder">Dossier à scanner</span>
+              <button type="button" class="btn btn-ghost btn-xs" data-paste-into="rename-folder" data-i18n="extract.paste">Coller</button>
+            </span>
             <input
               type="text"
               id="rename-folder"
@@ -438,7 +549,10 @@
 
         <form id="library-scan-form" class="extract-form rename-form" autocomplete="off">
           <label class="field">
-            <span class="field-label">Dossier ou disque à scanner</span>
+            <span class="field-label-row">
+              <span class="field-label">Dossier ou disque à scanner</span>
+              <button type="button" class="btn btn-ghost btn-xs" data-paste-into="library-folder" data-i18n="extract.paste">Coller</button>
+            </span>
             <input
               type="text"
               id="library-folder"
@@ -826,6 +940,13 @@
   </main>
 
   <footer class="site-footer">
+    <div class="console-statusbar console-only" id="console-statusbar">
+      <span class="console-status-item is-conn"><span class="console-dot"></span><span id="console-status-provider">—</span></span>
+      <span class="console-status-item"><span data-i18n="console.parallel">Parallèle</span> : <b id="console-status-parallel">—</b></span>
+      <span class="console-status-item"><span data-i18n="console.retries">Re-vérifications</span> : <b id="console-status-retries">—</b></span>
+      <span class="console-status-item"><span data-i18n="console.template">Template</span> : <b id="console-status-template">—</b></span>
+      <span class="console-status-item console-status-version">Linkora <b>v{{ app_version }}</b></span>
+    </div>
     <p><span data-i18n="footer.tagline">Linkora — outil local d’extraction, débridage et renommage intelligent.</span> <span class="footer-version">v{{ app_version }}</span></p>
     <p class="footer-copy">© 2026 Tallyhome</p>
   </footer>

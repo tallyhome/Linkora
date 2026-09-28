@@ -63,6 +63,10 @@
     "addHost": "+ Ajouter un hébergeur",
     "addHostTitle": "Ajouter un hébergeur (jusqu’à 6, optionnel)",
     "submit": "Récupérer",
+    "paste": "Coller",
+    "pasteEmpty": "Presse-papiers vide.",
+    "pasteFail": "Impossible de lire le presse-papiers.",
+    "pasteOk": "Collé.",
     "analyzing": "Analyse…",
     "queueTitle": "File d’attente",
     "queueAdd": "Ajouter URLs",
@@ -388,5 +392,26 @@
   "langNames": {
     "fr": "Français",
     "en": "English"
+  },
+  "console": {
+    "workspace": "Espace de travail",
+    "search": "Rechercher dans l’historique…",
+    "kpiLinks": "Liens extraits",
+    "kpiRate": "Taux de résolution",
+    "kpiDead": "Liens morts à re-vérifier",
+    "kpiHistory": "Pages en historique",
+    "newExtract": "Nouvelle récupération",
+    "pages": "{n} pages",
+    "pageOne": "1 page",
+    "filterDead": "Morts",
+    "recentHistory": "Historique récent",
+    "seeAll": "Tout voir",
+    "seeLess": "Réduire",
+    "parallel": "Parallèle",
+    "retries": "Re-vérifications",
+    "template": "Template",
+    "connected": "Connecté — {label}",
+    "disconnected": "{label} — clé manquante",
+    "keysMeta": "{n} clé(s) API · {c} résolutions en parallèle"
   }
 }

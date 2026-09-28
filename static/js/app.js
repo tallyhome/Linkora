@@ -70,6 +70,9 @@
   let nasClearRequested = false;
   const customAccentInput = document.getElementById("custom-accent");
   const btnResetAccent = document.getElementById("btn-reset-accent");
+  customAccentInput?.addEventListener("input", () => {
+    customAccentInput.dataset.touched = "1";
+  });
   const profileSelect = document.getElementById("profile-select");
   const btnProfileSave = document.getElementById("btn-profile-save");
   const btnProfileDelete = document.getElementById("btn-profile-delete");
@@ -550,6 +553,7 @@
         ? `${workQueue.length} page(s) en file — hébergeur : ${hostsLabel() || "…"}`
         : "Ajoutez des pages, puis lancez : extraction puis résolution, une page après l’autre.";
     }
+    refreshConsoleChrome();
   }
 
   async function askConfirm(title, text, { confirmText = "Confirmer", icon = "warning" } = {}) {
@@ -957,7 +961,10 @@
   }
 
   function updateSummary() {
-    if (!current) return;
+    if (!current) {
+      refreshConsoleKpis();
+      return;
+    }
     syncFlatLinks();
     const multi = isMultiHostSession();
     const mainLinks = multi
@@ -982,6 +989,82 @@
         (resolvedOk || dead
           ? ` · <strong>${resolvedOk}</strong> valides · <strong>${dead}</strong> morts`
           : "");
+    refreshConsoleKpis();
+  }
+
+  function setConsoleText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function consolePagesLabel(n) {
+    return n === 1 ? t("console.pageOne") : t("console.pages", { n });
+  }
+
+  function refreshConsoleKpis() {
+    if (!document.getElementById("console-kpi-links")) return;
+    const links = (current?.links || []).filter((l) => !l.is_mirror);
+    const ok = links.filter((l) => l.resolve_status === "ok").length;
+    const dead = links.filter(
+      (l) => l.resolve_status === "dead" || l.resolve_status === "error"
+    ).length;
+    const pending = links.filter(
+      (l) => !l.resolve_status || l.resolve_status === "running"
+    ).length;
+    const rate = links.length ? Math.round((ok / links.length) * 1000) / 10 : 0;
+    setConsoleText("console-kpi-links", links.length.toLocaleString());
+    setConsoleText("console-kpi-rate", `${rate.toLocaleString()} %`);
+    setConsoleText("console-kpi-dead", String(dead));
+    setConsoleText("console-kpi-history", String(historyItemsCount || 0));
+    const pagesChip = document.getElementById("console-kpi-pages");
+    if (pagesChip) {
+      const pages = current?.batches?.length || 0;
+      pagesChip.hidden = !pages;
+      pagesChip.textContent = pages ? consolePagesLabel(pages) : "";
+    }
+    const counts = { all: links.length, ok, dead, pending };
+    document.querySelectorAll("[data-console-count]").forEach((el) => {
+      el.textContent = String(counts[el.dataset.consoleCount] ?? 0);
+    });
+    const selected = current ? selectedLinkRefs().length : 0;
+    setConsoleText("console-resolve-count", selected ? `(${selected})` : "");
+  }
+
+  function refreshConsoleChrome() {
+    const badge = document.getElementById("console-queue-badge");
+    if (badge) {
+      badge.hidden = !workQueue.length;
+      badge.textContent = String(workQueue.length);
+    }
+    setConsoleText("console-queue-count", consolePagesLabel(workQueue.length));
+
+    const name = settings?.active_provider || "alldebrid";
+    const conf = settings?.providers?.[name];
+    const label = PROVIDER_LABELS[name] || name;
+    const ready = !!conf?.configured;
+    const card = document.getElementById("console-provider-card");
+    if (card) card.classList.toggle("is-off", !ready);
+    setConsoleText(
+      "console-provider-title",
+      ready ? t("provider.ready", { label }) : t("provider.missingKey", { label })
+    );
+    setConsoleText(
+      "console-provider-meta",
+      ready ? t("console.keysMeta", { n: conf?.key_count || 1, c: getConcurrency() }) : ""
+    );
+    const tmdbCard = document.getElementById("console-tmdb-card");
+    if (tmdbCard) tmdbCard.hidden = !settings?.tmdb_configured;
+
+    const statusbar = document.getElementById("console-statusbar");
+    if (statusbar) statusbar.classList.toggle("is-off", !ready);
+    setConsoleText(
+      "console-status-provider",
+      ready ? t("console.connected", { label }) : t("console.disconnected", { label })
+    );
+    setConsoleText("console-status-parallel", String(getConcurrency()));
+    setConsoleText("console-status-retries", String(getMaxRetries()));
+    const tpl = renameTemplateSelect?.selectedOptions?.[0]?.textContent || "—";
+    setConsoleText("console-status-template", tpl);
   }
 
   function renderResults(data, { scroll = true } = {}) {
@@ -1106,6 +1189,7 @@
         cb.indeterminate = someOn;
       });
     });
+    refreshConsoleKpis();
   }
 
   /** Clés bi:li autorisées pour résoudre (sélection + miroirs multi-hébergeurs du même épisode). */
@@ -1254,6 +1338,8 @@
       providerBadge.textContent = t("provider.missingKey", { label });
     }
     updateTmdbBadge();
+    refreshConsoleChrome();
+    refreshConsoleKpis();
   }
 
   function updateTmdbBadge() {
@@ -1291,6 +1377,10 @@
       btn.classList.toggle("is-active", key === value);
     });
     if (uiThemeSelect) uiThemeSelect.value = value;
+    if (value === "console") {
+      setHistoryOpen(true);
+      refreshConsoleKpis();
+    }
   }
 
   async function applyLocale(locale, { persistToast = false } = {}) {
@@ -1605,6 +1695,7 @@
       historyCount.textContent =
         n === 1 ? t("history.countOne") : t("history.count", { n });
     }
+    refreshConsoleKpis();
   }
 
   function setHistoryOpen(open) {
@@ -1950,6 +2041,34 @@
       return null;
     }
   }
+
+  document.addEventListener("click", async (event) => {
+    const btn = event.target.closest?.("[data-paste-into]");
+    if (!btn) return;
+    event.preventDefault();
+    const el = document.getElementById(btn.dataset.pasteInto);
+    if (!el) return;
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      showToast(t("extract.pasteFail"));
+      return;
+    }
+    text = String(text || "").replace(/\r\n/g, "\n").trim();
+    if (!text) {
+      showToast(t("extract.pasteEmpty"));
+      return;
+    }
+    if (el.tagName === "TEXTAREA" && el.value.trim()) {
+      el.value = `${el.value.replace(/\s+$/, "")}\n${text}`;
+    } else {
+      el.value = text;
+    }
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.focus();
+    showToast(t("extract.pasteOk"));
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2628,7 +2747,7 @@
         ? !!sslIgnoreErrorsInput.checked
         : false,
       custom_accent:
-        customAccentInput && !customAccentInput.dataset.reset
+        customAccentInput?.dataset.touched === "1" && !customAccentInput.dataset.reset
           ? customAccentInput.value
           : settings?.custom_accent || "",
       rename_template: renameTemplateSelect?.value || "simple",
@@ -2669,6 +2788,7 @@
       payload.custom_accent = "";
       delete customAccentInput.dataset.reset;
     }
+    if (customAccentInput) delete customAccentInput.dataset.touched;
     if (keyAlldebrid.value.trim()) {
       payload.providers.alldebrid.api_key = keyAlldebrid.value.trim();
     }
@@ -2984,6 +3104,25 @@
         (Array.isArray(data.hosts) && data.hosts.length > MAX_HOSTS);
       setUseAllHosts(allHosts);
       if (!allHosts) setHosts(data.hosts || data.host || "");
+      refreshConsoleExtractCount();
+      if (document.documentElement.dataset.theme === "console") {
+        closeHistoryDetails();
+        renderResults({
+          source_url: data.source_url,
+          host: data.host,
+          title: data.title,
+          batches: [
+            {
+              source_url: data.source_url,
+              title: data.title,
+              host: data.host,
+              links: data.links,
+              history_id: data.id,
+            },
+          ],
+        });
+        return;
+      }
       renderHistoryInline(item, data);
       showToast("Ouvert sous l’historique.");
     }
@@ -3056,9 +3195,104 @@
       panel.classList.toggle("is-active", active);
       panel.hidden = !active;
     });
+    const crumb = document.getElementById("console-crumb-current");
+    const activeBtn = [...tabButtons].find((btn) => btn.dataset.tab === name);
+    if (crumb && activeBtn) crumb.textContent = activeBtn.textContent.trim();
+    document.querySelectorAll("[data-console-nav]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.consoleNav === name);
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (name === "help") loadChangelog();
   }
+
+  const CONSOLE_NAV_TARGETS = {
+    queue: ["extract", "queue-panel"],
+    history: ["extract", "history-panel"],
+    diff: ["library", null, ".library-diff-form"],
+  };
+
+  document.getElementById("console-sidebar")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-console-nav]");
+    if (!btn) return;
+    const key = btn.dataset.consoleNav;
+    if (key === "settings") {
+      openSettings();
+      return;
+    }
+    if (tabPanels[key]) {
+      switchTab(key);
+      return;
+    }
+    const target = CONSOLE_NAV_TARGETS[key];
+    if (!target) return;
+    switchTab(target[0]);
+    const el = target[1]
+      ? document.getElementById(target[1])
+      : document.querySelector(target[2]);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  const consoleThemeToggle = document.getElementById("console-theme-toggle");
+  const themeSwitchEl = document.querySelector(".theme-switch");
+  function setConsoleThemeMenu(open) {
+    themeSwitchEl?.classList.toggle("is-open", open);
+    consoleThemeToggle?.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  consoleThemeToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setConsoleThemeMenu(!themeSwitchEl?.classList.contains("is-open"));
+  });
+  document.addEventListener("click", (event) => {
+    if (!themeSwitchEl?.classList.contains("is-open")) return;
+    if (event.target.closest("[data-theme-set]") || !event.target.closest(".theme-switch")) {
+      setConsoleThemeMenu(false);
+    }
+  });
+
+  const consoleSearch = document.getElementById("console-search");
+  consoleSearch?.addEventListener("input", (event) => {
+    const q = event.target.value.trim().toLowerCase();
+    if (filterText) {
+      filterText.value = event.target.value;
+      filterText.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    historyList?.querySelectorAll(".history-item").forEach((item) => {
+      item.classList.toggle("row-hidden", !!q && !item.textContent.toLowerCase().includes(q));
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!consoleSearch || document.documentElement.dataset.theme !== "console") return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      consoleSearch.focus();
+      consoleSearch.select();
+    }
+  });
+
+  function refreshConsoleExtractCount() {
+    const n = (urlsInput?.value || "").split("\n").filter((l) => l.trim()).length;
+    setConsoleText("console-extract-count", n > 1 ? consolePagesLabel(n) : "");
+  }
+  urlsInput?.addEventListener("input", refreshConsoleExtractCount);
+
+  document.getElementById("console-history-all")?.addEventListener("click", (event) => {
+    const expanded = historyPanel?.classList.toggle("is-expanded");
+    event.currentTarget.setAttribute("aria-expanded", expanded ? "true" : "false");
+    event.currentTarget.textContent = t(expanded ? "console.seeLess" : "console.seeAll");
+  });
+
+  document.querySelectorAll("[data-console-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!filterStatus) return;
+      filterStatus.value = btn.dataset.consoleFilter;
+      filterStatus.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  filterStatus?.addEventListener("change", () => {
+    document.querySelectorAll("[data-console-filter]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.consoleFilter === filterStatus.value);
+    });
+  });
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));

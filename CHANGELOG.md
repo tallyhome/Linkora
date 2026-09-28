@@ -4,6 +4,20 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.15.0] — 2026-09-28
+
+### Changé
+- Thème **Console** refait sur la maquette dashboard : barre latérale, cartes, file d’attente, historique récent, barre d’état
+- Défaut, Ambre et Pro restent inchangés
+
+### Ajouté
+- Bouton **Coller** (souris) sur les champs URL et dossiers
+
+### Corrigé
+- Enregistrer les paramètres n’écrase plus la couleur d’accent si elle n’a pas été modifiée
+
+---
+
 ## [2.14.0] — 2026-09-28
 
 ### Ajouté

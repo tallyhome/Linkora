@@ -193,6 +193,7 @@ Chaque app envoie un ping anonyme vers **la même API** du site :
 
 ## Fait récemment
 
+- [x] v2.15.0 — thème Console aligné sur la maquette dashboard + bouton Coller
 - [x] v2.14.0 — thème Console (4ᵉ thème, les 3 autres inchangés)
 - [x] v2.13.1 — tout sélectionner par section (saison / page)
 - [x] v2.13.0 — résoudre / copier / JD sur sélection uniquement

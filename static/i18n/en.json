@@ -63,6 +63,10 @@
     "addHost": "+ Add a hoster",
     "addHostTitle": "Add a hoster (up to 6, optional)",
     "submit": "Fetch",
+    "paste": "Paste",
+    "pasteEmpty": "Clipboard is empty.",
+    "pasteFail": "Unable to read the clipboard.",
+    "pasteOk": "Pasted.",
     "analyzing": "Analyzing…",
     "queueTitle": "Queue",
     "queueAdd": "Add URLs",
@@ -388,5 +392,26 @@
   "langNames": {
     "fr": "Français",
     "en": "English"
+  },
+  "console": {
+    "workspace": "Workspace",
+    "search": "Search history…",
+    "kpiLinks": "Links extracted",
+    "kpiRate": "Resolution rate",
+    "kpiDead": "Dead links to re-check",
+    "kpiHistory": "Pages in history",
+    "newExtract": "New extraction",
+    "pages": "{n} pages",
+    "pageOne": "1 page",
+    "filterDead": "Dead",
+    "recentHistory": "Recent history",
+    "seeAll": "See all",
+    "seeLess": "Collapse",
+    "parallel": "Parallel",
+    "retries": "Re-checks",
+    "template": "Template",
+    "connected": "Connected — {label}",
+    "disconnected": "{label} — key missing",
+    "keysMeta": "{n} API key(s) · {c} parallel resolutions"
   }
 }
