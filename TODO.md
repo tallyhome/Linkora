@@ -193,6 +193,7 @@ Chaque app envoie un ping anonyme vers **la même API** du site :
 
 ## Fait récemment
 
+- [x] v2.16.1 — nom d’extraction pris sur le slug de la page
 - [x] v2.16.0 — grille d’hébergeurs + extraction d’une page quelconque
 - [x] v2.15.0 — thème Console aligné sur la maquette dashboard + bouton Coller
 - [x] v2.14.0 — thème Console (4ᵉ thème, les 3 autres inchangés)

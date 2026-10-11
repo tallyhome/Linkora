@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import threading
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from flask import Flask, jsonify, render_template, request, send_file
 from fpdf import FPDF
@@ -148,15 +149,33 @@ def _local_only_guard():
     return None
 
 
+_PAGE_TITLE_EXT = re.compile(r"\.(?:html?|php|aspx?)$", re.I)
+_PAGE_TITLE_LEADING_ID = re.compile(r"^\d{4,}-")
+_PAGE_TITLE_TRAILING = re.compile(r"-nulled$", re.I)
+
+
 def _page_title(url: str) -> str:
+    """Nom de lot : paramètre id=, sinon le slug de la page (sans id catalogue ni -nulled)."""
     try:
-        path = urlparse(url).query
-        if "id=" in path:
-            raw = path.split("id=", 1)[1].split("&", 1)[0]
-            return raw.replace("-", " ").strip()
+        parsed = urlparse(url)
+        query = parsed.query or ""
+        if "id=" in query:
+            raw = unquote(query.split("id=", 1)[1].split("&", 1)[0])
+            title = raw.replace("-", " ").replace("+", " ").strip()
+            if title:
+                return title
+        segment = unquote(parsed.path or "").rstrip("/").rsplit("/", 1)[-1].strip()
+        segment = _PAGE_TITLE_EXT.sub("", segment)
+        segment = _PAGE_TITLE_LEADING_ID.sub("", segment)
+        segment = _PAGE_TITLE_TRAILING.sub("", segment).strip(" -_")
+        if segment:
+            return segment
+        host = (parsed.hostname or "").removeprefix("www.")
+        if host:
+            return host
     except Exception:
         pass
-    return urlparse(url).netloc or "Extraction"
+    return "Extraction"
 
 
 def _truthy(value) -> bool:

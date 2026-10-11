@@ -4,6 +4,14 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.16.1] — 2026-10-11
+
+### Changé
+- Le nom d’une extraction suit le slug de la page (`erpgo-saas-v99-all-in-one-business-erp-system`) au lieu du domaine
+- Le numéro de catalogue en tête d’URL et le suffixe `-nulled` sont retirés
+
+---
+
 ## [2.16.0] — 2026-10-11
 
 ### Ajouté
