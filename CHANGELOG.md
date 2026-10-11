@@ -4,6 +4,16 @@ Toutes les dates en **2026**. Format inspiré de [Keep a Changelog](https://keep
 
 ---
 
+## [2.16.0] — 2026-10-11
+
+### Ajouté
+- Grille d’hébergeurs à cocher : un ou plusieurs, **Tout sélectionner** / **Tout désélectionner**, filtre par nom
+- Extraction d’une page quelconque : seuls les liens des hébergeurs cochés sont gardés
+- Nouveaux hébergeurs (uploadg, rootz, f2s, buzzheavier, mediafire, katfile, prefiles, et la liste de la grille)
+- Liens dans `data-href` / `data-url` pris en compte, et `pixeldrain.net` en plus de `.com`
+
+---
+
 ## [2.15.0] — 2026-09-28
 
 ### Changé

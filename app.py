@@ -170,7 +170,7 @@ def _truthy(value) -> bool:
 
 
 def _parse_hosts(data: dict) -> tuple[list[str], bool]:
-    """Accepte hosts[] et/ou host (rétrocompat). Max 6, sauf mode « tous »."""
+    """Accepte hosts[] et/ou host (rétrocompat). Max 80, sauf mode « tous »."""
     use_all = _truthy(data.get("use_all_hosts")) or _truthy(data.get("all_hosts"))
     if use_all:
         return list(SUPPORTED_HOSTS), True
@@ -201,7 +201,7 @@ def _parse_hosts(data: dict) -> tuple[list[str], bool]:
             continue
         seen.add(key)
         out.append(value)
-        if len(out) >= 6:
+        if len(out) >= 80:
             break
     return out, False
 
@@ -503,7 +503,7 @@ def api_extract():
     host_label = "Tous les hébergeurs" if use_all_hosts else " + ".join(hosts)
     if extract_mode == "extensions":
         host_label = "Extensions"
-    scrape_max = None if use_all_hosts or extract_mode == "extensions" else 6
+    scrape_max = None if use_all_hosts or extract_mode == "extensions" else len(hosts) or None
 
     # Une URL ou une liste / texte multi-lignes
     urls_raw = data.get("urls")

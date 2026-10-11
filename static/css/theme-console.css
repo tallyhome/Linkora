@@ -754,7 +754,7 @@ html[data-theme="console"] .field-extract-mode .field-label {
 
 html[data-theme="console"] .field-urls {
   position: relative;
-  grid-column: 1 / 4;
+  grid-column: 1 / 5;
   grid-row: 2 / 5;
   align-self: stretch;
 }
@@ -785,6 +785,33 @@ html[data-theme="console"] .field-urls textarea {
 html[data-theme="console"] .extract-row,
 html[data-theme="console"] .hosts-block {
   display: contents;
+}
+
+html[data-theme="console"] .host-picker {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  border-color: var(--line);
+  background: transparent;
+  padding: 2px 0 0;
+}
+
+html[data-theme="console"] .host-picker-grid {
+  max-height: 9.5rem;
+}
+
+html[data-theme="console"] .host-chip {
+  background: var(--surface-solid);
+  border-color: var(--line-strong);
+}
+
+html[data-theme="console"] .host-chip.is-on {
+  border-color: rgba(45, 212, 191, 0.55);
+  background: rgba(45, 212, 191, 0.1);
+}
+
+html[data-theme="console"] .host-picker-filter {
+  background: var(--surface-solid);
+  border-color: var(--line-strong);
 }
 
 html[data-theme="console"] .hosts-list {
@@ -2200,6 +2227,11 @@ html[data-theme="console"] {
     grid-row: 3 / 6;
   }
 
+  html[data-theme="console"] .host-picker {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
+
   html[data-theme="console"] .hosts-list { grid-row: 3; }
   html[data-theme="console"] #btn-add-host { grid-row: 4; }
   html[data-theme="console"] .hosts-all-check { grid-row: 5; }
@@ -2240,10 +2272,11 @@ html[data-theme="console"] {
   html[data-theme="console"] .profile-bar,
   html[data-theme="console"] .field-extract-mode,
   html[data-theme="console"] .field-urls,
+  html[data-theme="console"] .host-picker,
   html[data-theme="console"] .hosts-list,
   html[data-theme="console"] #btn-add-host,
   html[data-theme="console"] .hosts-all-check {
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: auto;
   }
 

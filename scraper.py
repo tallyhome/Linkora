@@ -47,6 +47,32 @@ SUPPORTED_HOSTS: list[str] = [
     "vidoza",
     "mystream",
     "vidlox",
+    "uploadg",
+    "rootz",
+    "f2s",
+    "buzzheavier",
+    "wayupload",
+    "hitfile",
+    "4shared",
+    "alfafile",
+    "fastbit",
+    "file-upload",
+    "fileal",
+    "filedot",
+    "filespace",
+    "gigapeta",
+    "hexupload",
+    "isra",
+    "katfile",
+    "mediafire",
+    "modsbase",
+    "mp4upload",
+    "prefiles",
+    "scribd",
+    "sendit",
+    "simfileshare",
+    "upload42",
+    "world-files",
 ]
 
 # Domaines associés à chaque hébergeur (mode domains / smart).
@@ -59,7 +85,7 @@ HOST_DOMAINS: dict[str, tuple[str, ...]] = {
     "mega": ("mega.nz", "mega.co.nz"),
     "mixdrop": ("mixdrop.top", "mixdrop.co", "mixdrop.ag", "mixdrop.sx", "mixdrop.to"),
     "gofile": ("gofile.io",),
-    "pixeldrain": ("pixeldrain.com",),
+    "pixeldrain": ("pixeldrain.com", "pixeldrain.net"),
     "workupload": ("workupload.com",),
     "vikingfile": ("vikingfile.com",),
     "uploadrar": ("uploadrar.com",),
@@ -74,6 +100,32 @@ HOST_DOMAINS: dict[str, tuple[str, ...]] = {
     "vidoza": ("vidoza.net",),
     "mystream": ("mystream.to", "embed.mystream.to"),
     "vidlox": ("vidlox.me",),
+    "uploadg": ("uploadg.com",),
+    "rootz": ("rootz.so",),
+    "f2s": ("f2s.im",),
+    "buzzheavier": ("buzzheavier.com",),
+    "wayupload": ("wayupload.com",),
+    "hitfile": ("hitfile.net",),
+    "4shared": ("4shared.com",),
+    "alfafile": ("alfafile.net",),
+    "fastbit": ("fastbit.cc",),
+    "file-upload": ("file-upload.org", "file-upload.com"),
+    "fileal": ("fileal.com", "file.al"),
+    "filedot": ("filedot.to",),
+    "filespace": ("filespace.com",),
+    "gigapeta": ("gigapeta.com",),
+    "hexupload": ("hexupload.net", "hexload.com"),
+    "isra": ("isra.cloud",),
+    "katfile": ("katfile.com", "katfile.cloud"),
+    "mediafire": ("mediafire.com",),
+    "modsbase": ("modsbase.com",),
+    "mp4upload": ("mp4upload.com",),
+    "prefiles": ("prefiles.com",),
+    "scribd": ("scribd.com",),
+    "sendit": ("sendit.cloud",),
+    "simfileshare": ("simfileshare.net",),
+    "upload42": ("upload42.com",),
+    "world-files": ("world-files.com",),
 }
 
 # Variantes de matching (classes providers* / titres sur les pages source).
@@ -465,6 +517,25 @@ def _extract_extensions(
         )
 
 
+def _extract_attr_urls(
+    soup: BeautifulSoup,
+    hosts: list[str],
+    results: list[dict],
+    seen: set[str],
+) -> None:
+    """Liens rangés dans data-href / data-url plutôt que dans href."""
+    for tag in soup.find_all(True):
+        for attr in ("data-href", "data-url", "data-link", "data-clipboard-text"):
+            raw = tag.get(attr)
+            if not isinstance(raw, str) or not raw.strip().lower().startswith("http"):
+                continue
+            href = _clean_url(raw)
+            matched = _host_for_url(href, hosts)
+            if not matched:
+                continue
+            _append_result(results, seen, url=href, matched_host=matched)
+
+
 def _extract_plaintext_urls(
     html: str,
     hosts: list[str],
@@ -530,6 +601,7 @@ def _extract_adaptive(
     """
     _extract_providers(soup, hosts, results, seen)
     _extract_domains(soup, hosts, results, seen)
+    _extract_attr_urls(soup, hosts, results, seen)
     _extract_protectors(
         soup,
         hosts,

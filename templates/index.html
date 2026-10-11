@@ -244,7 +244,17 @@
 
         <div class="extract-row">
           <div class="hosts-block">
-            <div class="hosts-list" id="hosts-list">
+            <div class="host-picker" id="host-picker">
+              <div class="host-picker-head">
+                <span class="host-picker-title" data-i18n="extract.hostsTitle">Hébergeurs</span>
+                <span class="host-picker-count" id="host-picker-count">0 sélectionné</span>
+                <input type="search" id="host-picker-filter" class="host-picker-filter" placeholder="Filtrer…" data-i18n-placeholder="extract.hostsFilter" spellcheck="false" autocomplete="off">
+                <button type="button" class="btn btn-ghost btn-xs" id="btn-hosts-all" data-i18n="extract.hostsSelectAll">Tout sélectionner</button>
+                <button type="button" class="btn btn-ghost btn-xs" id="btn-hosts-none" data-i18n="extract.hostsSelectNone">Tout désélectionner</button>
+              </div>
+              <div class="host-picker-grid" id="host-picker-grid" role="group" data-i18n-aria="extract.hostsTitle" aria-label="Hébergeurs"></div>
+            </div>
+            <div class="hosts-list host-legacy" id="hosts-list">
               <div class="host-row" data-host-row>
                 <label class="field field-host">
                   <span class="field-label" data-i18n="extract.host">Hébergeur</span>
@@ -262,7 +272,7 @@
                 </label>
               </div>
             </div>
-            <label class="check-field hosts-all-check" title="Utilise tous les hébergeurs connus du système présents sur la page">
+            <label class="check-field hosts-all-check host-legacy" title="Utilise tous les hébergeurs connus du système présents sur la page">
               <input type="checkbox" id="use-all-hosts" name="use_all_hosts">
               <span data-i18n="extract.allHosts">Tous les hébergeurs disponibles</span>
             </label>
@@ -275,7 +285,7 @@
                 <option value="extensions" data-i18n="extract.modeExtensions">Extensions (.zip…)</option>
               </select>
             </label>
-            <button type="button" class="btn btn-ghost btn-xs" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)" data-i18n="extract.addHost" data-i18n-title="extract.addHostTitle">
+            <button type="button" class="btn btn-ghost btn-xs host-legacy" id="btn-add-host" title="Ajouter un hébergeur (jusqu’à 6, optionnel)" data-i18n="extract.addHost" data-i18n-title="extract.addHostTitle">
               + Ajouter un hébergeur
             </button>
             <datalist id="host-suggestions">
@@ -780,8 +790,10 @@
             </dd>
             <dt>Hébergeur</dt>
             <dd>
-              Mot-clé filtré (ex. <code>rapidgator</code>, <code>mega</code>).
-              Case <strong>Tous les hébergeurs disponibles</strong> : tous les hosters connus présents sur la page.
+              Cochez un ou plusieurs hébergeurs dans la grille (ou <strong>Tout sélectionner</strong>).
+              Seuls les liens de ces hébergeurs sont gardés, sur n’importe quelle page.
+              Le filtre (ex. <code>rapidgator</code>, <code>mega</code>) retrouve un nom dans la grille.
+              <strong>Tout sélectionner</strong> garde tous les hébergeurs connus présents sur la page.
               <strong>Mode d’extraction</strong> :
               <em>Smart</em> (défaut) s’adapte : providers + domaines + protecteurs (dl-protect) avec hébergeur détecté à côté
               — annuaires films/séries, zone-annuaire, pages scripts (Codelist) ;

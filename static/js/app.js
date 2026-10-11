@@ -105,7 +105,7 @@
     realdebrid: "Real-Debrid",
   };
 
-  const MAX_HOSTS = 6;
+  const MAX_HOSTS = 80;
   const useAllHostsInput = document.getElementById("use-all-hosts");
   let supportedHosts = [
     "rapidgator",
@@ -131,6 +131,32 @@
     "vidoza",
     "mystream",
     "vidlox",
+    "uploadg",
+    "rootz",
+    "f2s",
+    "buzzheavier",
+    "wayupload",
+    "hitfile",
+    "4shared",
+    "alfafile",
+    "fastbit",
+    "file-upload",
+    "fileal",
+    "filedot",
+    "filespace",
+    "gigapeta",
+    "hexupload",
+    "isra",
+    "katfile",
+    "mediafire",
+    "modsbase",
+    "mp4upload",
+    "prefiles",
+    "scribd",
+    "sendit",
+    "simfileshare",
+    "upload42",
+    "world-files",
   ];
 
   function isUseAllHosts() {
@@ -155,10 +181,17 @@
     return [...document.querySelectorAll("[data-host-input]")];
   }
 
+  function pickerBoxes() {
+    return [...document.querySelectorAll("#host-picker-grid [data-host-pick]")];
+  }
+
   function getHosts() {
-    if (isUseAllHosts()) {
-      return supportedHosts.slice();
-    }
+    const picks = pickerBoxes()
+      .filter((input) => input.checked)
+      .map((input) => input.value.trim())
+      .filter(Boolean);
+    if (picks.length) return picks.slice(0, MAX_HOSTS);
+    if (isUseAllHosts()) return supportedHosts.slice();
     const out = [];
     const seen = new Set();
     for (const input of getHostInputs()) {
@@ -177,7 +210,18 @@
     if (hosts == null && isUseAllHosts()) return "Tous les hébergeurs";
     const list = hosts || getHosts();
     if (!list.length) return "";
-    if (list.length > MAX_HOSTS) return "Tous les hébergeurs";
+    if (
+      supportedHosts.length &&
+      list.length >= supportedHosts.length &&
+      supportedHosts.every((h) => list.some((x) => x.toLowerCase() === h.toLowerCase()))
+    ) {
+      return "Tous les hébergeurs";
+    }
+    if (list.length > 3) {
+      return list.length === 1
+        ? t("extract.hostsSelectedOne")
+        : t("extract.hostsSelected", { n: list.length });
+    }
     return list.join(" + ");
   }
 
@@ -230,9 +274,65 @@
   }
 
   function setUseAllHosts(enabled) {
+    pickerBoxes().forEach((input) => {
+      input.checked = !!enabled;
+    });
     if (useAllHostsInput) useAllHostsInput.checked = !!enabled;
+    syncHostPickerUi();
     syncHostsUiState();
     syncAddHostButton();
+  }
+
+  function hostChipHtml(name, { checked = false, custom = false } = {}) {
+    const raw = String(name || "").trim();
+    const letter = (raw.replace(/[^a-z0-9]/gi, "")[0] || "?").toUpperCase();
+    let hash = 0;
+    for (const ch of raw) hash = (hash * 33 + ch.charCodeAt(0)) >>> 0;
+    return `<label class="host-chip${checked ? " is-on" : ""}" style="--chip-hue:${hash % 360}">
+      <input type="checkbox" data-host-pick${custom ? " data-host-custom" : ""} value="${escapeHtml(raw)}"${checked ? " checked" : ""}>
+      <span class="host-chip-mark" aria-hidden="true">${escapeHtml(letter)}</span>
+      <span class="host-chip-name">${escapeHtml(raw)}</span>
+    </label>`;
+  }
+
+  function renderHostPicker(hosts) {
+    const grid = document.getElementById("host-picker-grid");
+    if (!grid) return;
+    const selected = new Set(
+      pickerBoxes()
+        .filter((el) => el.checked)
+        .map((el) => el.value.toLowerCase())
+    );
+    const allOn = !!useAllHostsInput?.checked && pickerBoxes().length > 0;
+    grid.innerHTML = (hosts || [])
+      .map((name) =>
+        hostChipHtml(name, {
+          checked: allOn || selected.has(String(name).toLowerCase()),
+        })
+      )
+      .join("");
+    syncHostPickerUi();
+  }
+
+  function syncHostPickerUi() {
+    const boxes = pickerBoxes();
+    const n = boxes.filter((box) => box.checked).length;
+    const countEl = document.getElementById("host-picker-count");
+    if (countEl) {
+      countEl.textContent =
+        n === 1 ? t("extract.hostsSelectedOne") : t("extract.hostsSelected", { n });
+    }
+    boxes.forEach((box) => box.closest(".host-chip")?.classList.toggle("is-on", box.checked));
+    if (useAllHostsInput && boxes.length) {
+      useAllHostsInput.checked = n === boxes.length;
+    }
+    const query = (document.getElementById("host-picker-filter")?.value || "")
+      .trim()
+      .toLowerCase();
+    boxes.forEach((box) => {
+      const hide = !!query && !box.value.toLowerCase().includes(query);
+      box.closest(".host-chip")?.classList.toggle("is-filtered", hide);
+    });
   }
 
   function fillHostSuggestions(hosts) {
@@ -250,6 +350,7 @@
       if (Array.isArray(data.hosts) && data.hosts.length) {
         supportedHosts = data.hosts.map((h) => String(h || "").trim()).filter(Boolean);
         fillHostSuggestions(supportedHosts);
+        renderHostPicker(supportedHosts);
       }
     } catch {
       /* garde la liste embarquée */
@@ -287,11 +388,25 @@
     const list = parseHostsValue(hosts);
     const primary = list[0] || "";
     if (hostInput) hostInput.value = primary;
+    const grid = document.getElementById("host-picker-grid");
+    if (grid) {
+      grid.querySelectorAll("[data-host-custom]").forEach((el) => el.closest(".host-chip")?.remove());
+      const wanted = new Set(list.map((h) => h.toLowerCase()));
+      const known = new Set(pickerBoxes().map((el) => el.value.toLowerCase()));
+      list.forEach((name) => {
+        if (known.has(name.toLowerCase())) return;
+        grid.insertAdjacentHTML("beforeend", hostChipHtml(name, { checked: true, custom: true }));
+      });
+      pickerBoxes().forEach((input) => {
+        input.checked = wanted.has(input.value.toLowerCase());
+      });
+      syncHostPickerUi();
+    }
     if (!hostsList) return;
     hostsList.querySelectorAll("[data-host-row]").forEach((row, idx) => {
       if (idx > 0) row.remove();
     });
-    list.slice(1).forEach((h) => addHostRow(h));
+    list.slice(1, 6).forEach((h) => addHostRow(h));
     const firstLabel = hostsList.querySelector("[data-host-row] .field-label");
     if (firstLabel) firstLabel.textContent = t("extract.host");
     syncAddHostButton();
@@ -1391,6 +1506,7 @@
     if (uiLocaleSelect) uiLocaleSelect.value = value;
     document.title = t("meta.title");
     updateProviderBadge();
+    syncHostPickerUi();
     if (historyCount) {
       historyCount.textContent =
         historyItemsCount === 1
@@ -5507,6 +5623,15 @@
   });
 
   btnAddHost?.addEventListener("click", () => addHostRow(""));
+
+  document.getElementById("host-picker-grid")?.addEventListener("change", (event) => {
+    if (!event.target.closest("[data-host-pick]")) return;
+    syncHostPickerUi();
+  });
+  document.getElementById("btn-hosts-all")?.addEventListener("click", () => setUseAllHosts(true));
+  document.getElementById("btn-hosts-none")?.addEventListener("click", () => setUseAllHosts(false));
+  document.getElementById("host-picker-filter")?.addEventListener("input", () => syncHostPickerUi());
+  renderHostPicker(supportedHosts);
   useAllHostsInput?.addEventListener("change", () => {
     syncHostsUiState();
     syncAddHostButton();
